@@ -1,0 +1,59 @@
+data:
+    name: megadepth
+    train_split: superglue_train_scenes_clean.txt
+    resize: 1280
+    resize_by: max
+    pad: 1280
+    two_view: true
+    min_overlap: 0.3
+    max_overlap: 1.0
+    sort_by_overlap: false
+    shuffle_training: true
+    train_num_per_scene: 400
+    batch_size: 32
+    num_workers: 16
+    load_features:
+        do: True
+        export_name: DISK-n2048_megadepth-undist-r1024
+        max_num_keypoints: 1024
+        force_num_keypoints: true
+        load_descriptors: true
+        grouped: false
+model:
+    name: two_view_pipeline
+    extractor:
+        name: null
+    detector:
+        name: null
+    descriptor:
+        name: null
+    ground_truth:
+        from_pose_depth: true
+        th_positive: 6
+        th_negative: 10
+    matcher:
+        name: superglue_v1
+        weights: null
+        input_dim: 128
+        descriptor_dim: 256
+        GNN_layers: [
+            self, cross, self, cross, self, cross,
+            self, cross, self, cross, self, cross,
+            self, cross, self, cross, self, cross,
+        ]
+        num_sinkhorn_iterations: 20
+        checkpointed: true
+        loss:
+            nll_balancing: 0.9
+train:
+    seed: 0
+    epochs: 200
+    log_every_iter: 100
+    eval_every_iter: 500
+    dataset_callback_fn: sample_new_items
+    lr: 0.0001
+    lr_schedule:
+        start: 100e3
+        type: exp
+        exp_div_10: 50e3
+    median_metrics: [match_recall]
