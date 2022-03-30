@@ -1,0 +1,10 @@
+torch
+torchvision
+numpy
+opencv-python
+tensorboard
+omegaconf
+tqdm
+future  # tensorboard dependency
+matplotlib
+jupyter

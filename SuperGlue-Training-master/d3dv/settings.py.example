@@ -1,0 +1,7 @@
+"""
+1)  Modify `EXPER_PATH` and `DATA_PATH` to point to any directories,
+    with absolute or relative paths.
+2)  Rename this file to `settings.py`.
+"""
+EXPER_PATH = './experiments/'
+DATA_PATH = './data/'
