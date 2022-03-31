@@ -82,7 +82,7 @@ for seed in range(1, 5):
 
 
 
-    folder = os.path.abspath("C:\\Users\\mathi\\OneDrive\\Studium\\ETH\\MA2\\3D Vision\\Project\\Old Project\\object_fracturing\\data\\")
+    folder = os.path.abspath("C:\\Users\\mathi\\OneDrive\\Studium\\ETH\\MA2\\3D Vision\\Project\\Old Project\\3D_learned_Object_reassembly\\object_fracturing\\data\\")
     name = primitive + "_" + str(count) + "_seed_" + str(seed)
     path = os.path.join(folder, name)
     os.makedirs(path, exist_ok=True)
