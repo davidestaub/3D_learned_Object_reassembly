@@ -26,3 +26,7 @@ this expands the object such that each fragment can be viewed independently
 mesh_explosion_cleaned:
 this expands the object such that each fragment can be viewed independently
 but works in the cleaned subfolder
+
+subdivide:
+divides all the vertices in half until they are less in size than twice the size of
+the biggest vertice (why? I don't know yet...)

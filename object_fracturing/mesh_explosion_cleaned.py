@@ -4,31 +4,18 @@ from compas.datastructures import Mesh
 from compas.datastructures import mesh_transform_numpy
 import compas.geometry as cg
 from compas.utilities import i_to_rgb
-from tools import printProgressBar
+from tools import *
 from compas_view2.app import App
 
 # ==============================================================================
 # File
 # ==============================================================================
-HERE = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-
-data_list = os.listdir(os.path.join(HERE, 'data'))
-print("id  name")
-for idx, val in enumerate(data_list):
-    print(idx," ", val)
-
-idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
-SUBFOLDER = data_list[idx]
-
-FILE_FOLDER = os.path.join(HERE, 'data', SUBFOLDER)
-FILE_FOLDER_CLEANED = os.path.join(HERE, 'data', SUBFOLDER, 'cleaned')
-print("Opening folder:", FILE_FOLDER)
-
+FILE_FOLDER, FILE_FOLDER_CLEANED = select_folder()
 
 # initialize viewer
 viewer = App()
 
-file_nums = len(os.listdir(FILE_FOLDER_CLEANED))/2
+file_nums = len([item for item in os.listdir(FILE_FOLDER_CLEANED) if item.endswith(".obj")])
 print("Found", file_nums, "files")
 
 for i, filename in enumerate(os.listdir(FILE_FOLDER)):

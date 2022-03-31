@@ -3,31 +3,20 @@ from compas.datastructures import Mesh
 from compas.datastructures import mesh_transform_numpy
 import compas.geometry as cg
 from compas.utilities import i_to_rgb
-
+from tools import *
 from compas_view2.app import App
 
 # ==============================================================================
 # File
 # ==============================================================================
-HERE = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-
-data_list = os.listdir(os.path.join(HERE, 'data'))
-print("id  name")
-for idx, val in enumerate(data_list):
-    print(idx," ", val)
-
-idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
-SUBFOLDER = data_list[idx]
-
-FILE_FOLDER = os.path.join(HERE, 'data', SUBFOLDER)
-print("Opening folder:", FILE_FOLDER)
+FILE_FOLDER, FILE_FOLDER_CLEANED = select_folder()
 
 
 # initialize viewer
 viewer = App()
 
-file_nums = len(os.listdir(FILE_FOLDER))
-print(file_nums)
+file_nums = len([item for item in os.listdir(FILE_FOLDER) if item.endswith(".obj")])
+print("Found", file_nums, "files")
 
 for i, filename in enumerate(os.listdir(FILE_FOLDER)):
     FILE_I = os.path.join(FILE_FOLDER, filename)
@@ -35,9 +24,13 @@ for i, filename in enumerate(os.listdir(FILE_FOLDER)):
         mesh = Mesh.from_obj(FILE_I)
         mass_center = mesh.centroid()
 
+counter = 0
+
 for i, filename in enumerate(os.listdir(FILE_FOLDER)):
-    FILE_I = os.path.join(FILE_FOLDER, filename)
+    
     if filename.endswith(".obj") and "shard" in filename:
+        FILE_I = os.path.join(FILE_FOLDER, filename)
+        printProgressBar(counter+2,file_nums, prefix="Loading Fragments")
         mesh = Mesh.from_obj(FILE_I)
         mesh_center = mesh.centroid()
         vec = cg.Vector(*[a - b for (a, b) in zip(mesh_center, mass_center)])
@@ -45,7 +38,7 @@ for i, filename in enumerate(os.listdir(FILE_FOLDER)):
         T = cg.Translation.from_vector(vec)
         mesh_transform_numpy(mesh, T)
         viewer.add(mesh, facecolor=i_to_rgb(i/file_nums, True))
-
+        counter += 1
 # ==============================================================================
 # Viz
 # ==============================================================================

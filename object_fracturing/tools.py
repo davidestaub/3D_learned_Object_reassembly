@@ -1,3 +1,5 @@
+import os
+
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
     """
@@ -19,3 +21,19 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     # Print New Line on Complete
     if iteration == total: 
         print()
+
+def select_folder():
+    here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+
+    data_list = os.listdir(os.path.join(here, 'data'))
+    print("id  name")
+    for idx, val in enumerate(data_list):
+        print(idx," ", val)
+
+    idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
+    subfolder = data_list[idx]
+    print("Opening folder:", subfolder)
+    folder = os.path.join(here, 'data', subfolder)
+    subfolder = os.path.join(here, 'data', subfolder, 'cleaned')
+    return folder, subfolder
+    
