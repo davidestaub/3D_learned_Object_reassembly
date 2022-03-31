@@ -34,6 +34,5 @@ def select_folder():
     subfolder = data_list[idx]
     print("Opening folder:", subfolder)
     folder = os.path.join(here, 'data', subfolder)
-    subfolder = os.path.join(here, 'data', subfolder, 'cleaned')
-    return folder, subfolder
+    return folder
     

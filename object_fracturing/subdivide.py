@@ -47,7 +47,7 @@ cleared_suffix = FILE_FOLDER.split('\\')[-1].split('_')[0] + "subdv"
 problem_ind = []
 
 for i, mesh in enumerate(meshes):
-    FILE_O = FILE_FOLDER + "\\subdv\\" + cleared_suffix + "_" + str(i) + ".npy"
+    FILE_O = FILE_FOLDER + "\\subdv\\" + cleared_suffix + "_" + str(i)
     len_f = len(list(mesh.faces()))
     len_v = len(list(mesh.vertices()))
     len_e = len(list(mesh.edges()))
@@ -61,7 +61,8 @@ for i, mesh in enumerate(meshes):
         vertices = np.array([mesh.vertex_coordinates(vkey) for vkey in mesh.vertices()])
         normals = np.array([mesh.vertex_normal(vkey) for vkey in mesh.vertices()])
         datas = np.concatenate((vertices, normals), axis=1)
-        np.save(FILE_O, datas)
+        np.save(FILE_O + ".npy", datas)
+        mesh.to_obj(FILE_O+".obj")
     except:
         print("soemthing goes wrong...", i)
         problem_ind.append(i)
