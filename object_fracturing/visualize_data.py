@@ -35,6 +35,10 @@ if not os.path.exists(FOLDER):
 
 explode = bool(int(input("Do you want do explode the data?\n1:Yes\n0:No\n")))
 
+# ==============================================================================
+# Loading the data
+# ==============================================================================
+
 # initialize viewer
 viewer = App()
 
