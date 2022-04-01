@@ -46,6 +46,7 @@ from typing import List, Tuple
 
 import torch
 from torch import nn
+import torch.utils.data as td
 import numpy as np
 import logging
 import os
@@ -459,6 +460,172 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
     return results
 
 
+#Creating a own dataset type for our input, move this to a separate file later!
+# dataset definition
+class FragmentsDataset(td.Dataset):
+    # load the dataset
+    def __init__(self, path):
+        # store the inputs and outputs
+        # y should be an array type of either 1's (match) or -1's (no match)
+        # X is the input data, an array type holding a pair of kepoints and descriptors
+        #TODO: Need to make sure that the input data hear fits with the input data for a forward pass
+        self.X = ...
+        self.y = ...
+
+    # number of rows in the dataset
+    def __len__(self):
+        return len(self.X)
+
+    # get a row at an index
+    def __getitem__(self, idx):
+        return [self.X[idx], self.y[idx]]
+
+
+
+
+def dummy_training(gt_data,seed,model_config):
+    init_cp = None
+    set_seed(seed)
+    writer = SummaryWriter(log_dir=str(output_dir))
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    logging.info(f'Using device {device}')
+
+    #Loading the fragment data
+    dataset = FragmentsDataset(gt_data)
+
+    #Splitting into train test
+    train_size = int(0.8 * len(dataset))
+    test_size = len(dataset) - train_size
+
+    train, test = td.random_split(dataset, [train_size, test_size])
+    # create a data loader for train and test sets
+    train_dl = td.DataLoader(train, batch_size=32, shuffle=True)
+    test_dl = td.DataLoader(test, batch_size=1024, shuffle=False)
+
+    logging.info(f'Training loader has {len(train_dl)} batches')
+    logging.info(f'Validation loader has {len(test_dl)} batches')
+
+    # Changed from get_model() to this
+    model = SuperGlue(model_config)
+
+    loss_fn, metrics_fn = model.loss, model.metrics
+    model = model.to(device)
+    if init_cp is not None:
+        model.load_state_dict(init_cp['model'])
+
+    logging.info(f'Model: \n{model}')
+    torch.backends.cudnn.benchmark = True
+
+    optimizer_fn = {'sgd': torch.optim.SGD,
+                    'adam': torch.optim.Adam,
+                    'rmsprop': torch.optim.RMSprop}[conf.train.optimizer]
+    params = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
+    if conf.train.opt_regexp:
+        # examples: '.*(weight|bias)$', 'cnn\.(enc0|enc1).*bias'
+        def filter_fn(x):
+            n, p = x
+            match = re.search(conf.train.opt_regexp, n)
+            if not match:
+                p.requires_grad = False
+            return match
+
+        params = list(filter(filter_fn, params))
+        assert len(params) > 0, conf.train.opt_regexp
+        logging.info('Selected parameters:\n' + '\n'.join(n for n, p in params))
+    optimizer = optimizer_fn(
+        [p for n, p in params], lr=conf.train.lr,
+        **conf.train.optimizer_options)
+
+    def lr_fn(it):  # noqa: E306
+        if conf.train.lr_schedule.type is None:
+            return 1
+        if conf.train.lr_schedule.type == 'exp':
+            gam = 10 ** (-1 / conf.train.lr_schedule.exp_div_10)
+            return 1 if it < conf.train.lr_schedule.start else gam
+        else:
+            raise ValueError(conf.train.lr_schedule.type)
+
+    lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
+    if args.restore:
+        optimizer.load_state_dict(init_cp['optimizer'])
+        if 'lr_scheduler' in init_cp:
+            lr_scheduler.load_state_dict(init_cp['lr_scheduler'])
+
+    logging.info(f'Starting training with configuration:\n{conf.pretty()}')
+
+    losses_ = None
+
+    epoch = 0
+
+    while epoch < conf.train.epochs:
+        logging.info(f'Starting epoch {epoch}')
+        set_seed(conf.train.seed + epoch)
+        if epoch > 0 and conf.train.dataset_callback_fn:
+            getattr(train_dl.dataset, conf.train.dataset_callback_fn)(conf.train.seed + epoch)
+
+        for it, data in enumerate(train_dl):
+            tot_it = len(train_dl) * epoch + it
+
+            model.train()
+            optimizer.zero_grad()
+            data = batch_to_device(data, device, non_blocking=True)
+            pred = model(data)
+            losses = loss_fn(pred, data)
+            loss = torch.mean(losses['total'])
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+
+            if it % conf.train.log_every_iter == 0:
+                for k in sorted(losses.keys()):
+                    losses[k] = torch.mean(losses[k]).item()
+                    str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
+                    logging.info('[E {} | it {}] loss {{{}}}'.format(
+                        epoch, it, ', '.join(str_losses)))
+                    for k, v in losses.items():
+                        writer.add_scalar('training/' + k, v, tot_it)
+                    writer.add_scalar(
+                        'training/lr', optimizer.param_groups[0]['lr'], tot_it)
+
+            del pred, data, loss, losses
+
+            if ((it % conf.train.eval_every_iter == 0) or it == (len(train_dl) - 1)):
+                results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, conf.train)
+
+                str_results = [f'{k} {v:.3E}' for k, v in results.items()]
+                logging.info(f'[Validation] {{{", ".join(str_results)}}}')
+                for k, v in results.items():
+                    writer.add_scalar('val/' + k, v, tot_it)
+                torch.cuda.empty_cache()  # should be cleared at the first iter
+
+        state = (model.module if args.distributed else model).state_dict()
+        checkpoint = {
+                'model': state,
+                'optimizer': optimizer.state_dict(),
+                'lr_scheduler': lr_scheduler.state_dict(),
+                'conf': OmegaConf.to_container(conf, resolve=True),
+                'epoch': epoch,
+                'losses': losses_,
+                'eval': results,
+            }
+        cp_name = f'checkpoint_{epoch}'
+        logging.info(f'Saving checkpoint {cp_name}')
+        cp_path = str(output_dir / (cp_name + '.tar'))
+        torch.save(checkpoint, cp_path)
+        if results[conf.train.best_key] < best_eval:
+            best_eval = results[conf.train.best_key]
+            logging.info(
+                f'New best checkpoint: {conf.train.best_key}={best_eval}')
+            shutil.copy(cp_path, str(output_dir / 'checkpoint_best.tar'))
+        delete_old_checkpoints(
+            output_dir, conf.train.keep_last_checkpoints)
+        del checkpoint
+
+        epoch += 1
+
+    logging.info(f'Finished training.')
+
+    writer.close()
 
 def training(rank, conf, output_dir, args,model_config,dataset):
     ''''Removing this for now'''''
