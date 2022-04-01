@@ -1,27 +1,19 @@
 import os
 import numpy as np
+from tools import *
 
 from compas.datastructures import Mesh
 from compas.datastructures import mesh_explode
-from compas.files import OBJWriter
 
 # ==============================================================================
 # File
 # ==============================================================================
-HERE = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-
-data_list = os.listdir(os.path.join(HERE, 'data'))
-print("id  name")
-for idx, val in enumerate(data_list):
-    print(idx," ", val)
-
-idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
-SUBFOLDER = data_list[idx]
-FILE_FOLDER = os.path.join(HERE, 'data', SUBFOLDER)
-
+ROOT = select_folder()
+CLEANED = os.path.join(ROOT, 'cleaned\\')
+SUBDV = os.path.join(ROOT, 'subdv\\')
 
 # create a directory for cleaned files if not yet existing
-os.chdir(FILE_FOLDER)
+os.chdir(ROOT)
 if not os.path.isdir('cleaned'):
     os.mkdir('cleaned')
 
@@ -29,10 +21,11 @@ if not os.path.isdir('cleaned'):
 # ==============================================================================
 # Output
 # ==============================================================================
-counter = 0
-for i, filename in enumerate(os.listdir(FILE_FOLDER)):
+object_name = ROOT.split('\\')[-1]
+
+for i, filename in enumerate(os.listdir(ROOT)):
     if filename.endswith(".obj"):
-        FILE_I = os.path.join(FILE_FOLDER, filename)
+        FILE_I = os.path.join(ROOT, filename)
         if "shard" in filename: 
             mesh = Mesh.from_obj(FILE_I)
 
@@ -44,8 +37,8 @@ for i, filename in enumerate(os.listdir(FILE_FOLDER)):
                 print("Sepparating parts...")
             
             for ex_mesh in exploded_meshes:
-                FILE_O_NPY = os.path.join(FILE_FOLDER,'cleaned', '%s_%s.npy' % (SUBFOLDER, counter))
-                FILE_O_OBJ = os.path.join(FILE_FOLDER,'cleaned', '%s_%s.obj' % (SUBFOLDER, counter))
+                FILE_O_NPY = os.path.join(CLEANED, '%s_%s.npy' % (object_name, i))
+                FILE_O_OBJ = os.path.join(CLEANED, '%s_%s.obj' % (object_name, i))
 
                 # delete tiny pieces
                 if len(list(ex_mesh.vertices())) < 100:
@@ -60,13 +53,6 @@ for i, filename in enumerate(os.listdir(FILE_FOLDER)):
                 #print(np.shape(datas))
                 np.save(FILE_O_NPY, datas)
 
-                counter += 1
-
     elif filename.endswith(".mtl"):
-        FILE_E = os.path.join(FILE_FOLDER, filename)
+        FILE_E = os.path.join(ROOT, filename)
         os.remove(FILE_E)
-
-
-
-
-

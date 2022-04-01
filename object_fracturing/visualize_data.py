@@ -12,8 +12,8 @@ from compas_view2.app import App
 # File
 # ==============================================================================
 ROOT = select_folder()
-CLEANED = os.path.join(ROOT, 'cleaned')
-SUBDV = os.path.join(ROOT, 'subdv')
+CLEANED = os.path.join(ROOT, 'cleaned\\')
+SUBDV = os.path.join(ROOT, 'subdv\\')
 FOLDER = ROOT
 
 print(1, "normal")

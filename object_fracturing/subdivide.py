@@ -6,14 +6,19 @@ from tools import *
 
 from compas.datastructures import Mesh
 from compas.datastructures import mesh_subdivide_corner
-from compas.datastructures import mesh_explode
 
 from compas_view2.app import App
-from compas.utilities import i_to_rgb
 # ==============================================================================
 # File
 # ==============================================================================
-FILE_FOLDER, FILE_FOLDER_CLEANED = select_folder()
+ROOT = select_folder()
+CLEANED = os.path.join(ROOT, 'cleaned\\')
+SUBDV = os.path.join(ROOT, 'subdv\\')
+
+# create a directory for cleaned files if not yet existing
+os.chdir(ROOT)
+if not os.path.isdir('subdv'):
+    os.mkdir('subdv')
 
 # ==============================================================================
 # Analysis Data
@@ -22,9 +27,9 @@ FILE_FOLDER, FILE_FOLDER_CLEANED = select_folder()
 meshes = []
 max_len_v = 2000
 
-for filename in os.listdir(FILE_FOLDER_CLEANED):
+for filename in os.listdir(CLEANED):
     if filename.endswith(".obj"):
-        filepath = os.path.join(FILE_FOLDER_CLEANED, filename)
+        filepath = os.path.join(CLEANED, filename)
         mesh = Mesh.from_obj(filepath)
         len_v = len(list(mesh.vertices()))
         if len_v > max_len_v:
@@ -39,15 +44,11 @@ meshes_copy = copy.deepcopy(meshes)
 # ==============================================================================
 # Subdivide and Output
 # ==============================================================================
-os.chdir(FILE_FOLDER)
-if not os.path.isdir('subdv'):
-    os.mkdir('subdv')
-
-cleared_suffix = FILE_FOLDER.split('\\')[-1].split('_')[0] + "subdv"
+object_name = ROOT.split('\\')[-1]
 problem_ind = []
 
 for i, mesh in enumerate(meshes):
-    FILE_O = FILE_FOLDER + "\\subdv\\" + cleared_suffix + "_" + str(i)
+    FILE_O = os.path.join(SUBDV, '%s_%s' % (object_name, i))
     len_f = len(list(mesh.faces()))
     len_v = len(list(mesh.vertices()))
     len_e = len(list(mesh.edges()))

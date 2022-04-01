@@ -10,8 +10,8 @@ bpy.app.debug = True
 bpyscene = bpy.context.scene
 
 
-primitive = "cube"
-#primitive = "cylinder"
+#primitive = "cube"
+primitive = "cylinder"
 
 for seed in range(1, 5):
 
