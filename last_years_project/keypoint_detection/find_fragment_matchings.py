@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pptk
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
 from multiprocessing import Pool
-VISUALIZE = False
+VISUALIZE = True
+SAVE_MATCHINGS = False
 # Root data folder. (such that DATA_FOLDER/pointclouds/{name} contains pointcloud npys.
-DATA_FOLDER = '../data'
+DATA_FOLDER = '../datasets'
 
 
 def find_matching_matrix(name):
@@ -27,7 +29,6 @@ def find_matching_matrix(name):
         # if name[0:3] == 'cat':
         #     fragment[part][:, :3] /= 450
 
-        print(fragments[num_parts].shape)
         if num_parts == 999:
             print('WARNING: part limit reached, only loaded the first 1000 parts.')
         num_parts += 1
@@ -44,21 +45,21 @@ def find_matching_matrix(name):
         plt.show()
         plt.close(fig)
 
-    matching_matrix = np.zeros((num_parts, num_parts))
-    for i in range(num_parts):
-        for j in range(i):
-            # search for corresponding points in two parts (distance below a treshold)
-            matches = np.sum(cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
-            # print(f'Fragments {i} and {j} have {matches} matches')
+    if SAVE_MATCHINGS:
+        matching_matrix = np.zeros((num_parts, num_parts))
+        for i in range(num_parts):
+            for j in range(i):
+                # search for corresponding points in two parts (distance below a treshold)
+                matches = np.sum(cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
+                # print(f'Fragments {i} and {j} have {matches} matches')
 
-            # if there are more than 100 matches, the parts are considered neighbours
-            if matches > 100:
-                print(f'{name}: {i} and {j} match!')
-                matching_matrix[i, j] = matching_matrix[j, i] = 1
-
-    print(matching_matrix)
-    print(f'saving to {DATA_FOLDER}/fragment_matchings/{name}.npy')
-    np.save(f'{DATA_FOLDER}/fragment_matchings/{name}.npy', matching_matrix)
+                # if there are more than 100 matches, the parts are considered neighbours
+                if matches > 100:
+                    print(f'{name}: {i} and {j} match!')
+                    matching_matrix[i, j] = matching_matrix[j, i] = 1
+        print(matching_matrix)
+        print(f'saving to {DATA_FOLDER}/fragment_matchings/{name}.npy')
+        np.save(f'{DATA_FOLDER}/fragment_matchings/{name}.npy', matching_matrix)
 
 
 def main():
