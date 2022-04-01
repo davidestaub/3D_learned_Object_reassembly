@@ -9,8 +9,10 @@ from omegaconf import OmegaConf
 import torch
 import os
 
-from ..settings import EXPER_PATH
-from ..models import get_model
+#from ..settings import EXPER_PATH
+#from ..models import get_model
+
+EXPER_PATH = "experiment_folder"
 
 
 def list_checkpoints(dir_):
@@ -53,7 +55,7 @@ def delete_old_checkpoints(dir_, num_keep):
             kept += 1
 
 
-def load_experiment(exper, conf={}):
+def load_experiment(exper, model,conf={},):
     """Load and return the model of a given experiment."""
     ckpt = get_best_checkpoint(exper)
     logging.info(f'Loading checkpoint {ckpt.name}')
@@ -61,7 +63,7 @@ def load_experiment(exper, conf={}):
 
     OmegaConf.set_struct(ckpt['conf'], False)
     conf = OmegaConf.merge(ckpt['conf'].model, OmegaConf.create(conf))
-    model = get_model(conf.name)(conf).eval()
+    #model = get_model(conf.name)(conf).eval()
 
     state_dict = ckpt['model']
     dict_params = set(state_dict.keys())

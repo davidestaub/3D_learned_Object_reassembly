@@ -46,7 +46,65 @@ from typing import List, Tuple
 
 import torch
 from torch import nn
+import numpy as np
+import logging
+import os
+import random
+import copy
+import signal
+from tqdm import tqdm
+from torch._six import string_classes
+import collections.abc as collections
+import re
+import shutil
+from torch.utils.tensorboard import SummaryWriter
+from omegaconf import OmegaConf
+from experiments import (
+    delete_old_checkpoints, get_last_checkpoint, get_best_checkpoint)
+from stdout_capturing import capture_outputs
+import argparse
 
+
+
+
+#I created this function here in order to avoid nasty imports
+def set_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+
+class AverageMetric:
+    def __init__(self):
+        self._sum = 0
+        self._num_examples = 0
+
+    def update(self, tensor):
+        assert tensor.dim() == 1
+        tensor = tensor[~torch.isnan(tensor)]
+        self._sum += tensor.sum().item()
+        self._num_examples += len(tensor)
+
+    def compute(self):
+        if self._num_examples == 0:
+            return np.nan
+        else:
+            return self._sum / self._num_examples
+
+
+class MedianMetric:
+    def __init__(self):
+        self._elements = []
+
+    def update(self, tensor):
+        assert tensor.dim() == 1
+        self._elements += tensor.cpu().numpy().tolist()
+
+    def compute(self):
+        if len(self._elements) == 0:
+            return np.nan
+        else:
+            return np.nanmedian(self._elements)
 
 def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
     """ Multi-layer perceptron """
@@ -60,6 +118,8 @@ def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
                 layers.append(nn.BatchNorm1d(channels[i]))
             layers.append(nn.ReLU())
     return nn.Sequential(*layers)
+
+
 
 
 def normalize_keypoints(kpts, image_shape):
@@ -197,7 +257,7 @@ class SuperGlue(nn.Module):
     default_config = {
         'descriptor_dim': 256,
         'weights': 'indoor',
-        'keypoint_encoder': [32, 64, 128, 256],
+        'keypoint_encoder': [32, 64, 128,256],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
         'match_threshold': 0.2,
@@ -213,16 +273,19 @@ class SuperGlue(nn.Module):
         self.gnn = AttentionalGNN(
             feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
 
+
         self.final_proj = nn.Conv1d(
             self.config['descriptor_dim'], self.config['descriptor_dim'],
             kernel_size=1, bias=True)
 
+
         bin_score = torch.nn.Parameter(torch.tensor(1.))
+        print(bin_score.item())
         self.register_parameter('bin_score', bin_score)
 
         assert self.config['weights'] in ['indoor', 'outdoor']
         path = Path(__file__).parent
-        path = path / 'weights/superglue_{}.pth'.format(self.config['weights'])
+        path = path / 'SuperGluePretrainedNetwork/models/weights/superglue_{}.pth'.format(self.config['weights'])
         self.load_state_dict(torch.load(str(path)))
         print('Loaded SuperGlue model (\"{}\" weights)'.format(
             self.config['weights']))
@@ -242,12 +305,19 @@ class SuperGlue(nn.Module):
             }
 
         # Keypoint normalization.
-        kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
-        kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
+        #TODO: remove this hack! previously was image.shape but we have fragments not images
+        #kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
+        #kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
 
         # Keypoint MLP encoder.
+        #TODO: What are scores ?
+
+        #print((self.kenc(kpts0, data['scores0'])).shape)
+        print("a")
         desc0 = desc0 + self.kenc(kpts0, data['scores0'])
         desc1 = desc1 + self.kenc(kpts1, data['scores1'])
+        print(desc0.shape)
+        print(desc1.shape)
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
@@ -283,3 +353,483 @@ class SuperGlue(nn.Module):
             'matching_scores0': mscores0,
             'matching_scores1': mscores1,
         }
+
+    #Copied from superglue_v1.py
+    def loss(self, pred, data):
+        losses = {'total': 0}
+
+        positive = data['gt_assignment'].float()
+        num_pos = torch.max(positive.sum((1, 2)), positive.new_tensor(1))
+        neg0 = (data['gt_matches0'] == -1).float()
+        neg1 = (data['gt_matches1'] == -1).float()
+        num_neg = torch.max(neg0.sum(1) + neg1.sum(1), neg0.new_tensor(1))
+
+        log_assignment = pred['log_assignment']
+        nll_pos = -(log_assignment[:, :-1, :-1]*positive).sum((1, 2))
+        nll_pos /= num_pos
+        nll_neg0 = -(log_assignment[:, :-1, -1]*neg0).sum(1)
+        nll_neg1 = -(log_assignment[:, -1, :-1]*neg1).sum(1)
+        nll_neg = (nll_neg0 + nll_neg1) / num_neg
+        nll = (self.conf.loss.nll_balancing * nll_pos
+               + (1 - self.conf.loss.nll_balancing) * nll_neg)
+        losses['assignment_nll'] = nll
+        if self.conf.loss.nll_weight > 0:
+            losses['total'] = nll*self.conf.loss.nll_weight
+
+        if self.conf.loss.reward_weight > 0:
+            reward = data['match_reward']
+            prob = log_assignment[:, :-1, :-1].exp()
+            reward_loss = - torch.sum(prob * reward, (1, 2))
+            norm = torch.sum(torch.clamp(reward, min=0), (1, 2))
+            reward_loss /= torch.clamp(norm, min=1)
+            losses['expected_match_reward'] = reward_loss
+            losses['total'] += self.conf.loss.reward_weight * reward_loss
+
+        # Some statistics
+        losses['num_matchable'] = num_pos
+        losses['num_unmatchable'] = num_neg
+        losses['sinkhorn_norm'] = log_assignment.exp()[:, :-1].sum(2).mean(1)
+        losses['bin_score'] = self.bin_score[None]
+
+        if self.conf.loss.bottleneck_l2_weight > 0:
+            assert self.conf.bottleneck_dim is not None
+            l2_0 = torch.sum((data['descriptors0']
+                              - pred['bottleneck_descriptors0'])**2, 1)
+            l2_1 = torch.sum((data['descriptors1']
+                              - pred['bottleneck_descriptors1'])**2, 1)
+            l2 = (l2_0.mean(-1) + l2_1.mean(-1)) / 2
+            losses['bottleneck_l2'] = l2
+            losses['total'] += l2*self.conf.loss.bottleneck_l2_weight
+
+        return losses
+
+    # Copied from superglue_v1.py
+    def metrics(self, pred, data):
+        def recall(m, gt_m):
+            mask = (gt_m > -1).float()
+            return ((m == gt_m)*mask).sum(1) / mask.sum(1)
+
+        def precision(m, gt_m):
+            mask = ((m > -1) & (gt_m >= -1)).float()
+            return ((m == gt_m)*mask).sum(1) / mask.sum(1)
+
+        rec = recall(pred['matches0'], data['gt_matches0'])
+        prec = precision(pred['matches0'], data['gt_matches0'])
+        return {'match_recall': rec, 'match_precision': prec}
+
+def map_tensor(input_, func):
+    if isinstance(input_, torch.Tensor):
+        return func(input_)
+    elif isinstance(input_, string_classes):
+        return input_
+    elif isinstance(input_, collections.Mapping):
+        return {k: map_tensor(sample, func) for k, sample in input_.items()}
+    elif isinstance(input_, collections.Sequence):
+        return [map_tensor(sample, func) for sample in input_]
+    else:
+        raise TypeError(
+            f'input must be tensor, dict or list; found {type(input_)}')
+
+def batch_to_device(batch, device, non_blocking=True):
+    def _func(tensor):
+        return tensor.to(device=device, non_blocking=non_blocking)
+
+    return map_tensor(batch, _func)
+
+def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
+    model.eval()
+    results = {}
+    for data in tqdm(loader, desc='Evaluation', ascii=True, disable=not pbar):
+        data = batch_to_device(data, device, non_blocking=True)
+        with torch.no_grad():
+            pred = model(data)
+            losses = loss_fn(pred, data)
+            metrics = metrics_fn(pred, data)
+            del pred, data
+        numbers = {**metrics, **{'loss/'+k: v for k, v in losses.items()}}
+        for k, v in numbers.items():
+            if k not in results:
+                results[k] = AverageMetric()
+                if k in conf.median_metrics:
+                    results[k+'_median'] = MedianMetric()
+            results[k].update(v)
+            if k in conf.median_metrics:
+                results[k+'_median'].update(v)
+    results = {k: results[k].compute() for k in results}
+    return results
+
+
+
+def training(rank, conf, output_dir, args,model_config,dataset):
+    ''''Removing this for now'''''
+    if args.restore:
+        logging.info(f'Restoring from previous training of {args.experiment}')
+        init_cp = get_last_checkpoint(args.experiment, allow_interrupted=False)
+        logging.info(f'Restoring from checkpoint {init_cp.name}')
+        init_cp = torch.load(str(init_cp), map_location='cpu')
+        conf = OmegaConf.merge(OmegaConf.create(init_cp['conf']), conf)
+        epoch = init_cp['epoch'] + 1
+
+        ## get the best loss or eval metric from the previous best checkpoint
+        best_cp = get_best_checkpoint(args.experiment)
+        best_cp = torch.load(str(best_cp), map_location='cpu')
+        best_eval = best_cp['eval'][conf.train.best_key]
+        del best_cp
+    else:
+        # we start a new, fresh training
+        ''''Also removing this for now'''''
+        #conf.train = OmegaConf.merge(default_train_conf, conf.train)
+        epoch = 0
+        best_eval = float('inf')
+        if conf.train.load_experiment:
+            logging.info(f'Will fine-tune from weights of {conf.train.load_experiment}')
+            #the user has to make sure that the weights are compatible
+            init_cp = get_last_checkpoint(conf.train.load_experiment)
+            init_cp = torch.load(str(init_cp), map_location='cpu')
+        #else:
+        init_cp = None
+
+    OmegaConf.set_struct(conf, True)  # prevent access to unknown entries
+    set_seed(conf.train.seed)
+    if rank == 0:
+        writer = SummaryWriter(log_dir=str(output_dir))
+
+    data_conf = copy.deepcopy(conf.data)
+    if args.distributed:
+        logging.info(f'Training in distributed mode with {args.n_gpus} GPUs')
+        assert torch.cuda.is_available()
+        device = rank
+        lock = Path(os.getcwd(),
+                    f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
+        assert not Path(lock).exists(), lock
+        torch.distributed.init_process_group(
+                backend='nccl', world_size=args.n_gpus, rank=device,
+                init_method='file://'+str(lock))
+        torch.cuda.set_device(device)
+
+        # adjust batch size and num of workers since these are per GPU
+        if 'batch_size' in data_conf:
+            data_conf.batch_size = int(data_conf.batch_size / args.n_gpus)
+        if 'train_batch_size' in data_conf:
+            data_conf.train_batch_size = int(
+                data_conf.train_batch_size / args.n_gpus)
+        if 'num_workers' in data_conf:
+            data_conf.num_workers = int(
+                (data_conf.num_workers + args.n_gpus - 1) / args.n_gpus)
+    else:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    logging.info(f'Using device {device}')
+
+    '''Removed for now and just give as input'''
+    #dataset = get_dataset(data_conf.name)(data_conf)
+    if args.overfit:
+        # we train and eval with the same single training batch
+        logging.info('Data in overfitting mode')
+        assert not args.distributed
+        train_loader = dataset.get_overfit_loader('train')
+        val_loader = dataset.get_overfit_loader('val')
+    else:
+        train_loader = dataset.get_data_loader(
+            'train', distributed=args.distributed)
+        val_loader = dataset.get_data_loader('val')
+    if rank == 0:
+        logging.info(f'Training loader has {len(train_loader)} batches')
+        logging.info(f'Validation loader has {len(val_loader)} batches')
+
+    # interrupts are caught and delayed for graceful termination
+    def sigint_handler(signal, frame):
+        logging.info('Caught keyboard interrupt signal, will terminate')
+        nonlocal stop
+        if stop:
+            raise KeyboardInterrupt
+        stop = True
+    stop = False
+    signal.signal(signal.SIGINT, sigint_handler)
+
+    #Changed from get_model() to this
+    model = SuperGlue(model_config)
+
+    loss_fn, metrics_fn = model.loss, model.metrics
+    model = model.to(device)
+    if init_cp is not None:
+        model.load_state_dict(init_cp['model'])
+    if args.distributed:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[device])
+    if rank == 0:
+        logging.info(f'Model: \n{model}')
+    torch.backends.cudnn.benchmark = True
+
+    optimizer_fn = {'sgd': torch.optim.SGD,
+                    'adam': torch.optim.Adam,
+                    'rmsprop': torch.optim.RMSprop}[conf.train.optimizer]
+    params = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
+    if conf.train.opt_regexp:
+        # examples: '.*(weight|bias)$', 'cnn\.(enc0|enc1).*bias'
+        def filter_fn(x):
+            n, p = x
+            match = re.search(conf.train.opt_regexp, n)
+            if not match:
+                p.requires_grad = False
+            return match
+        params = list(filter(filter_fn, params))
+        assert len(params) > 0, conf.train.opt_regexp
+        logging.info('Selected parameters:\n'+'\n'.join(n for n, p in params))
+    optimizer = optimizer_fn(
+        [p for n, p in params], lr=conf.train.lr,
+        **conf.train.optimizer_options)
+    def lr_fn(it):  # noqa: E306
+        if conf.train.lr_schedule.type is None:
+            return 1
+        if conf.train.lr_schedule.type == 'exp':
+            gam = 10**(-1/conf.train.lr_schedule.exp_div_10)
+            return 1 if it < conf.train.lr_schedule.start else gam
+        else:
+            raise ValueError(conf.train.lr_schedule.type)
+    lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
+    if args.restore:
+        optimizer.load_state_dict(init_cp['optimizer'])
+        if 'lr_scheduler' in init_cp:
+            lr_scheduler.load_state_dict(init_cp['lr_scheduler'])
+
+    if rank == 0:
+        logging.info(f'Starting training with configuration:\n{conf.pretty()}')
+    losses_ = None
+
+    while epoch < conf.train.epochs and not stop:
+        if rank == 0:
+            logging.info(f'Starting epoch {epoch}')
+        set_seed(conf.train.seed + epoch)
+        if args.distributed:
+            train_loader.sampler.set_epoch(epoch)
+        if epoch > 0 and conf.train.dataset_callback_fn:
+            getattr(train_loader.dataset, conf.train.dataset_callback_fn)(
+                conf.train.seed + epoch)
+
+        for it, data in enumerate(train_loader):
+            tot_it = len(train_loader)*epoch + it
+
+            model.train()
+            optimizer.zero_grad()
+            data = batch_to_device(data, device, non_blocking=True)
+            pred = model(data)
+            losses = loss_fn(pred, data)
+            loss = torch.mean(losses['total'])
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+
+            if it % conf.train.log_every_iter == 0:
+                for k in sorted(losses.keys()):
+                    if args.distributed:
+                        losses[k] = losses[k].sum()
+                        torch.distributed.reduce(losses[k], dst=0)
+                        losses[k] /= (train_loader.batch_size * args.n_gpus)
+                    losses[k] = torch.mean(losses[k]).item()
+                if rank == 0:
+                    str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
+                    logging.info('[E {} | it {}] loss {{{}}}'.format(
+                        epoch, it, ', '.join(str_losses)))
+                    for k, v in losses.items():
+                        writer.add_scalar('training/'+k, v, tot_it)
+                    writer.add_scalar(
+                        'training/lr', optimizer.param_groups[0]['lr'], tot_it)
+
+            del pred, data, loss, losses
+
+            if ((it % conf.train.eval_every_iter == 0) or stop
+                    or it == (len(train_loader)-1)):
+                results = do_evaluation(
+                    model, val_loader, device, loss_fn, metrics_fn, conf.train,
+                    pbar=(rank == 0))
+                if rank == 0:
+                    str_results = [f'{k} {v:.3E}' for k, v in results.items()]
+                    logging.info(f'[Validation] {{{", ".join(str_results)}}}')
+                    for k, v in results.items():
+                        writer.add_scalar('val/'+k, v, tot_it)
+                torch.cuda.empty_cache()  # should be cleared at the first iter
+
+            if stop:
+                break
+
+        if rank == 0:
+            state = (model.module if args.distributed else model).state_dict()
+            checkpoint = {
+                'model': state,
+                'optimizer': optimizer.state_dict(),
+                'lr_scheduler': lr_scheduler.state_dict(),
+                'conf': OmegaConf.to_container(conf, resolve=True),
+                'epoch': epoch,
+                'losses': losses_,
+                'eval': results,
+            }
+            cp_name = f'checkpoint_{epoch}' + ('_interrupted' if stop else '')
+            logging.info(f'Saving checkpoint {cp_name}')
+            cp_path = str(output_dir / (cp_name + '.tar'))
+            torch.save(checkpoint, cp_path)
+            if results[conf.train.best_key] < best_eval:
+                best_eval = results[conf.train.best_key]
+                logging.info(
+                    f'New best checkpoint: {conf.train.best_key}={best_eval}')
+                shutil.copy(cp_path, str(output_dir / 'checkpoint_best.tar'))
+            delete_old_checkpoints(
+                output_dir, conf.train.keep_last_checkpoints)
+            del checkpoint
+
+        epoch += 1
+
+    logging.info(f'Finished training on process {rank}.')
+    if rank == 0:
+        writer.close()
+
+
+def main_worker(rank, conf, output_dir, args):
+    if rank == 0:
+        with capture_outputs(output_dir / 'log.txt'):
+            training(rank, conf, output_dir, args)
+    else:
+        training(rank, conf, output_dir, args)
+
+
+
+
+
+
+data = {}
+
+# This dimensionality is accepted by superglue,
+#First dimenions is alway feature dimension i.e for descritors 128, for keypoints 4 and second dimension is number of points (in this case 32 for both "images")
+d1 = np.random.rand(256,32)
+d1 = d1.astype(np.float32)
+d2 = np.random.rand(256,32)
+d2 = d2.astype(np.float32)
+k1 = np.random.rand(32,2)
+k1 = k1.astype(np.float32)
+k2 = np.random.rand(32,2)
+k2 = k2.astype(np.float32)
+s1 = np.random.rand(32)
+s1 = s1.astype(np.float32)
+s2 = np.random.rand(32)
+s2 = s2.astype(np.float32)
+
+data["descriptors0"] = torch.from_numpy(d1)
+data["descriptors1"] = torch.from_numpy(d2)
+data["keypoints0"] = torch.from_numpy(k1)
+data["keypoints1"] = torch.from_numpy(k2)
+data["scores0"] = torch.from_numpy(s1)
+data["scores1"] = torch.from_numpy(s2)
+
+#Add empty dim
+data['descriptors0'] = data['descriptors0'][None, :]
+data['descriptors1'] = data['descriptors1'][None, :]
+data['keypoints0'] = data['keypoints0'][None, :]
+data['keypoints1'] = data['keypoints1'][None, :]
+data['scores0'] = data['scores0'][None, :]
+data['scores1'] = data['scores1'][None, :]
+
+
+#data['descriptors0'] = torch.from_numpy(np.load("last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/0.npy"))
+#data['descriptors0'] = data['descriptors0'][None, :]
+
+#data['descriptors1'] = torch.from_numpy(np.load("last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/1.npy"))
+#data['descriptors1'] = data['descriptors1'][None, :]
+
+#data['keypoints0'] = torch.from_numpy(np.load("last_years_project/keypoint_descriptor/data/keypoints/keypoints_4/brick_1vN/0.npy"))
+#data['keypoints0'] = data['keypoints0'][None, :]
+
+#data['keypoints1'] = torch.from_numpy(np.load("last_years_project/keypoint_descriptor/data/keypoints/keypoints_4/brick_1vN/1.npy"))
+#data['keypoints1'] = data['keypoints1'][None, :]
+
+#data['scores0'] = torch.from_numpy(np.zeros(data['keypoints0'].shape[1]))
+#data['scores0'] = data['scores0'][None, :]
+
+#data['scores1'] = torch.from_numpy(np.zeros(data['keypoints1'].shape[1]))
+#data['scores1'] = data['scores1'][None, :]
+
+print("starting shape printing: \n")
+print(data["descriptors0"].shape)
+print(data["descriptors1"].shape)
+print(data["keypoints0"].shape)
+print(data["keypoints1"].shape)
+print(data['scores0'].shape)
+print(data['scores0'].shape)
+print("end of shape printing")
+
+
+#For hyperglue the dimesions have to be 1,256,number_of_points and the values are doubles
+#Note that the number of keypoiunts/descriptors for two images do not have to be the same,
+# here is an example of two images where image 1 has 308 keypoints and image 2 has 344 keypoints
+
+#desc0.shape = torch.Size([1, 256, 308])
+#desc1.shape = torch.Size([1, 256, 344])
+#kpts0.shape = torch.Size([1, 308, 2])
+#kpts1.shape = torch.Size([1, 344, 2])
+#scores0.shape = torch.Size([1, 308])
+#scores1.shape =torch.Size([1, 344])
+
+
+
+
+
+
+# How they did it, however we do not have the same dataset,
+# Currently not runable
+do_training=False
+if do_training:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('experiment', type=str)
+    parser.add_argument('--conf', type=str)
+    parser.add_argument('--overfit', action='store_true')
+    parser.add_argument('--restore', action='store_true')
+    parser.add_argument('--distributed', action='store_true')
+    parser.add_argument('dotlist', nargs='*')
+    args = parser.parse_intermixed_args()
+
+    logging.info(f'Starting experiment {args.experiment}')
+    output_dir = Path("experiment_folder", args.experiment)
+    output_dir.mkdir(exist_ok=True, parents=True)
+
+    conf = OmegaConf.from_cli(args.dotlist)
+    if args.conf:
+        conf = OmegaConf.merge(OmegaConf.load(args.conf), conf)
+    if not args.restore:
+        if conf.train.seed is None:
+            conf.train.seed = torch.initial_seed() & (2**32 - 1)
+        OmegaConf.save(conf, str(output_dir / 'config.yaml'))
+
+    if args.distributed:
+        args.n_gpus = torch.cuda.device_count()
+        torch.multiprocessing.spawn(
+            main_worker, nprocs=args.n_gpus,
+            args=(conf, output_dir, args))
+    else:
+        main_worker(0, conf, output_dir, args)
+
+
+    training(0,conf,output_dir,args,model_config,dataset)
+
+
+
+
+
+#Begin forward pass
+
+#Do a forward pass (input is just random tensors with dimensionality accepted by superglue)
+myconf = {
+    'descriptor_dim': 256,
+    'weights': 'indoor',
+    'keypoint_encoder': [32, 64, 128,256],
+    'GNN_layers': ['self', 'cross'] * 9,
+    'sinkhorn_iterations': 100,
+    'match_threshold': 0.2,
+}
+myGlue = SuperGlue(myconf)
+result = myGlue.forward(data=data)
+print(result)
+# END of forward pass#
+
+
+
+
+
