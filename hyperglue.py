@@ -64,6 +64,7 @@ from experiments import (
     delete_old_checkpoints, get_last_checkpoint, get_best_checkpoint)
 from stdout_capturing import capture_outputs
 import argparse
+import sys
 
 
 
@@ -464,13 +465,21 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset
-    def __init__(self, path):
+    def __init__(self, keyp1,keyp2,desc1,desc2,gt):
         # store the inputs and outputs
         # y should be an array type of either 1's (match) or -1's (no match)
         # X is the input data, an array type holding a pair of kepoints and descriptors
         #TODO: Need to make sure that the input data hear fits with the input data for a forward pass
-        self.X = ...
-        self.y = ...
+        combined_input = []
+        for i in range(0,keyp1.shape[0]):
+            row = []
+            row.append(keyp1[i])
+            row.append(keyp2[i])
+            row.append(desc1[i])
+            row.append(desc2[i])
+            combined_input.append(row)
+        self.X = torch.FloatTensor(combined_input)
+        self.y = torch.from_numpy(gt)
 
     # number of rows in the dataset
     def __len__(self):
@@ -480,18 +489,15 @@ class FragmentsDataset(td.Dataset):
     def __getitem__(self, idx):
         return [self.X[idx], self.y[idx]]
 
-
-
-
-def dummy_training(gt_data,seed,model_config):
+def dummy_training(k1,k2,d1,d2,gt,model_config,train_conf):
     init_cp = None
-    set_seed(seed)
-    writer = SummaryWriter(log_dir=str(output_dir))
+    set_seed(train_conf["seed"])
+    writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logging.info(f'Using device {device}')
 
     #Loading the fragment data
-    dataset = FragmentsDataset(gt_data)
+    dataset = FragmentsDataset(k1,k2,d1,d2,gt)
 
     #Splitting into train test
     train_size = int(0.8 * len(dataset))
@@ -518,13 +524,13 @@ def dummy_training(gt_data,seed,model_config):
 
     optimizer_fn = {'sgd': torch.optim.SGD,
                     'adam': torch.optim.Adam,
-                    'rmsprop': torch.optim.RMSprop}[conf.train.optimizer]
+                    'rmsprop': torch.optim.RMSprop}[train_conf["optimizer"]]
     params = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
-    if conf.train.opt_regexp:
+    if train_conf["opt_regexp"]:
         # examples: '.*(weight|bias)$', 'cnn\.(enc0|enc1).*bias'
         def filter_fn(x):
             n, p = x
-            match = re.search(conf.train.opt_regexp, n)
+            match = re.search(train_conf["opt_regexp"], n)
             if not match:
                 p.requires_grad = False
             return match
@@ -534,16 +540,16 @@ def dummy_training(gt_data,seed,model_config):
         logging.info('Selected parameters:\n' + '\n'.join(n for n, p in params))
     optimizer = optimizer_fn(
         [p for n, p in params], lr=conf.train.lr,
-        **conf.train.optimizer_options)
+        **train_conf["optimizer_options"])
 
     def lr_fn(it):  # noqa: E306
-        if conf.train.lr_schedule.type is None:
+        if train_conf["lr_schedule"]["type"] is None:
             return 1
-        if conf.train.lr_schedule.type == 'exp':
-            gam = 10 ** (-1 / conf.train.lr_schedule.exp_div_10)
-            return 1 if it < conf.train.lr_schedule.start else gam
+        if train_conf["lr_schedule"]["type"] == 'exp':
+            gam = 10 ** (-1 /train_conf["lr_schedule"]["exp_div_10"])
+            return 1 if it < train_conf["lr_schedule"]["start"] else gam
         else:
-            raise ValueError(conf.train.lr_schedule.type)
+            raise ValueError(train_conf["lr_schedule"]["type"])
 
     lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
     if args.restore:
@@ -551,17 +557,17 @@ def dummy_training(gt_data,seed,model_config):
         if 'lr_scheduler' in init_cp:
             lr_scheduler.load_state_dict(init_cp['lr_scheduler'])
 
-    logging.info(f'Starting training with configuration:\n{conf.pretty()}')
+    logging.info(f'Starting training with configuration:\n{train_conf.pretty()}')
 
     losses_ = None
 
     epoch = 0
 
-    while epoch < conf.train.epochs:
+    while epoch < train_conf["epochs"]:
         logging.info(f'Starting epoch {epoch}')
-        set_seed(conf.train.seed + epoch)
-        if epoch > 0 and conf.train.dataset_callback_fn:
-            getattr(train_dl.dataset, conf.train.dataset_callback_fn)(conf.train.seed + epoch)
+        set_seed(train_conf["seed"] + epoch)
+        if epoch > 0 and train_conf["dataset_callback_fn"]:
+            getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(train_conf["seed"] + epoch)
 
         for it, data in enumerate(train_dl):
             tot_it = len(train_dl) * epoch + it
@@ -576,7 +582,7 @@ def dummy_training(gt_data,seed,model_config):
             optimizer.step()
             lr_scheduler.step()
 
-            if it % conf.train.log_every_iter == 0:
+            if it % train_conf["og_every_iter"] == 0:
                 for k in sorted(losses.keys()):
                     losses[k] = torch.mean(losses[k]).item()
                     str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
@@ -589,7 +595,7 @@ def dummy_training(gt_data,seed,model_config):
 
             del pred, data, loss, losses
 
-            if ((it % conf.train.eval_every_iter == 0) or it == (len(train_dl) - 1)):
+            if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, conf.train)
 
                 str_results = [f'{k} {v:.3E}' for k, v in results.items()]
@@ -610,15 +616,15 @@ def dummy_training(gt_data,seed,model_config):
             }
         cp_name = f'checkpoint_{epoch}'
         logging.info(f'Saving checkpoint {cp_name}')
-        cp_path = str(output_dir / (cp_name + '.tar'))
+        cp_path = str(train_conf["output_dir"] / (cp_name + '.tar'))
         torch.save(checkpoint, cp_path)
-        if results[conf.train.best_key] < best_eval:
-            best_eval = results[conf.train.best_key]
+        if results[train_conf["best_key"]] < best_eval:
+            best_eval = results[train_conf["best_key"]]
             logging.info(
-                f'New best checkpoint: {conf.train.best_key}={best_eval}')
-            shutil.copy(cp_path, str(output_dir / 'checkpoint_best.tar'))
+                f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
+            shutil.copy(cp_path, str(train_conf["output_dir"] / 'checkpoint_best.tar'))
         delete_old_checkpoints(
-            output_dir, conf.train.keep_last_checkpoints)
+            train_conf["output_dir"], train_conf["keep_last_checkpoints"])
         del checkpoint
 
         epoch += 1
@@ -936,10 +942,6 @@ print("end of shape printing")
 #scores1.shape =torch.Size([1, 344])
 
 
-
-
-
-
 # How they did it, however we do not have the same dataset,
 # Currently not runable
 do_training=False
@@ -983,18 +985,54 @@ if do_training:
 #Begin forward pass
 
 #Do a forward pass (input is just random tensors with dimensionality accepted by superglue)
-myconf = {
-    'descriptor_dim': 256,
+model_conf = {
+    'descriptor_dim': 128,
     'weights': 'indoor',
     'keypoint_encoder': [32, 64, 128,256],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
 }
-myGlue = SuperGlue(myconf)
-result = myGlue.forward(data=data)
-print(result)
+
+
+train_conf = {
+    'seed': 42,  # training seed
+    'epochs': 1,  # number of epochs
+    'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
+    'opt_regexp': None,  # regular expression to filter parameters to optimize
+    'optimizer_options': {},  # optional arguments passed to the optimizer
+    'lr': 0.001,  # learning rate
+    'lr_schedule': {'type': None, 'start': 0, 'exp_div_10': 0},
+    'eval_every_iter': 1000,  # interval for evaluation on the validation set
+    'log_every_iter': 200,  # interval for logging the loss to the console
+    'keep_last_checkpoints': 10,  # keep only the last X checkpoints
+    'load_experiment': None,  # initialize the model from a previous experiment
+    'median_metrics': [],  # add the median of some metrics
+    'best_key': 'loss/total',  # key to use to select the best checkpoint
+    'dataset_callback_fn': None,  # data func called at the start of each epoch
+    'output_dir': "output"
+}
+#myGlue = SuperGlue(model_conf)
+#result = myGlue.forward(data=data)
+#print(result)
 # END of forward pass#
+
+np.set_printoptions(threshold=sys.maxsize)
+
+
+d1 = np.load("last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/0.npy")
+d1 = d1.T
+d2 = d1
+k1 = np.load("last_years_project/keypoint_descriptor/data/keypoints/keypoints_4/brick_1v1/3.npy")
+k1 = np.delete(k1, np.s_[-1:], axis=1)
+k1 = k1[0:32]
+k2 = k1
+gt = np.ones(len(d1))
+print(d1.shape,d2.shape,k1.shape)
+#print(d1)
+
+dummy_training(k1,k2,d1,d2,gt,model_conf,train_conf)
+
 
 
 
