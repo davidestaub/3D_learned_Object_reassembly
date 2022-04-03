@@ -40,7 +40,7 @@ def main():
             1], f"something is wrong: {num_parts} parts loaded vs matrich matrix for {matching_matrix.shape[0]} parts."
         for (a_idx, b_idx), is_match in np.ndenumerate(matching_matrix):
             if is_match:
-                # Fourth coord is some other parameters outputted by the network (certainty?)
+                # Fourth coord is some other parameters outputted by the network (certainty?->yes)
                 a = fragments[a_idx][:, :3]
                 b = fragments[b_idx][:, :3]
                 # Calculate the distances.

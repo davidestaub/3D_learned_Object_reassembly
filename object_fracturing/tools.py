@@ -22,17 +22,20 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
     if iteration == total: 
         print()
 
-def select_folder():
+def select_folder(mode='objects'):
     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
-    data_list = os.listdir(os.path.join(here, 'data'))
-    print("id  name")
-    for idx, val in enumerate(data_list):
-        print(idx," ", val)
+    if mode == 'objects':
+        data_list = os.listdir(os.path.join(here, 'data'))
+        print("id  name")
+        for idx, val in enumerate(data_list):
+            print(idx," ", val)
 
-    idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
-    subfolder = data_list[idx]
-    print("Opening folder:", subfolder)
-    folder = os.path.join(here, 'data', subfolder)
+        idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
+        subfolder = data_list[idx]
+        print("Opening folder:", subfolder)
+        folder = os.path.join(here, 'data', subfolder)
+    if mode == 'keypoints':
+        folder = os.path.join(here, 'data', 'keypoints')
     return folder
     

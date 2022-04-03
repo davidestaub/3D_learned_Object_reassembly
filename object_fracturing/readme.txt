@@ -15,17 +15,8 @@ contains one connected piece. It also deletes innecessary files.
 
 visualize_data:
 visualizes the output of blender with compas.
-
-visualize_cleaned_data:
-visualizes the output of the cleaned data where we have normally
-more fragments.
-
-mesh_explosion:
-this expands the object such that each fragment can be viewed independently
-
-mesh_explosion_cleaned:
-this expands the object such that each fragment can be viewed independently
-but works in the cleaned subfolder
+Files must be stored in the data folder in a corresponding subfolder
+There are several options, try them out :)
 
 subdivide:
 divides all the vertices in half until they are less in size than twice the size of
