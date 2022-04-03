@@ -1,0 +1,7 @@
+The object:     cup_10_seed_2_shard.003.obj had 2 loose parts!
+The object:     cup_10_seed_2_shard.006.obj had 3 loose parts!
+The object:     cup_10_seed_2_shard.007.obj had 2 loose parts!
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\cup_10_seed_2\subdv\cup_10_seed_2_subdv.13not enough values to unpack (expected 3, got 0)
+Average number of faces: 9076.214285714286
+Average number of vertices: 5224.357142857143
+Average number of edges: 14298.42857142857

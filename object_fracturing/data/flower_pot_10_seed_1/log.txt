@@ -1,0 +1,13 @@
+The object:     flower_pot_10_seed_1_shard.001.obj had 2 loose parts!
+The object:     flower_pot_10_seed_1_shard.002.obj had 2 loose parts!
+The object:     flower_pot_10_seed_1_shard.004.obj had 3 loose parts!
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\flower_pot_10_seed_1\subdv\flower_pot_10_seed_1_subdv.2not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\flower_pot_10_seed_1\subdv\flower_pot_10_seed_1_subdv.3not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\flower_pot_10_seed_1\subdv\flower_pot_10_seed_1_subdv.6not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\flower_pot_10_seed_1\subdv\flower_pot_10_seed_1_subdv.8not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\flower_pot_10_seed_1\subdv\flower_pot_10_seed_1_subdv.9not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\flower_pot_10_seed_1\subdv\flower_pot_10_seed_1_subdv.10not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\flower_pot_10_seed_1\subdv\flower_pot_10_seed_1_subdv.12not enough values to unpack (expected 3, got 0)
+Average number of faces: 5390.846153846154
+Average number of vertices: 5338.384615384615
+Average number of edges: 10726.23076923077

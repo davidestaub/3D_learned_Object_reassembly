@@ -1,0 +1,12 @@
+The object:     cube_20_seed_3_shard.000.obj had 4 loose parts!
+The object:     cube_20_seed_3_shard.004.obj had 7 loose parts!
+The object:     cube_20_seed_3_shard.008.obj had 3 loose parts!
+The object:     cube_20_seed_3_shard.010.obj had 3 loose parts!
+The object:     cube_20_seed_3_shard.011.obj had 3 loose parts!
+The object:     cube_20_seed_3_shard.013.obj had 3 loose parts!
+The object:     cube_20_seed_3_shard.014.obj had 4 loose parts!
+The object:     cube_20_seed_3_shard.015.obj had 2 loose parts!
+The object:     cube_20_seed_3_shard.016.obj had 3 loose parts!
+Average number of faces: 3112.76
+Average number of vertices: 2355.56
+Average number of edges: 5467.84

@@ -62,7 +62,7 @@ if (explode):
             mesh = Mesh.from_obj(FILE_I)
             mesh_center = mesh.centroid()
             vec = cg.Vector(*[a - b for (a, b) in zip(mesh_center, mass_center)])
-            vec = vec * 0.5
+            #vec = vec * 0.5
             T = cg.Translation.from_vector(vec)
             mesh_transform_numpy(mesh, T)
             viewer.add(mesh, facecolor=i_to_rgb(counter/file_nums, True))

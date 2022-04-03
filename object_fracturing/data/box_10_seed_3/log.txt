@@ -1,0 +1,5 @@
+The object:     box_10_seed_3_shard.001.obj had 2 loose parts!
+The object:     box_10_seed_3_shard.005.obj had 2 loose parts!
+Average number of faces: 14158.8
+Average number of vertices: 12897.6
+Average number of edges: 27053.9

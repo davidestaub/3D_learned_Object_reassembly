@@ -1,0 +1,12 @@
+The object:     door_20_seed_4_shard.000.obj had 2 loose parts!
+The object:     door_20_seed_4_shard.001.obj had 2 loose parts!
+The object:     door_20_seed_4_shard.002.obj had 2 loose parts!
+The object:     door_20_seed_4_shard.003.obj had 2 loose parts!
+The object:     door_20_seed_4_shard.004.obj had 3 loose parts!
+The object:     door_20_seed_4_shard.009.obj had 3 loose parts!
+The object:     door_20_seed_4_shard.019.obj had 3 loose parts!
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\door_20_seed_4\subdv\door_20_seed_4_subdv.20not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\door_20_seed_4\subdv\door_20_seed_4_subdv.23not enough values to unpack (expected 3, got 0)
+Average number of faces: 3105.1111111111113
+Average number of vertices: 3135.074074074074
+Average number of edges: 6237.592592592592

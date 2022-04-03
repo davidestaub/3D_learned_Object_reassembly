@@ -21,9 +21,7 @@ if not os.path.isdir('cleaned'):
 save_np = False
 save_np = bool(int(input("Do you want to create additional npy files?\n0:No\n1:yes\n")))
 
-# ==============================================================================
-# Output
-# ==============================================================================
+
 object_name = ROOT.split('\\')[-1]
 
 for i, filename in enumerate(os.listdir(ROOT)):

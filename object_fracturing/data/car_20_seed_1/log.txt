@@ -1,0 +1,15 @@
+The object:     car_20_seed_1_shard.001.obj had 2 loose parts!
+The object:     car_20_seed_1_shard.002.obj had 3 loose parts!
+The object:     car_20_seed_1_shard.003.obj had 3 loose parts!
+The object:     car_20_seed_1_shard.005.obj had 4 loose parts!
+The object:     car_20_seed_1_shard.006.obj had 3 loose parts!
+The object:     car_20_seed_1_shard.007.obj had 2 loose parts!
+The object:     car_20_seed_1_shard.009.obj had 5 loose parts!
+The object:     car_20_seed_1_shard.011.obj had 2 loose parts!
+The object:     car_20_seed_1_shard.014.obj had 4 loose parts!
+The object:     car_20_seed_1_shard.016.obj had 2 loose parts!
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\car_20_seed_1\subdv\car_20_seed_1_subdv.13not enough values to unpack (expected 3, got 0)
+ERROR AT FILE: c:\Users\mathi\OneDrive\Studium\ETH\MA2\3D Vision\Project\Old Project\3D_learned_Object_reassembly\object_fracturing\data\car_20_seed_1\subdv\car_20_seed_1_subdv.22not enough values to unpack (expected 3, got 0)
+Average number of faces: 2550.535714285714
+Average number of vertices: 1711.5
+Average number of edges: 4259.714285714285

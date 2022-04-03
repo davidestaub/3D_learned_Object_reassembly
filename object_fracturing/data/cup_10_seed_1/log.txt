@@ -1,0 +1,8 @@
+The object:     cup_10_seed_1_shard.001.obj had 2 loose parts!
+The object:     cup_10_seed_1_shard.003.obj had 2 loose parts!
+The object:     cup_10_seed_1_shard.004.obj had 3 loose parts!
+The object:     cup_10_seed_1_shard.006.obj had 2 loose parts!
+The object:     cup_10_seed_1_shard.007.obj had 2 loose parts!
+Average number of faces: 38389.53846153846
+Average number of vertices: 20356.0
+Average number of edges: 58743.153846153844

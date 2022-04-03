@@ -39,8 +39,6 @@ for filename in os.listdir(CLEANED):
 print("There are", len(meshes), "fragments loaded.")
 print("Maximum vertice length:", max_len_v)
 
-meshes_copy = copy.deepcopy(meshes)
-
 # ==============================================================================
 # Subdivide and Output
 # ==============================================================================

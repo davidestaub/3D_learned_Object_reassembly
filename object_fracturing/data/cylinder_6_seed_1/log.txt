@@ -1,0 +1,4 @@
+The object:     cylinder_6_seed_1_shard.005.obj had 3 loose parts!
+Average number of faces: 14624.833333333334
+Average number of vertices: 13409.833333333334
+Average number of edges: 28034.5
