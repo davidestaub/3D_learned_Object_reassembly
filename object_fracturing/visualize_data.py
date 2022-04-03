@@ -5,8 +5,9 @@ from compas.utilities import i_to_rgb
 from tools import *
 from compas.datastructures import mesh_transform_numpy
 import compas.geometry as cg
-
+import numpy as np
 from compas_view2.app import App
+import open3d as o3d
 
 # ==============================================================================
 # File
@@ -35,9 +36,10 @@ if not os.path.exists(FOLDER):
 
 explode = bool(int(input("Do you want do explode the data?\n1:Yes\n0:No\n")))
 
-# ==============================================================================
-# Loading the data
-# ==============================================================================
+mesh = o3d.io.read_pointcloud('C:\\Users\\mathi\\OneDrive\\Studium\\ETH\\MA2\\3D Vision\\Project\\Old Project\\3D_learned_Object_reassembly\\object_fracturing\\data\\cube_20_seed_1\\cleaned\\cube_20_seed_1_1.ply')
+mesh.compute_vertex_normals()
+o3d.visualization.draw_geometries([mesh])
+exit(0)
 
 # initialize viewer
 viewer = App()
@@ -85,7 +87,4 @@ else:
         viewer.add(mesh, facecolor=i_to_rgb(counter/file_nums, True))
         counter += 1
 
-# ==============================================================================
-# Viz
-# ==============================================================================
 viewer.run()
