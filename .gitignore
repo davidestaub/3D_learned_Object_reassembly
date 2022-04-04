@@ -2,3 +2,4 @@
 *.DS_Store
 *.swp
 object_fracturing/blender_fracture_modifier
+object_fracturing/data
