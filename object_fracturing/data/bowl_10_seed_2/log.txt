@@ -1,5 +1,0 @@
-The object:     bowl_10_seed_2_shard.006.obj had 2 loose parts!
-The object:     bowl_10_seed_2_shard.008.obj had 2 loose parts!
-Average number of faces: 5786.333333333333
-Average number of vertices: 3533.75
-Average number of edges: 9316.916666666666

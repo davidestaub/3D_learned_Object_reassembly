@@ -1,6 +1,0 @@
-The object:     cone_10_seed_4_shard.000.obj had 2 loose parts!
-The object:     cone_10_seed_4_shard.001.obj had 2 loose parts!
-The object:     cone_10_seed_4_shard.009.obj had 4 loose parts!
-Average number of faces: 3068.3
-Average number of vertices: 2043.3
-Average number of edges: 5110.0
