@@ -5,4 +5,5 @@ env
 .ipynb_checkpoints
 lsf.o*
 distributed_lock*
+object_fracturing/data/
 

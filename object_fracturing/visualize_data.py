@@ -5,13 +5,15 @@ from compas.utilities import i_to_rgb
 from tools import *
 from compas.datastructures import mesh_transform_numpy
 import compas.geometry as cg
-
+from compas.geometry import Point, Sphere
+import numpy as np
 from compas_view2.app import App
+import open3d as o3d
 
 # ==============================================================================
 # File
 # ==============================================================================
-ROOT = select_folder()
+ROOT = select_folder(mode='objects')
 CLEANED = os.path.join(ROOT, 'cleaned\\')
 SUBDV = os.path.join(ROOT, 'subdv\\')
 FOLDER = ROOT
@@ -35,10 +37,6 @@ if not os.path.exists(FOLDER):
 
 explode = bool(int(input("Do you want do explode the data?\n1:Yes\n0:No\n")))
 
-# ==============================================================================
-# Loading the data
-# ==============================================================================
-
 # initialize viewer
 viewer = App()
 
@@ -47,8 +45,6 @@ file_nums = len(files)
 print("There are", file_nums, "of fragments.")
 
 counter = 0
-if choice == 1:
-    counter += 1
 
 if (explode):
     for filename in os.listdir(ROOT):
@@ -85,7 +81,4 @@ else:
         viewer.add(mesh, facecolor=i_to_rgb(counter/file_nums, True))
         counter += 1
 
-# ==============================================================================
-# Viz
-# ==============================================================================
 viewer.run()
