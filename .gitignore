@@ -2,6 +2,8 @@
 *.DS_Store
 *.swp
 object_fracturing/blender_fracture_modifier
+.idea
+output
 object_fracturing/data
 object_fracturing/data.zip
 object_fracturing/training_data
