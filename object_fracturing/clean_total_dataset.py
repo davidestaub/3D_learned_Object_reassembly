@@ -4,8 +4,7 @@ from msilib.schema import Class
 import os
 import numpy as np
 from tools import *
-import copy
-import logging
+
 from joblib import Parallel, delayed
 
 from compas.datastructures import Mesh

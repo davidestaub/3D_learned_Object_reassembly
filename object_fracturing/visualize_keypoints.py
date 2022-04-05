@@ -22,10 +22,11 @@ DATAROOT = os.path.join(os.getcwd())
 KPTS_IN = os.path.join(ROOT, 'input\\')
 KPTS_OUT = os.path.join(ROOT, 'output\\')
 
-explode = bool(int(input("Do you want do explode the data?\n1:Yes\n0:No\n")))
+
 
 # initialize viewer
 viewer = App()
+explode = False
 
 files_in = [ob for ob in os.listdir(KPTS_IN) if ob.endswith(".npy")]
 file_in_nums = len(files_in)
@@ -38,7 +39,8 @@ print("There are", file_in_nums, "of output fragments.")
 if file_in_nums != file_out_nums:
     exit("There are not the same amount of inputs as outputs!")
 
-
+if file_in_nums > 1:
+    explode = bool(int(input("Do you want do explode the data?\n1:Yes\n0:No\n")))
 
 
 # find the different file primitives and check if there exists a path
@@ -90,34 +92,34 @@ for object_primitive in primitives:
                 mesh_transform_numpy(mesh, T)
                 viewer.add(mesh, facecolor=i_to_rgb(counter/file_in_nums, True))
                 counter += 1
-            if len(translation_vectors) == 0:
-                print("Didn't find any obj files in the input folder!")
-                if bool(input("Shall they be searched automatically?\n1:yes\n0:No\n")):
-                    automatic_in = os.path.join(DATAROOT,object_primitive,'subdv')
-                    if not os.path.exists(automatic_in):
-                        exit("Error: There is no folder:", automatic_in)
-                    else:
-                        for filename in os.listdir(automatic_in):
-                            if filename.endswith(".obj"):
-                                file_in = os.path.join(automatic_in, filename)
-
-                                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive"+ object_primitive)
-
-                                # load the obj mesh and add it to the viewer
-                                mesh = Mesh.from_obj(file_in)
-                                mesh_center = mesh.centroid()
-                                vec = cg.Vector(*[a - b for (a, b) in zip(mesh_center, mass_center)])
-                                vec = vec * 0.5
-
-                                T = cg.Translation.from_vector(vec)
-                                translation_vectors.append(T)
-
-                                mesh_transform_numpy(mesh, T)
-                                viewer.add(mesh, facecolor=i_to_rgb(counter/file_in_nums, True))
-                                counter += 1
-
+        if len(translation_vectors) == 0:
+            print("Didn't find any obj files in the input folder!")
+            if bool(input("Shall they be searched automatically?\n1:yes\n0:No\n")):
+                automatic_in = os.path.join(DATAROOT,object_primitive,'subdv')
+                if not os.path.exists(automatic_in):
+                    exit("Error: There is no folder:", automatic_in)
                 else:
-                    exit("Abort")
+                    for filename in os.listdir(automatic_in):
+                        if filename.endswith(".obj"):
+                            file_in = os.path.join(automatic_in, filename)
+
+                            printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive"+ object_primitive)
+
+                            # load the obj mesh and add it to the viewer
+                            mesh = Mesh.from_obj(file_in)
+                            mesh_center = mesh.centroid()
+                            vec = cg.Vector(*[a - b for (a, b) in zip(mesh_center, mass_center)])
+                            vec = vec * 0.5
+
+                            T = cg.Translation.from_vector(vec)
+                            translation_vectors.append(T)
+
+                            mesh_transform_numpy(mesh, T)
+                            viewer.add(mesh, facecolor=i_to_rgb(counter/file_in_nums, True))
+                            counter += 1
+
+            else:
+                exit("Abort")
 
 
         # load the keypoints
@@ -145,53 +147,49 @@ for object_primitive in primitives:
                 cloud_center = cloud.centroid
                 cloud.transform(translation_vectors[idx])
 
-                viewer.add(cloud,facecolor=i_to_rgb(1, True))
+                viewer.add(cloud,facecolor=i_to_rgb(0.5, True))
                 counter += 1
                 idx += 1
     else:
-        # construct the path to the whole object, located in the dataroot
-        ROOT = os.path.join(DATAROOT, object_primitive)
-        for filename in os.listdir(ROOT):
-            file_obj = os.path.join(ROOT, filename)
-            # ignore shards
-            if filename.endswith(".obj") and "shard" not in filename:
-                mesh = Mesh.from_obj(file_obj)
-                mass_center = mesh.centroid()
+
         # load the whole fragments
+        print(KPTS_IN)
+        print(object_primitive)
         for filename in os.listdir(KPTS_IN):
+            print(filename)
             # load the objects in the keypoints in folder, only load one object_primitive at once
             if filename.endswith(".obj") and object_primitive in filename:
                 FILE_I = os.path.join(KPTS_IN, filename)
 
-                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive"+ object_primitive)
+                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive:  "+ object_primitive)
 
                 # load the obj mesh and add it to the viewer
                 mesh = Mesh.from_obj(FILE_I)
                 viewer.add(mesh, facecolor=i_to_rgb(counter/file_in_nums, True))
                 counter += 1
-            # automatic search if needed
-            if counter == 0:
-                print("Didn't find any obj files in the input folder!")
-                if bool(input("Shall they be searched automatically?\n1:yes\n0:No\n")):
-                    automatic_in = os.path.join(DATAROOT,object_primitive,'subdv')
-                    if not os.path.exists(automatic_in):
-                        exit("Error: There is no folder:", automatic_in)
-                    else:
-                        for filename in os.listdir(automatic_in):
-                            if filename.endswith(".obj"):
-                                file_in = os.path.join(automatic_in, filename)
-
-                                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive"+ object_primitive)
-
-                                # load the obj mesh and add it to the viewer
-                                mesh = Mesh.from_obj(file_in)
-                                mesh_center = mesh.centroid()
-                                
-                                viewer.add(mesh, facecolor=i_to_rgb(counter/file_in_nums, True))
-                                counter += 1
-
+        # automatic search if needed
+        if counter == 0:
+            print("Didn't find any obj files in the input folder!")
+            if bool(input("Shall they be searched automatically?\n1:yes\n0:No\n")):
+                automatic_in = os.path.join(DATAROOT,object_primitive,'subdv')
+                if not os.path.exists(automatic_in):
+                    exit("Error: There is no folder:", automatic_in)
                 else:
-                    exit("Abort")
+                    for filename in os.listdir(automatic_in):
+                        if filename.endswith(".obj"):
+                            file_in = os.path.join(automatic_in, filename)
+
+                            printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive:  "+ object_primitive)
+
+                            # load the obj mesh and add it to the viewer
+                            mesh = Mesh.from_obj(file_in)
+                            mesh_center = mesh.centroid()
+
+                            viewer.add(mesh, facecolor=i_to_rgb(counter/file_in_nums, True))
+                            counter += 1
+
+            else:
+                exit("Abort")
 
         # load the keypoints
         counter = 0
@@ -200,18 +198,34 @@ for object_primitive in primitives:
             if filename.endswith(".npy") and object_primitive in filename:
                 FILE_I = os.path.join(KPTS_OUT, filename)
 
-                printProgressBar(counter+1,file_out_nums, prefix= "Loading Fragments for primitive"+ object_primitive)
+                printProgressBar(counter+1,file_out_nums, prefix= "Loading Keypoints for primitive"+ object_primitive)
                 
                 # load the keypoints without saliency score
                 kpts = np.load(FILE_I)
 
                 points = []
+                scores = []
+
                 # create a small sphere for each keypoint
                 for point in kpts:
-                    points.append(Point(point[0], point[1], point[2]))
+                    scores.append(point[3])
+                    points.append([point[0], point[1], point[2]])
+                scores = scores / max(scores)
+                # filter scores
+                #filter = np.where(scores > 0.5)
+                points = np.array(points)
+                print(len(points))
+                points = points[scores > 0.8]
+                print(len(points))
+                #points = [points[i] for i in filter]
+
+                points_compas = []
+                for item in points:
+                    points_compas.append(Point(item[0],item[1],item[2]))
+
                 # generate a pointcloud
-                cloud = Pointcloud(points)
-                viewer.add(cloud,facecolor=i_to_rgb(1, True))
+                cloud = Pointcloud(points_compas)
+                viewer.add(cloud, color=i_to_rgb(1, True))
                 counter += 1
 
     viewer.run()

@@ -8,7 +8,6 @@ import compas.geometry as cg
 from compas.geometry import Point, Sphere
 import numpy as np
 from compas_view2.app import App
-import open3d as o3d
 
 # ==============================================================================
 # File
