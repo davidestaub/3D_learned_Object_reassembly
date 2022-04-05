@@ -153,8 +153,6 @@ for object_primitive in primitives:
     else:
 
         # load the whole fragments
-        print(KPTS_IN)
-        print(object_primitive)
         for filename in os.listdir(KPTS_IN):
             print(filename)
             # load the objects in the keypoints in folder, only load one object_primitive at once
@@ -212,12 +210,9 @@ for object_primitive in primitives:
                     points.append([point[0], point[1], point[2]])
                 scores = scores / max(scores)
                 # filter scores
-                #filter = np.where(scores > 0.5)
+
                 points = np.array(points)
-                print(len(points))
-                points = points[scores > 0.8]
-                print(len(points))
-                #points = [points[i] for i in filter]
+                points = points[scores > 0.5]
 
                 points_compas = []
                 for item in points:
