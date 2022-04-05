@@ -2,7 +2,7 @@ import os
 from compas.datastructures import Mesh
 from compas.utilities import i_to_rgb
 from tools import *
-from compas.geometry import Point, Pointcloud, closest_point_in_cloud
+from compas.geometry import Point, Pointcloud, closest_point_in_cloud, Line
 import numpy as np
 from compas_view2.app import App
 import open3d as o3d
@@ -75,6 +75,7 @@ viewer.add(cloud, color=i_to_rgb(1, True))
 # convert the mesh to a pointcloud
 vertices = np.array([mesh.vertex_coordinates(vkey) for vkey in mesh.vertices()])
 mesh_points = []
+
 for vert in vertices:
     mesh_points.append(Point(x=vert[0],y=vert[1],z=vert[2]))
 mesh_ptc = Pointcloud(mesh_points)
@@ -85,5 +86,10 @@ for points in cloud:
 
 closest_cloud = Pointcloud(closest_points)
 viewer.add(closest_cloud, color=i_to_rgb(0.5, True))
+
+# add lines:
+for idx in range(len(closest_cloud)):
+    line = Line(cloud[idx], closest_points[idx])
+    viewer.add(line)
 
 viewer.run()
