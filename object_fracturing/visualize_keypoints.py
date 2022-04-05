@@ -78,7 +78,7 @@ for object_primitive in primitives:
             if filename.endswith(".obj") and object_primitive in filename:
                 FILE_I = os.path.join(KPTS_IN, filename)
 
-                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive"+ object_primitive)
+                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive: "+ object_primitive)
 
                 # load the obj mesh and add it to the viewer
                 mesh = Mesh.from_obj(FILE_I)
@@ -103,7 +103,7 @@ for object_primitive in primitives:
                         if filename.endswith(".obj"):
                             file_in = os.path.join(automatic_in, filename)
 
-                            printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive"+ object_primitive)
+                            printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive: "+ object_primitive)
 
                             # load the obj mesh and add it to the viewer
                             mesh = Mesh.from_obj(file_in)
@@ -129,7 +129,7 @@ for object_primitive in primitives:
             if filename.endswith(".npy") and object_primitive in filename:
                 FILE_I = os.path.join(KPTS_OUT, filename)
 
-                printProgressBar(counter+1,file_out_nums, prefix= "Loading Pointcloud for primitive"+ object_primitive)
+                printProgressBar(counter+1,file_out_nums, prefix= "Loading Pointcloud for primitive: "+ object_primitive)
                 
                 # load the keypoints without saliency score
                 kpts = np.load(FILE_I)
@@ -161,7 +161,7 @@ for object_primitive in primitives:
             if filename.endswith(".obj") and object_primitive in filename:
                 FILE_I = os.path.join(KPTS_IN, filename)
 
-                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive:  "+ object_primitive)
+                printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive: "+ object_primitive)
 
                 # load the obj mesh and add it to the viewer
                 mesh = Mesh.from_obj(FILE_I)
@@ -179,7 +179,7 @@ for object_primitive in primitives:
                         if filename.endswith(".obj"):
                             file_in = os.path.join(automatic_in, filename)
 
-                            printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive:  "+ object_primitive)
+                            printProgressBar(counter+1,file_in_nums, prefix= "Loading Fragments for primitive: "+ object_primitive)
 
                             # load the obj mesh and add it to the viewer
                             mesh = Mesh.from_obj(file_in)

@@ -1,5 +1,4 @@
 import os
-from compas.datastructures import Mesh
 from tools import *
 from compas.geometry import Pointcloud
 import numpy as np
@@ -24,15 +23,16 @@ random_num = str(random_num)
 pc_1 = np.load(frag_1+random_num+".npy")
 pc_2 = np.load(frag_2+random_num+".npy")
 
+
 # initialize viewer
 viewer = App()
-
 
 mesh_1 = Pointcloud(pc_1[:,:3])
 mesh_2 = Pointcloud(pc_2[:,:3])
 
-viewer.add(mesh_1, color=[100,0,0])
-viewer.add(mesh_2, color=[0,100,0])
+viewer.add(mesh_1, color=[0,0,0])
+viewer.add(mesh_2, color=[255,0,255])
+
 
 viewer.run()
 
