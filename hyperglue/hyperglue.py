@@ -296,10 +296,10 @@ class SuperGlue(nn.Module):
             #self.config['weights']))
 
     def forward(self, data):
+        pred = {}
         """Run SuperGlue on a pair of keypoints and descriptors"""
         desc0, desc1 = data['descriptors0'], data['descriptors1']
         kpts0, kpts1 = data['keypoints0'], data['keypoints1']
-        print("in here is ", kpts0.shape)
 
         if kpts0.shape[1] == 0 or kpts1.shape[1] == 0:  # no keypoints
             shape0, shape1 = kpts0.shape[:-1], kpts1.shape[:-1]
@@ -309,6 +309,24 @@ class SuperGlue(nn.Module):
                 'matching_scores0': kpts0.new_zeros(shape0),
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
+
+        if model_conf["bottleneck_dim"] is not None:
+            pred['down_descriptors0'] = desc0 = self.bottleneck_down(desc0)
+            pred['down_descriptors1'] = desc1 = self.bottleneck_down(desc1)
+            desc0 = self.bottleneck_up(desc0)
+            desc1 = self.bottleneck_up(desc1)
+            desc0 = nn.functional.normalize(desc0, p=2, dim=1)
+            desc1 = nn.functional.normalize(desc1, p=2, dim=1)
+            pred['bottleneck_descriptors0'] = desc0
+            pred['bottleneck_descriptors1'] = desc1
+            if model_conf["loss"]["nll_weight"] == 0:
+                desc0 = desc0.detach()
+                desc1 = desc1.detach()
+
+        #if model_conf["input_dim"] != model_conf["descriptor_dim"]:
+            #print("dims not the same !!!")
+            #desc0 = self.input_proj(desc0)
+            #desc1 = self.input_proj(desc1)
 
         # Keypoint normalization.
         #TODO: remove this hack! previously was image.shape but we have fragments not images
@@ -345,6 +363,7 @@ class SuperGlue(nn.Module):
 
         # Get the matches with score above "match_threshold".
         max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
+
         indices0, indices1 = max0.indices, max1.indices
         mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
         mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
@@ -357,11 +376,14 @@ class SuperGlue(nn.Module):
         indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
 
         return {
+            **pred,
+            'log_assignment': scores,
             'matches0': indices0, # use -1 for invalid match
             'matches1': indices1, # use -1 for invalid match
             'matching_scores0': mscores0,
             'matching_scores1': mscores1,
         }
+
 
     #Copied from superglue_v1.py
     def loss(self, pred, data):
@@ -380,20 +402,20 @@ class SuperGlue(nn.Module):
         nll_neg0 = -(log_assignment[:, :-1, -1]*neg0).sum(1)
         nll_neg1 = -(log_assignment[:, -1, :-1]*neg1).sum(1)
         nll_neg = (nll_neg0 + nll_neg1) / num_neg
-        nll = (self.conf.loss.nll_balancing * nll_pos
-               + (1 - self.conf.loss.nll_balancing) * nll_neg)
+        nll = (model_conf["loss"]["nll_balancing"] * nll_pos
+               + (1 - model_conf["loss"]["nll_balancing"]) * nll_neg)
         losses['assignment_nll'] = nll
-        if self.conf.loss.nll_weight > 0:
-            losses['total'] = nll*self.conf.loss.nll_weight
+        if model_conf["loss"]["nll_weight"] > 0:
+            losses['total'] = nll*model_conf["loss"]["nll_weight"]
 
-        if self.conf.loss.reward_weight > 0:
+        if model_conf["loss"]["reward_weight"] > 0:
             reward = data['match_reward']
             prob = log_assignment[:, :-1, :-1].exp()
             reward_loss = - torch.sum(prob * reward, (1, 2))
             norm = torch.sum(torch.clamp(reward, min=0), (1, 2))
             reward_loss /= torch.clamp(norm, min=1)
             losses['expected_match_reward'] = reward_loss
-            losses['total'] += self.conf.loss.reward_weight * reward_loss
+            losses['total'] += model_conf["loss"]["reward_weight"] * reward_loss
 
         # Some statistics
         losses['num_matchable'] = num_pos
@@ -401,15 +423,15 @@ class SuperGlue(nn.Module):
         losses['sinkhorn_norm'] = log_assignment.exp()[:, :-1].sum(2).mean(1)
         losses['bin_score'] = self.bin_score[None]
 
-        if self.conf.loss.bottleneck_l2_weight > 0:
-            assert self.conf.bottleneck_dim is not None
+        if model_conf["loss"]["bottleneck_l2_weight"] > 0:
+            assert model_conf["bottleneck_dim"] is not None
             l2_0 = torch.sum((data['descriptors0']
                               - pred['bottleneck_descriptors0'])**2, 1)
             l2_1 = torch.sum((data['descriptors1']
                               - pred['bottleneck_descriptors1'])**2, 1)
             l2 = (l2_0.mean(-1) + l2_1.mean(-1)) / 2
             losses['bottleneck_l2'] = l2
-            losses['total'] += l2*self.conf.loss.bottleneck_l2_weight
+            losses['total'] += l2*model_conf["loss"]["bottleneck_l2_weight"]
 
         return losses
 
@@ -1039,6 +1061,13 @@ model_conf = {
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
+    'bottleneck_dim': None,
+    'loss': {
+        'nll_weight': 1.,
+        'nll_balancing': 0.5,
+        'reward_weight': 0.,
+        'bottleneck_l2_weight': 0.,
+    },
 }
 
 
