@@ -4,6 +4,7 @@ from msilib.schema import Class
 import os
 import numpy as np
 from tools import *
+import shutil
 
 from joblib import Parallel, delayed
 
@@ -11,6 +12,7 @@ from compas.datastructures import Mesh
 from compas.datastructures import mesh_explode
 from compas.datastructures import mesh_subdivide_corner
 
+dashed_line = "----------------------------------------------------------------\n"
 # ==============================================================================
 # File
 # ==============================================================================
@@ -36,15 +38,28 @@ def handle_folder(object_folder, dataroot, idx):
     # skip keypoints
     if object_folder == 'keypoints':
         return
-    
+
     folder_path = os.path.join(dataroot, object_folder)
+
+    # delete the premade cleaned and subdv folder
+    try:
+        shutil.rmtree(os.path.join(folder_path,'cleaned\\'))
+        shutil.rmtree(os.path.join(folder_path,'subdv\\'))
+    except:
+        pass
+
+    # recreate directions
+    os.chdir(folder_path)
+    os.mkdir('cleaned')
+    os.mkdir('subdv')
+
     # delete the log file
     if os.path.exists(folder_path + "\\log.txt"):
         os.remove(folder_path + "\\log.txt")
-    #cleane the folder
+    #clean the folder
     for filename in os.listdir(folder_path):
         if filename  == 'cleaned' or filename == 'subdv':
-            continue
+         continue
         file_path = os.path.join(folder_path, filename)
         # delete material list files
         if filename.endswith('.mtl'):
@@ -101,9 +116,6 @@ def handle_folder(object_folder, dataroot, idx):
                 shard_counter += 1
                 ex_mesh.to_obj(FILE_O_OBJ)
 
-    # subdivide the mesh sizes to be approximately the same for each piece
-    # else usip could focus more towards dense regions
-
     # check if the cleaned folder exists yet
     os.chdir(folder_path)
     if not os.path.isdir('subdv'):
@@ -111,7 +123,7 @@ def handle_folder(object_folder, dataroot, idx):
 
     # get all the meshes for the whole object in each shard 
     meshes = []
-    max_len_v = 2000
+    max_len_v = 1000
     cleaned_path = os.path.join(folder_path, 'cleaned')
 
     for filename in os.listdir(cleaned_path):
@@ -123,11 +135,17 @@ def handle_folder(object_folder, dataroot, idx):
                 max_len_v = len_v
             meshes.append(mesh)
 
+    # construct subdivided pieces path
     subdv_path = os.path.join(folder_path, 'subdv')
-    # save the meshes after they are "downsampled"
+
+    # lists to measure several mesh averages before and after the subdivision
     avg_faces = []
     avg_vertices = []
     avg_edges = []
+    avg_faces_after = []
+    avg_vertices_after = []
+    avg_edges_after = []
+
     # go through all meshes
     for i, mesh in enumerate(meshes):
         name = object_folder + '_subdv.' + str(i)
@@ -140,6 +158,8 @@ def handle_folder(object_folder, dataroot, idx):
         avg_vertices.append(len_v)
         avg_edges.append(len_e)
 
+        # upsample the pointcloud such that the smallest mesh has
+        # at least half as many vertices as the biggest one
         while len_v < max_len_v / 2:
             mesh = mesh_subdivide_corner(mesh, k=1)
             len_v = len(list(mesh.vertices()))
@@ -154,11 +174,28 @@ def handle_folder(object_folder, dataroot, idx):
             log.append("ERROR AT FILE: " + FILE_O)
             log.append(str(e))
             log.append('\n')
+        # after division log
+        len_f = len(list(mesh.faces()))
+        len_v = len(list(mesh.vertices()))
+        len_e = len(list(mesh.edges()))
+        # append to the avg counter
+        avg_faces_after.append(len_f)
+        avg_vertices_after.append(len_v)
+        avg_edges_after.append(len_e)
 
     # append averages
-    log.append("Average number of faces: " + str(np.average(avg_faces)) + "\n")
-    log.append("Average number of vertices: " + str(np.average(avg_vertices)) + "\n")
-    log.append("Average number of edges: " + str(np.average(avg_edges)) + "\n")
+    log.append(dashed_line)
+    log.append("Average number of faces before subdv: " + str(np.average(avg_faces)) + "\n")
+    log.append("Average number of vertices before subdv: " + str(np.average(avg_vertices)) + "\n")
+    log.append("Minimal number of vertices before subdv: " + str(np.min(avg_vertices)) + "\n")
+    log.append("Maximum number of vertices before subdv: " + str(np.max(avg_vertices)) + "\n")
+    log.append("Average number of edges before subdv: " + str(np.average(avg_edges)) + "\n")
+    log.append(dashed_line)
+    log.append("Average number of faces after subdv: " + str(np.average(avg_faces_after)) + "\n")
+    log.append("Average number of vertices after subdv: " + str(np.average(avg_vertices_after)) + "\n")
+    log.append("Minimal number of vertices after subdv: " + str(np.min(avg_vertices_after)) + "\n")
+    log.append("Maximum number of vertices after subdv: " + str(np.max(avg_vertices_after)) + "\n")
+    log.append("Average number of edges after subdv: " + str(np.average(avg_edges_after)) + "\n")
     log_path = os.path.join(folder_path, 'log.txt')
 
     with open(log_path, "w+") as text_file:
@@ -166,4 +203,4 @@ def handle_folder(object_folder, dataroot, idx):
     # update the progres bar
     printProgressBar(idx, total_folders, prefix="Total Progress:")
 
-Parallel(n_jobs=6)(delayed(handle_folder)(folder, dataroot, idx) for idx, folder in enumerate(os.listdir(dataroot)))
+Parallel(n_jobs=8)(delayed(handle_folder)(folder, dataroot, idx) for idx, folder in enumerate(os.listdir(dataroot)))

@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 # Print iterations progress
 def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
@@ -38,4 +39,30 @@ def select_folder(mode='objects'):
     if mode == 'keypoints':
         folder = os.path.join(here, 'data', 'keypoints')
     return folder
+
+def print_minimal_num_vertices():
+     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+     data = os.path.join(here,'data')
+
+     min = 50000
+
+     for folder in os.listdir(data):
+        if folder == 'keypoints':
+            continue
+        log = os.path.join(data, folder, 'log.txt')
+        with open(log) as f:
+            lines = f.readlines()
+
+        min_numbs = []
+        for line in lines:
+            if line.find('Minimal number of vertices after subdv: ') == 0:
+                min_numbs.append(line.split(': ')[1].split('\n')[0])
+
+
+        for item in min_numbs:
+            if int(item) < min:
+                min = int(item)
+                min_folder = folder
+
     
+     print("Minimum vertices in the dataset are ", min, " located in the folder: ", min_folder)

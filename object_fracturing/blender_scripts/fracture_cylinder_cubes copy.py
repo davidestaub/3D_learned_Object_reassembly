@@ -10,10 +10,9 @@ bpy.app.debug = True
 bpyscene = bpy.context.scene
 
 
-#primitive = "cube"
-primitive = "cylinder"
+primitive = "cube"
 
-for seed in range(1, 5):
+for seed in range(1, 15):
 
     # delete all the meshes
     # bpy.ops.mesh.select_all(action='DESELECT')

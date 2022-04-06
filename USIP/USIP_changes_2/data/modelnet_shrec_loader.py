@@ -14,7 +14,16 @@ import torch
 import torchvision
 import matplotlib.pyplot as plt
 import h5py
+import sys 
 
+# matvogel: set the USIP directory to sys path
+dir_path = os.path.dirname(os.path.realpath(__file__))
+os.chdir(dir_path)
+os.chdir('..')
+usip_root = os.getcwd()
+sys.path.insert(0,usip_root)
+
+import modelnet.config as config
 from data.augmentation import *
 
 # Read numpy array data and label from h5_filename
@@ -23,7 +32,6 @@ def load_h5(h5_filename):
     data = f['data'][:]
     label = f['label'][:]
     return (data, label)
-
 
 def make_dataset_modelnet40_10k(root, mode, opt, part):
     ### ulsteger: edited the function to match to our data structure and to get two seperate inputs
@@ -56,10 +64,6 @@ def make_dataset_modelnet40_10k(root, mode, opt, part):
     
     ### ulsteger: loop through the samples and save their paths
     for i in range(nsamples):
-        
-        ### ulsteger: problem in data generation, skip corrupted fragments (fragments with less than 1000 vertices)
-        #if 'train' == mode and i in [141, 389, 461, 463, 467]: continue
-        #if 'test' == mode and i in [41, 42, 43, 125]: continue
         
         # som node locations
         som_nodes_folder = '%dx%d_som_nodes' % (rows, cols)
@@ -263,9 +267,6 @@ class ModelNet_Shrec_Loader(data.Dataset):
         src_pc_np, src_sn_np, src_node_np = self.get_instance_unaugmented_np(index, 1)
         dst_pc_np, dst_sn_np, dst_node_np = self.get_instance_unaugmented_np(index, 2)
 
-        # debug
-        # dst_pc_np = src_pc_np
-
         if self.mode == 'train':
             [[src_pc_np, src_sn_np, src_node_np], [dst_pc_np, dst_sn_np, dst_node_np]] = self.augment(
                 [[src_pc_np, src_sn_np, src_node_np], [dst_pc_np, dst_sn_np, dst_node_np]])
@@ -293,23 +294,19 @@ class ModelNet_Shrec_Loader(data.Dataset):
 
 
 if __name__ == "__main__":
-    # dataset = make_dataset_modelnet40('/ssd/dataset/modelnet40_ply_hdf5_2048/', True)
-    # print(len(dataset))
-    # print(dataset[0])
-
     class VirtualOpt():
         def __init__(self):
             self.load_all_data = False
-            self.input_pc_num = 5000
-            self.batch_size = 8
-            self.dataset = '10k'
-            self.node_num = 64
-            self.classes = 10
-            self.node_knn_k_1 = 9
+            self.input_pc_num = 5000 # number of points to sample from
+            self.batch_size = 8 # batch size
+            self.dataset = 'modelnet' # own one
+            self.node_num = 64 # standard value
+            self.classes = 10 # is this used for the pointnet??!
+            self.node_knn_k_1 = 9 # standard value
 
 
     opt = VirtualOpt()
-    trainset = ModelNet_Shrec_Loader('/ssd/dataset/modelnet40-normal_numpy/', 'train', opt)
+    trainset = ModelNet_Shrec_Loader(opt.dataroot, 'train', opt)
     print('---')
     print(len(trainset))
     print(trainset[0])

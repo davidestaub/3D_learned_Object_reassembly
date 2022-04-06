@@ -6,16 +6,20 @@ from scipy.spatial.distance import cdist
 
 # standard deviation of random displacement
 sigma = 0.001
-index = 0
+
 # get root path
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 out_folder = os.path.join(here,'training_data\\')
 data_folder = os.path.join(here,'data\\')
 
+from joblib import Parallel, delayed
+
 names1_1vN = []
 names2_1vN = []
 
 def handle_folder(folder):
+    if folder == 'keypoints':
+        return
     global index
     global names1_1vN
     global names2_1vN
@@ -37,7 +41,7 @@ def handle_folder(folder):
 
     num_fragments = len(fragment)
 
-    for i in range(num_fragments):
+    for i, name in enumerate(fragment_names):
         print()
         names2_temp = []
         fragment_set = np.zeros((1, 6))
@@ -70,23 +74,14 @@ def handle_folder(folder):
             noise_set = rng.normal(0, sigma, fragment_set.shape)
 
             # save the two parts of the pairs as seperate .npy files
-            np.save(f'{out_folder}/connected_1vN/fragments_1/{index}.npy', fragment[i] + noise_i)
-            np.save(f'{out_folder}/connected_1vN/fragments_2/{index}.npy', fragment_set + noise_set)
-            index += 1
+            prefix = name.split('_subdv')[0]
+            number = name.split('.')[-2]
+            name_1 = '_'.join([prefix, 'part', number])
+            name_2 = '_'.join([prefix, 'counterpart', number])
+            np.save(f'{out_folder}/connected_1vN/fragments_1/{name_1}.npy', fragment[i] + noise_i)
+            np.save(f'{out_folder}/connected_1vN/fragments_2/{name_2}.npy', fragment_set + noise_set)
 
-
-
-for object in os.listdir(data_folder):
-    # skip the keypoint folder
-    if "keypoints" in object:
-        continue
-    object = os.path.join(data_folder, object)
-    # else read each folder one by one
-    handle_folder(object)
-
-
-
-
+Parallel(n_jobs=8)(delayed(handle_folder)(os.path.join(data_folder, object)) for object in os.listdir(data_folder))
 
 # save list of used parts to file
 pd.DataFrame(names1_1vN).to_csv(f'{out_folder}/connected_1vN/fragments_1.csv', index=False, header=False)

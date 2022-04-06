@@ -7,13 +7,10 @@ import numbers
 import os
 import os.path
 import numpy as np
-import struct
-import math
 import sys
 
 import torch
 import torchvision
-import matplotlib.pyplot as plt
 import h5py
 
 # matvogel: set the USIP directory to sys path
@@ -24,8 +21,6 @@ usip_root = os.getcwd()
 sys.path.insert(0,usip_root)
 
 import modelnet.config as config
-
-
 
 def make_dataset_modelnet40(root):
     # matvogel: easier load of whole input folder

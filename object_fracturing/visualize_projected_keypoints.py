@@ -22,6 +22,7 @@ KPTS_OUT = os.path.join(ROOT, 'output\\')
 
 # initialize viewer
 viewer = App()
+
 explode = False
 
 files_in = [ob for ob in os.listdir(KPTS_IN) if ob.endswith(".npy")]

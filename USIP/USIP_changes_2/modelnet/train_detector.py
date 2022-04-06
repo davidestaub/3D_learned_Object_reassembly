@@ -180,18 +180,15 @@ if __name__=='__main__':
         lr_decay_step = 40
         if epoch%lr_decay_step==0 and epoch > 0:
             model.update_learning_rate(0.5)
+
         # batch normalization momentum decay:
         next_epoch = epoch + 1
+        
         if (opt.bn_momentum_decay_step is not None) and (next_epoch >= 1) and (
                 next_epoch % opt.bn_momentum_decay_step == 0):
             current_bn_momentum = opt.bn_momentum * (
             opt.bn_momentum_decay ** (next_epoch // opt.bn_momentum_decay_step))
             print('BN momentum updated to: %f' % current_bn_momentum)
-
-        # save network
-        # if epoch%20==0 and epoch>0:
-        #     print("Saving network...")
-        #     model.save_network(model.classifier, 'cls', '%d' % epoch, opt.gpu_id)
 
 
 
