@@ -30,17 +30,26 @@ if not os.path.exists(test_folder):
         os.chdir('test')
     os.mkdir('connected_1vN')
 
+# scan through the data and find their filenames and the size
 names = os.listdir(os.path.join(here, 'training_data','connected_1vN','fragments_1'))
 n_files = len(names)
 print("Detected ", n_files, " files!")
+
+# get a split number
 split = int(input("Enter a percentage of the data split as integer: "))
 
 if split > 100 or split < 0:
     exit("Wrong input")
 train_size = int(n_files / 100 * split)
 
+# sample a training set
+train_names = np.random.choice(names, train_size)
+test_names = []
+# generate test names
+for name in names:
+    if name not in train_names:
+        test_names.append(name)
 
-#train_names = np.random.choice(names, split)
 for i in range(train_size):
     name = str(i) + ".npy"
     frag_1_file = os.path.join(here, 'training_data','connected_1vN','fragments_1', name)
