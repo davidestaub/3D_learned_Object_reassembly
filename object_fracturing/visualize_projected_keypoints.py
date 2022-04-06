@@ -1,6 +1,7 @@
 import os
 from compas.datastructures import Mesh
 from compas.utilities import i_to_rgb
+from tomlkit import key
 from tools import *
 from compas.geometry import Point, Pointcloud, closest_point_in_cloud, Line
 import numpy as np
@@ -76,8 +77,10 @@ viewer.add(cloud, color=i_to_rgb(1, True))
 # convert the mesh to a pointcloud
 vertices = np.array([mesh.vertex_coordinates(vkey) for vkey in mesh.vertices()])
 mesh_points = []
+pcd_points =  []
 
 for vert in vertices:
+    pcd_points.append([vert[0], vert[1], vert[2]])
     mesh_points.append(Point(x=vert[0],y=vert[1],z=vert[2]))
 mesh_ptc = Pointcloud(mesh_points)
 
@@ -92,5 +95,17 @@ viewer.add(closest_cloud, color=i_to_rgb(0.5, True))
 for idx in range(len(closest_cloud)):
     line = Line(cloud[idx], closest_points[idx])
     viewer.add(line)
+
+# generate iss keypoints
+pcd = o3d.geometry.PointCloud()
+pcd.points = o3d.utility.Vector3dVector(pcd_points)
+keypoints = o3d.geometry.keypoint.compute_iss_keypoints(pcd, salient_radius=0.005, non_max_radius=0.005)
+
+iss_points = []
+for point in keypoints.points:
+    iss_points.append(Point(x=point[0], y=point[1],z=point[2]))
+
+iss_points = Pointcloud(iss_points)
+viewer.add(iss_points, color = i_to_rgb(0.1,True))
 
 viewer.run()
