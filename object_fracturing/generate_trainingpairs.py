@@ -12,6 +12,8 @@ here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 out_folder = os.path.join(here,'training_data\\')
 data_folder = os.path.join(here,'data\\')
 
+# mode (connected_1vN or connected_1v1)
+mode = 'connected_1vN'
 from joblib import Parallel, delayed
 
 names1_1vN = []
@@ -78,11 +80,11 @@ def handle_folder(folder):
             number = name.split('.')[-2]
             name_1 = '_'.join([prefix, 'part', number])
             name_2 = '_'.join([prefix, 'counterpart', number])
-            np.save(f'{out_folder}/connected_1vN/fragments_1/{name_1}.npy', fragment[i] + noise_i)
-            np.save(f'{out_folder}/connected_1vN/fragments_2/{name_2}.npy', fragment_set + noise_set)
+            np.save(f'{out_folder}/{mode}/fragments_1/{name_1}.npy', fragment[i] + noise_i)
+            np.save(f'{out_folder}/{mode}/fragments_2/{name_2}.npy', fragment_set + noise_set)
 
 Parallel(n_jobs=8)(delayed(handle_folder)(os.path.join(data_folder, object)) for object in os.listdir(data_folder))
 
 # save list of used parts to file
-pd.DataFrame(names1_1vN).to_csv(f'{out_folder}/connected_1vN/fragments_1.csv', index=False, header=False)
-pd.DataFrame(names2_1vN).to_csv(f'{out_folder}/connected_1vN/fragments_2.csv', index=False, header=False)
+pd.DataFrame(names1_1vN).to_csv(f'{out_folder}/{mode}/fragments_1.csv', index=False, header=False)
+pd.DataFrame(names2_1vN).to_csv(f'{out_folder}/{mode}/fragments_2.csv', index=False, header=False)
