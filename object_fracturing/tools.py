@@ -2,7 +2,9 @@ import os
 import numpy as np
 
 # Print iterations progress
-def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+
+
+def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
     """
     Call in a loop to create terminal progress bar
     @params:
@@ -15,13 +17,15 @@ def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, 
         fill        - Optional  : bar fill character (Str)
         printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
     """
-    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    percent = ("{0:." + str(decimals) + "f}").format(100 *
+                                                     (iteration / float(total)))
     filledLength = int(length * iteration // total)
     bar = fill * filledLength + '-' * (length - filledLength)
-    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=printEnd)
     # Print New Line on Complete
-    if iteration == total: 
+    if iteration == total:
         print()
+
 
 def select_folder(mode='objects'):
     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -30,9 +34,10 @@ def select_folder(mode='objects'):
         data_list = os.listdir(os.path.join(here, 'data'))
         print("id  name")
         for idx, val in enumerate(data_list):
-            print(idx," ", val)
+            print(idx, " ", val)
 
-        idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
+        idx = int(input(
+            "Enter the index of the subfolder in data where the shards are located:\n"))
         subfolder = data_list[idx]
         print("Opening folder:", subfolder)
         folder = os.path.join(here, 'data', subfolder)
@@ -40,13 +45,14 @@ def select_folder(mode='objects'):
         folder = os.path.join(here, 'data', 'keypoints')
     return folder
 
+
 def print_minimal_num_vertices():
-     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-     data = os.path.join(here,'data')
+    here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+    data = os.path.join(here, 'data')
 
-     min = 50000
+    min = 50000
 
-     for folder in os.listdir(data):
+    for folder in os.listdir(data):
         if folder == 'keypoints':
             continue
         log = os.path.join(data, folder, 'log.txt')
@@ -58,11 +64,10 @@ def print_minimal_num_vertices():
             if line.find('Minimal number of vertices after subdv: ') == 0:
                 min_numbs.append(line.split(': ')[1].split('\n')[0])
 
-
         for item in min_numbs:
             if int(item) < min:
                 min = int(item)
                 min_folder = folder
 
-    
-     print("Minimum vertices in the dataset are ", min, " located in the folder: ", min_folder)
+    print("Minimum vertices in the dataset are ",
+          min, " located in the folder: ", min_folder)

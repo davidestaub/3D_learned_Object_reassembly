@@ -1,7 +1,7 @@
 import os
 import copy
 import numpy as np
-import math as m 
+import math as m
 from tools import *
 
 from compas.datastructures import Mesh
@@ -57,8 +57,10 @@ for i, mesh in enumerate(meshes):
 
     print(max_len_v, len_v)
     try:
-        vertices = np.array([mesh.vertex_coordinates(vkey) for vkey in mesh.vertices()])
-        normals = np.array([mesh.vertex_normal(vkey) for vkey in mesh.vertices()])
+        vertices = np.array([mesh.vertex_coordinates(vkey)
+                            for vkey in mesh.vertices()])
+        normals = np.array([mesh.vertex_normal(vkey)
+                           for vkey in mesh.vertices()])
         datas = np.concatenate((vertices, normals), axis=1)
         np.save(FILE_O + ".npy", datas)
         mesh.to_obj(FILE_O+".obj")
@@ -82,8 +84,3 @@ print(problem_ind)
 #     viewer.add(meshes_copy[i], facecolor=i_to_rgb(i/len(meshes_copy), True))
 
 # viewer.run()
-
-
-
-
-
