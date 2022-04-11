@@ -1,0 +1,306 @@
+The object:     cube_20_seed_6_shard.000.obj had 8 loose parts!
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+The object:     cube_20_seed_6_shard.002.obj had 3 loose parts!
+Deleted a small fragment of shard: 2
+Deleted a small fragment of shard: 2
+The object:     cube_20_seed_6_shard.007.obj had 2 loose parts!
+Deleted a small fragment of shard: 7
+The object:     cube_20_seed_6_shard.011.obj had 4 loose parts!
+Deleted a small fragment of shard: 11
+Deleted a small fragment of shard: 11
+Deleted a small fragment of shard: 11
+The object:     cube_20_seed_6_shard.012.obj had 4 loose parts!
+Deleted a small fragment of shard: 12
+Deleted a small fragment of shard: 12
+Deleted a small fragment of shard: 12
+Deleted a small fragment of shard: 12
+The object:     cube_20_seed_6_shard.015.obj had 3 loose parts!
+Deleted a small fragment of shard: 15
+Deleted a small fragment of shard: 15
+Deleted a small fragment of shard: 15
+The object:     cube_20_seed_6_shard.016.obj had 3 loose parts!
+Deleted a small fragment of shard: 16
+Deleted a small fragment of shard: 16
+Deleted a small fragment of shard: 16
+Deleted a small fragment of shard: 17
+Deleted a small fragment of shard: 18
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_8.npy : 55
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_8.npy : 55
+cube_20_seed_6_kpts_9.npy : 51
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_8.npy : 55
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_8.npy : 55
+cube_20_seed_6_kpts_9.npy : 51
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_8.npy : 55
+cube_20_seed_6_kpts_1.npy : 50
+cube_20_seed_6_kpts_10.npy : 36
+cube_20_seed_6_kpts_11.npy : 44
+cube_20_seed_6_kpts_13.npy : 37
+cube_20_seed_6_kpts_14.npy : 32
+cube_20_seed_6_kpts_2.npy : 41
+cube_20_seed_6_kpts_3.npy : 65
+cube_20_seed_6_kpts_4.npy : 57
+cube_20_seed_6_kpts_5.npy : 40
+cube_20_seed_6_kpts_6.npy : 39
+cube_20_seed_6_kpts_7.npy : 44
+cube_20_seed_6_kpts_8.npy : 55
+cube_20_seed_6_kpts_9.npy : 51

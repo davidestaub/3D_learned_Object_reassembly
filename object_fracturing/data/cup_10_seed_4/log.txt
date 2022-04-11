@@ -1,0 +1,101 @@
+The object:     cup_10_seed_4_shard.000.obj had 5 loose parts!
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+Deleted a small fragment of shard: 0
+The object:     cup_10_seed_4_shard.001.obj had 2 loose parts!
+Deleted a small fragment of shard: 1
+The object:     cup_10_seed_4_shard.005.obj had 3 loose parts!
+Deleted a small fragment of shard: 5
+Deleted a small fragment of shard: 5
+The object:     cup_10_seed_4_shard.007.obj had 4 loose parts!
+Deleted a small fragment of shard: 7
+Deleted a small fragment of shard: 7
+Deleted a small fragment of shard: 7
+Deleted a small fragment of shard: 8
+Deleted a small fragment of shard: 9
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_6.npy : 203
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_6.npy : 203
+cup_10_seed_4_kpts_7.npy : 81
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_6.npy : 203
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_6.npy : 203
+cup_10_seed_4_kpts_7.npy : 81
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_6.npy : 203
+cup_10_seed_4_kpts_1.npy : 375
+cup_10_seed_4_kpts_2.npy : 551
+cup_10_seed_4_kpts_3.npy : 210
+cup_10_seed_4_kpts_4.npy : 198
+cup_10_seed_4_kpts_5.npy : 40
+cup_10_seed_4_kpts_6.npy : 203
+cup_10_seed_4_kpts_7.npy : 81
