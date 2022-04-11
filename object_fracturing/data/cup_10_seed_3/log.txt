@@ -1,0 +1,156 @@
+The object:     cup_10_seed_3_shard.001.obj had 6 loose parts!
+Deleted a small fragment of shard: 1
+Deleted a small fragment of shard: 1
+Deleted a small fragment of shard: 1
+Deleted a small fragment of shard: 1
+Deleted a small fragment of shard: 1
+The object:     cup_10_seed_3_shard.002.obj had 2 loose parts!
+Deleted a small fragment of shard: 2
+The object:     cup_10_seed_3_shard.005.obj had 2 loose parts!
+Deleted a small fragment of shard: 5
+The object:     cup_10_seed_3_shard.006.obj had 2 loose parts!
+Deleted a small fragment of shard: 6
+The object:     cup_10_seed_3_shard.007.obj had 6 loose parts!
+Deleted a small fragment of shard: 7
+Deleted a small fragment of shard: 7
+Deleted a small fragment of shard: 7
+Deleted a small fragment of shard: 7
+Deleted a small fragment of shard: 7
+The object:     cup_10_seed_3_shard.008.obj had 2 loose parts!
+Deleted a small fragment of shard: 8
+Deleted a small fragment of shard: 8
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_7.npy : 40
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_7.npy : 40
+cup_10_seed_3_kpts_9.npy : 42
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_7.npy : 40
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_7.npy : 40
+cup_10_seed_3_kpts_9.npy : 42
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_7.npy : 40
+cup_10_seed_3_kpts_0.npy : 49
+cup_10_seed_3_kpts_1.npy : 53
+cup_10_seed_3_kpts_2.npy : 98
+cup_10_seed_3_kpts_3.npy : 53
+cup_10_seed_3_kpts_4.npy : 58
+cup_10_seed_3_kpts_5.npy : 38
+cup_10_seed_3_kpts_6.npy : 60
+cup_10_seed_3_kpts_7.npy : 40
+cup_10_seed_3_kpts_9.npy : 42

@@ -1,0 +1,125 @@
+The object:     bottle_10_seed_1_shard.001.obj had 2 loose parts!
+The object:     bottle_10_seed_1_shard.002.obj had 3 loose parts!
+Deleted a small fragment of shard: 2
+Deleted a small fragment of shard: 2
+The object:     bottle_10_seed_1_shard.003.obj had 3 loose parts!
+Deleted a small fragment of shard: 3
+The object:     bottle_10_seed_1_shard.008.obj had 3 loose parts!
+Deleted a small fragment of shard: 8
+Deleted a small fragment of shard: 8
+The object:     bottle_10_seed_1_shard.009.obj had 5 loose parts!
+Deleted a small fragment of shard: 9
+Deleted a small fragment of shard: 9
+Deleted a small fragment of shard: 9
+Deleted a small fragment of shard: 9
+
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_7.npy : 224
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_7.npy : 224
+bottle_10_seed_1_kpts_8.npy : 43
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_7.npy : 224
+bottle_10_seed_1_kpts_8.npy : 43
+bottle_10_seed_1_kpts_9.npy : 32
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_7.npy : 224
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_7.npy : 224
+bottle_10_seed_1_kpts_8.npy : 43
+bottle_10_seed_1_kpts_0.npy : 46
+bottle_10_seed_1_kpts_1.npy : 65
+bottle_10_seed_1_kpts_2.npy : 46
+bottle_10_seed_1_kpts_3.npy : 16
+bottle_10_seed_1_kpts_4.npy : 248
+bottle_10_seed_1_kpts_5.npy : 194
+bottle_10_seed_1_kpts_6.npy : 222
+bottle_10_seed_1_kpts_7.npy : 224
+bottle_10_seed_1_kpts_8.npy : 43
+bottle_10_seed_1_kpts_9.npy : 32
