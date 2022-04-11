@@ -30,7 +30,7 @@ def handle_folder(folder):
             # to get meaningful information            
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(point_cloud)
-            output = o3d.geometry.keypoint.compute_iss_keypoints(pcd, min_neighbors=5)
+            output = o3d.geometry.keypoint.compute_iss_keypoints(pcd, salient_radius=0.01)
             output = [i for i in output.points]
 
             # save the keypoints
