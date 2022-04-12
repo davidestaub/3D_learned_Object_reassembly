@@ -56,7 +56,7 @@ def main():
 
     names = os.listdir(DATA_FOLDER)
 
-    with Pool(8) as p:
+    with Pool(4) as p:
         p.map(find_matching_matrix, names)
 
 if __name__ == '__main__':

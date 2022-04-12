@@ -2,7 +2,7 @@ import os
 from compas.datastructures import Mesh
 from compas.utilities import i_to_rgb
 from tools import *
-from compas.geometry import Point, Pointcloud, distance_point_point
+from compas.geometry import Point, Pointcloud, distance_point_point, closest_point_in_cloud
 import numpy as np
 from compas_view2.app import App
 
@@ -21,7 +21,7 @@ os.chdir(ROOT)
 os.chdir('..')
 DATAROOT = os.path.join(os.getcwd())
 CLEANED = os.path.join(ROOT, 'cleaned')
-KPTS_IN = os.path.join(ROOT, 'keypoints')
+KPTS_IN = os.path.join(ROOT, 'keypoints_harris')
 
 viewer = App()
 
@@ -41,17 +41,24 @@ clouds = []
 for pointcloud in kpt_files:
     kpt_in = np.load(os.path.join(KPTS_IN, pointcloud))
     kpt_in = kpt_in[:,:3]
-    clouds.extend(kpt_in)
+    clouds.append(Pointcloud(kpt_in))
 
 # go through all points and check distance
-n_kpts = len(clouds)
+n_clouds = len(clouds)
 close_points = []
-for i in range(n_kpts):
-    for j in range(i+1,n_kpts):
-        dist = distance_point_point(clouds[i], clouds[j])
-        if dist < 0.001:
-            close_points.append(clouds[i])
-            close_points.append(clouds[j])
+for idx, cloud in enumerate(clouds):
+    # check each point in cloud against every other cloud
+    for point in cloud:
+        for counter_idx in range(idx, n_clouds):
+            # skip same cloud
+            if counter_idx == idx:
+                continue
+            closest_point = closest_point_in_cloud(point, clouds[counter_idx])
+            dist = closest_point[0]
+            if dist < 0.005:
+                close_points.append(point)
+                close_points.append(closest_point[1])
+            
 
 keypoints_all = Pointcloud(close_points)
 viewer.add(keypoints_all, color=[100,0,0])

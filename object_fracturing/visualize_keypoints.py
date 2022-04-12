@@ -26,7 +26,7 @@ os.chdir(ROOT)
 os.chdir('..')
 DATAROOT = os.path.join(os.getcwd())
 CLEANED = os.path.join(ROOT, 'cleaned')
-KPTS_IN = os.path.join(ROOT, 'keypoints')
+KPTS_IN = os.path.join(ROOT, 'keypoints_harris')
 
 # chose a fragments
 data_list = os.listdir(CLEANED)
