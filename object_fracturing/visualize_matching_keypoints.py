@@ -31,6 +31,8 @@ fragment_files = [file for file in  os.listdir(CLEANED) if file.endswith('.obj')
 fragment_num = len(fragment_files)
 # add all fragments to the visualizer
 for fragment in fragment_files:
+    if fragment_idx > 1:
+        continue
     mesh = Mesh().from_obj(os.path.join(CLEANED, fragment))
     viewer.add(mesh, facecolor=i_to_rgb(fragment_idx/fragment_num, True))
     fragment_idx += 1
@@ -60,6 +62,7 @@ for idx, cloud in enumerate(clouds):
                 close_points.append(closest_point[1])
             
 
+print(f'There are {len(close_points)/2} matching pairs!')
 keypoints_all = Pointcloud(close_points)
 viewer.add(keypoints_all, color=[100,0,0])
 viewer.run()
