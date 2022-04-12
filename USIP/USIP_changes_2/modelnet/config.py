@@ -17,7 +17,7 @@ pretrained_model_path = os.path.join(dir_path,'pretrained_usip.pth')
 keypoints_path = os.path.join(dir_path,'keypoints')
 
 # number of epochs the model trains for
-epochs = 500
+epochs = 1000
 
 # batch size for unet and loaders 
 # since our pointclouds have different sizes, better use 1
@@ -42,4 +42,4 @@ node_num = 128
 
 # this value corresponds to the K value in the FPN. Increasing K values cause degenracies
 # in the feature propsal network
-knn_k = 1
+knn_k = 8

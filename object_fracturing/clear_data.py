@@ -19,7 +19,8 @@ if not os.path.isdir('cleaned'):
     os.mkdir('cleaned')
 
 save_np = False
-save_np = bool(int(input("Do you want to create additional npy files?\n0:No\n1:yes\n")))
+save_np = bool(
+    int(input("Do you want to create additional npy files?\n0:No\n1:yes\n")))
 
 
 object_name = ROOT.split('\\')[-1]
@@ -27,20 +28,24 @@ object_name = ROOT.split('\\')[-1]
 for i, filename in enumerate(os.listdir(ROOT)):
     if filename.endswith(".obj"):
         FILE_I = os.path.join(ROOT, filename)
-        if "shard" in filename: 
+        if "shard" in filename:
             mesh = Mesh.from_obj(FILE_I)
 
             print(i, filename)
             # explode joined meshes
             exploded_meshes = mesh_explode(mesh)
             if len(exploded_meshes) > 1:
-                print("The object", filename, "has",len(exploded_meshes), " loose parts!")
+                print("The object", filename, "has", len(
+                    exploded_meshes), " loose parts!")
                 print("Sepparating parts...")
-            
+
             for ex_mesh in exploded_meshes:
-                FILE_O_NPY = os.path.join(CLEANED, '%s_%s.npy' % (object_name, i))
-                FILE_O_PLY = os.path.join(CLEANED, '%s_%s.ply' % (object_name, i))
-                FILE_O_OBJ = os.path.join(CLEANED, '%s_%s.obj' % (object_name, i))
+                FILE_O_NPY = os.path.join(
+                    CLEANED, '%s_%s.npy' % (object_name, i))
+                FILE_O_PLY = os.path.join(
+                    CLEANED, '%s_%s.ply' % (object_name, i))
+                FILE_O_OBJ = os.path.join(
+                    CLEANED, '%s_%s.obj' % (object_name, i))
 
                 # delete tiny pieces
                 if len(list(ex_mesh.vertices())) < 100:
@@ -50,10 +55,12 @@ for i, filename in enumerate(os.listdir(ROOT)):
                 ex_mesh.to_ply(FILE_O_PLY)
 
                 if save_np:
-                    vertices = np.array([ex_mesh.vertex_coordinates(vkey) for vkey in ex_mesh.vertices()])
-                    normals = np.array([ex_mesh.vertex_normal(vkey) for vkey in ex_mesh.vertices()])
+                    vertices = np.array([ex_mesh.vertex_coordinates(
+                        vkey) for vkey in ex_mesh.vertices()])
+                    normals = np.array([ex_mesh.vertex_normal(vkey)
+                                       for vkey in ex_mesh.vertices()])
                     data = np.concatenate((vertices, normals), axis=1)
-                    
+
                     np.save(FILE_O_NPY, data)
 
     elif filename.endswith(".mtl"):

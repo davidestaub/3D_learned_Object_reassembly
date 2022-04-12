@@ -28,7 +28,7 @@ def make_dataset_modelnet40(root):
     dataset = []
     #idx = 0
     for item in os.listdir(root):
-        if item.split('.')[-1] == ("npy"):
+        if item.endswith(".npy"):
             dataset.append((os.path.join(root,item), item, 0))
         else:
             os.remove(os.path.join(root,item))
