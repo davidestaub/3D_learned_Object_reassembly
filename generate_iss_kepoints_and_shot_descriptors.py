@@ -1,0 +1,222 @@
+import argparse
+import os
+from glob import glob
+from typing import List
+import open3d as o3d
+import numpy as np
+import pyshot
+from compas.datastructures import Mesh, mesh_quads_to_triangles, mesh_split_face
+from scipy.spatial.distance import cdist
+
+
+# from tools import *
+
+# # create pointcloud from the mesh vertices
+# vertices = np.array([part_mesh.vertex_coordinates(vkey) for vkey in part_mesh.vertices()])
+# mesh_points = []
+# pcd_points = []
+#
+# # get the points of the fragment as pure data and points for
+# for vert in vertices:
+#     pcd_points.append([vert[0], vert[1], vert[2]])
+#     mesh_points.append(Point(x=vert[0], y=vert[1], z=vert[2]))
+# part_ptc = Pointcloud(mesh_points)
+#
+# # generate iss points
+# pcd = o3d.geometry.PointCloud()
+# pcd.points = o3d.utility.Vector3dVector(pcd_points)
+# keypoints = o3d.geometry.keypoint.compute_iss_keypoints(pcd)
+#
+# # make keypoints back to pointcloud in compas
+# iss_ptc = []
+# for point in keypoints.points:
+#     iss_ptc.append(Point(x=point[0], y=point[1], z=point[2]))
+# iss_ptc = Pointcloud(iss_ptc)
+#
+# # load the counter part
+# counter_part = np.load(os.path.join(frag_2, file_counterpart))
+#
+# # generate a pointcloud
+# counterpart_ptc = Pointcloud([Point(i[0], i[1], i[2]) for i in counter_part])
+#
+# # find closest points
+# closest_points = []
+# for points in iss_ptc:
+#     closest_points.append(closest_point_in_cloud(points, counterpart_ptc))
+#
+# min_dist = min([item[0] for item in closest_points])
+#
+# closest_points_thresh = []
+# for point in closest_points:
+#     if point[0] < 10 * min_dist:
+#         closest_points_thresh.append(point[1])
+#
+# closest_ptc = Pointcloud(closest_points_thresh)
+
+
+def get_fragment_matchings(fragments: List[np.array], folder_path: str):
+    object_name = os.path.basename(folder_path)
+    matching_matrix_path = os.path.join(folder_path, 'matching', f'{object_name}_matching_matrix.npy')
+
+    # If matching is calculated already, use it.
+    if os.path.exists(matching_matrix_path):
+        matching_matrix = np.load(matching_matrix_path)
+        return matching_matrix
+
+    # Otherwise compute and save matchings.
+    num_parts = len(fragments)
+    matching_matrix = np.zeros((num_parts, num_parts))
+    for i in range(num_parts):
+        for j in range(i):
+            # Search for corresponding points in two parts (distance below a treshold).
+            matches = np.sum(cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
+
+            # If there are more than 100 matches, the parts are considered neighbours.
+            if matches > 100:
+                # print(f'{name}: {i} and {j} match!')
+                matching_matrix[i, j] = matching_matrix[j, i] = 1
+
+    np.save(matching_matrix_path, matching_matrix)
+    return matching_matrix
+
+
+# Copied from compas and modified to also take care of 5 sidede meshes.
+def mesh_faces_to_triangles(mesh):
+    """Convert all quadrilateral faces of a mesh to triangles by adding a diagonal edge.
+
+    Parameters
+    ----------
+    mesh : :class:`~compas.datastructures.Mesh`
+        A mesh data structure.
+    check_angles : bool, optional
+        Flag indicating that the angles of the quads should be checked to choose the best diagonal.
+
+    Returns
+    -------
+    None
+        The mesh is modified in place.
+
+    """
+    def cut_off_traingle(fkey):
+        attr = mesh.face_attributes(fkey)
+        attr.custom_only = True
+        vertices = mesh.face_vertices(fkey)
+        # We skip degenerate faces because compas can't even handle deleting them.
+        if len(vertices) >= 4 and len(vertices) == len(set(vertices)):
+            a = vertices[0]
+            c = vertices[2]
+            t1, t2 = mesh_split_face(mesh, fkey, a, c)  # Cut off abc triangle.
+            mesh.face_attributes(t1, attr.keys(), attr.values())
+            mesh.face_attributes(t2, attr.keys(), attr.values())
+            if fkey in mesh.facedata:
+                del mesh.facedata[fkey]
+            cut_off_traingle(t2)  # t2 still can have more than 3 vertices.
+
+    for fkey in list(mesh.faces()):
+        cut_off_traingle(fkey)
+
+        # if len(vertices) == 4:
+        #     a, b, c, d = vertices
+        #     t1, t2 = mesh_split_face(mesh, fkey, b, d)
+        #     mesh.face_attributes(t1, attr.keys(), attr.values())
+        #     mesh.face_attributes(t2, attr.keys(), attr.values())
+        #     # mesh.facedata[t1] = attr.copy()
+        #     # mesh.facedata[t2] = attr.copy()
+        #     if fkey in mesh.facedata:
+        #         del mesh.facedata[fkey]
+
+
+def process_fragment(mesh):
+    pass
+
+
+def get_iss_keypoints(vertices):
+    pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(vertices))
+    keypoints = np.asarray(o3d.geometry.keypoint.compute_iss_keypoints(pcd).points)
+    keypoint_idxs = np.where(cdist(vertices, keypoints, metric='cityblock') == 0)[0]
+    return keypoints, keypoint_idxs
+
+
+def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
+    dists = cdist(keypoints1, keypoints2)
+    close_enough_mask = np.min(dists, axis=0) < threshold
+    closest = np.argmin(dists, axis=0)
+
+    keypoint_assignment = np.zeros((keypoints1.shape[0], keypoints2.shape[0]))
+    keypoint_assignment[closest[close_enough_mask], close_enough_mask] = 1
+
+    return keypoint_assignment
+
+
+def process_folder(folder_path, args):
+    object_name = os.path.basename(folder_path)
+
+    obj_files = glob(os.path.join(folder_path, 'subdv', '*.obj'))
+    fragments_vertices = []
+    fragments_faces = []
+
+    # Load obj files in order, so fragments_*[0] has shard 0.
+    num_fragments = len(obj_files)
+    for i in range(num_fragments):
+        mesh = Mesh.from_obj(os.path.join(folder_path, 'subdv', f'{object_name}_subdv.{i}.obj'))
+        # Some faces are still polygons other than triangles :(
+        mesh_faces_to_triangles(mesh)
+        vertices, faces = mesh.to_vertices_and_faces()
+
+        # The only faces left are degenerate, i e same vertex is part of it twice. Filter them out.
+        faces = list(filter(lambda vertex_list: len(vertex_list) == 3, faces))
+        fragments_vertices.append(np.array(vertices))
+        fragments_faces.append(np.array(faces))
+
+    keypoints = []
+    descriptors = []
+    for i in range(num_fragments):
+        fragment_keypoints, keypoint_idxs = get_iss_keypoints(fragments_vertices[i])
+        fragment_descriptors = pyshot.get_descriptors(fragments_vertices[i], fragments_faces[i],
+                                             radius=args.radius,
+                                             local_rf_radius=args.local_rf_radius,
+                                             min_neighbors=args.min_neighbors,
+                                             n_bins=args.n_bins,
+                                             double_volumes_sectors=args.double_volumes_sectors,
+                                             use_interpolation=args.use_interpolation,
+                                             use_normalization=args.use_normalization,
+                                             )
+        fragment_descriptors = fragment_descriptors[keypoint_idxs]
+        keypoints.append(fragment_keypoints)
+        descriptors.append(fragment_descriptors)
+
+    matching_matrix = get_fragment_matchings(fragments_vertices, folder_path)
+
+    for i in range(num_fragments):
+        for j in range(i):
+            if matching_matrix[i, j]:
+                keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j])
+                print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
+
+
+def main():
+    parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
+
+    parser.add_argument("--data_dir", type=str, default=None, )
+
+    # Args for SHOT descriptors.
+    parser.add_argument("--radius", type=float, default=100)
+    parser.add_argument("--local_rf_radius", type=float, default=None)
+    parser.add_argument("--min_neighbors", type=int, default=4)
+    parser.add_argument("--n_bins", type=int, default=20)
+    parser.add_argument("--double_volumes_sectors", action='store_true')
+    parser.add_argument("--use_interpolation", action='store_true')
+    parser.add_argument("--use_normalization", action='store_true')
+    args = parser.parse_args()
+
+    args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
+    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
+
+    object_folders = glob(os.path.join(args.data_dir, '*'))
+    for f in object_folders:
+        if os.path.isdir(f):
+            process_folder(f, args)
+
+
+if __name__ == '__main__':
+    main()
