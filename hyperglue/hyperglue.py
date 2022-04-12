@@ -64,6 +64,7 @@ from experiments import (
 from stdout_capturing import capture_outputs
 import argparse
 import sys
+import tarfile
 
 
 #I created this function here in order to avoid nasty imports
@@ -259,7 +260,7 @@ class SuperGlue(nn.Module):
     """
     default_config = {
         'descriptor_dim': 256,
-        'weights': 'checkpoint_best.tar',
+        'weights': None,
         'keypoint_encoder': [32, 64, 128,256],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
@@ -286,11 +287,14 @@ class SuperGlue(nn.Module):
         print(bin_score.item())
         self.register_parameter('bin_score', bin_score)
 
-        #assert self.config['weights'] in ['indoor', 'outdoor']
-        path = Path(__file__).parent
-        path = path / 'output/{}'.format(self.config['weights'])
-        self.load_state_dict(torch.load(str(path)))
-        print('Loaded SuperGlue model (\"{}\" weights)'.format(self.config['weights']))
+
+        if train_conf["load_weights"]:
+            path = Path(__file__).parent
+            path = path / '{}.pth'.format(self.config['weights'])
+            self.load_state_dict(torch.load(str(path)))
+            print('Loaded SuperGlue model (\"{}\" weights)'.format(
+                self.config['weights']))
+
 
     def forward(self, data):
         pred = {}
@@ -552,7 +556,7 @@ class FragmentsDataset(td.Dataset):
                   }
         return sample
 
-def dummy_training(data,model_config,train_conf):
+def dummy_training(data,model,train_conf):
     print("at the start is = ",data["keypoints0"].shape)
     init_cp = None
     set_seed(train_conf["seed"])
@@ -579,9 +583,6 @@ def dummy_training(data,model_config,train_conf):
 
     logging.info(f'Training loader has {len(train_dl)} batches')
     logging.info(f'Validation loader has {len(test_dl)} batches')
-
-    # Changed from get_model() to this
-    model = SuperGlue(model_config)
 
     loss_fn, metrics_fn = model.loss, model.metrics
     model = model.to(device)
@@ -775,7 +776,7 @@ print("end of shape printing")
 
 model_conf = {
     'descriptor_dim': 128,
-    'weights': 'checkpoint_best.tar',
+    'weights': 'weights_01',
     'keypoint_encoder': [32, 64, 128,256],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
@@ -791,7 +792,7 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 100,  # number of epochs
+    'epochs': 10,  # number of epochs
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
@@ -804,16 +805,24 @@ train_conf = {
     'median_metrics': [],  # add the median of some metrics
     'best_key': 'loss/total',  # key to use to select the best checkpoint
     'dataset_callback_fn': None,  # data func called at the start of each epoch
-    'output_dir': "output"
+    'output_dir': "output",
+    'load_weights':True
 }
 
 
 np.set_printoptions(threshold=sys.maxsize)
 
 
-#dummy_training(data,model_conf,train_conf)
-# END of forward pass
+
 myGlue = SuperGlue(model_conf)
+
+#dummy_training(data,myGlue,train_conf)
+# END of forward pass
+
+
+#torch.save(myGlue.state_dict(), "weights_01.pth")
+
+
 result = myGlue.forward(data=data)
 print(result)
 
