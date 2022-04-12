@@ -2,7 +2,7 @@ import os
 from compas.datastructures import Mesh
 from compas.utilities import i_to_rgb
 from tools import *
-from compas.geometry import Point, Pointcloud, distance_point_point, closest_point_in_cloud
+from compas.geometry import Point, Pointcloud, distance_point_point, closest_point_in_cloud, 
 import numpy as np
 from compas_view2.app import App
 
