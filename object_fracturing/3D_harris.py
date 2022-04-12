@@ -146,13 +146,8 @@ def handle_folder(folder):
 
 def main():
     folders = os.listdir(DATA_PATH)
-    handle_folder(folders[0])
-    exit()
-
     with Pool(cpu_count()) as p:
         p.map(handle_folder, folders)
-    
-
 
 if __name__ == '__main__':
     main()
