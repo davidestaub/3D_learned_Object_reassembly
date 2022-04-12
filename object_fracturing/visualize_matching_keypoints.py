@@ -55,7 +55,7 @@ for idx, cloud in enumerate(clouds):
                 continue
             closest_point = closest_point_in_cloud(point, clouds[counter_idx])
             dist = closest_point[0]
-            if dist < 0.005:
+            if dist < 0.0001:
                 close_points.append(point)
                 close_points.append(closest_point[1])
             

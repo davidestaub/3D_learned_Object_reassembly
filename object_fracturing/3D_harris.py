@@ -1,5 +1,4 @@
 import itertools
-import scipy
 import numpy as np
 from sklearn.decomposition import PCA
 from math import sqrt
@@ -54,40 +53,38 @@ def handle_folder(folder):
     for file in os.listdir(fragment_path):
         if file.endswith('.npy'):
             #parameters
-            plot = False
             n_neighbours = 3
             delta = 0.025
             k = 0.04
             fraction = 0.1
-            cluster_threshold = 0.01
-            scale_range = [0.5, 2.0]
-            offset_range = [10**(-4), 10**(-3)]
             
             # Load point cloud
             fragment = np.load(os.path.join(fragment_path, file))
             points = fragment[:, :3]
+
+            # subsample for big pointclouds
+            if len(points) > 5000:
+                samp_idx = np.random.choice(len(points), 5000,replace=False)
+                points = points[samp_idx]
+            
                             
             #initialisation of the solution
             labels_fraction = np.zeros(len(points))
-            labels_cluster = np.zeros(len(points))
             resp = np.zeros(len(points))
             
             #compute neighborhood
-            #neighborhood = neighborhoords.brute_force_KNN(points, n_neighbours)
-            #neighborhood = neighborhoords.brute_force_spherical(points, n_neighbours)
             #neighborhood = neighborhoords.k_ring_delaunay(points, n_neighbours)
             neighborhood = neighborhoords.k_ring_delaunay_adaptive(points, delta)
-            print("Scanning neighborhood...")
+
+            #neighbors = points[neighborhood[i], :]
+            points_centred, _ = transformation.centering_centroid(points)
+            
+            #best fitting point, this was calculated in the loop before, maybe that's not necessary?!
+            pca = PCA(n_components=3) #Principal Component Analysis
+            points_pca = pca.fit_transform(np.transpose(points_centred))
+            eigenvalues, eigenvectors = np.linalg.eigh(points_pca)
+            
             for i in neighborhood.keys() :
-                #neighbors = points[neighborhood[i], :]
-                points_centred, _ = transformation.centering_centroid(points)
-                
-                #best fitting point
-                pca = PCA(n_components=3) #Principal Component Analysis
-                points_pca = pca.fit_transform(np.transpose(points_centred))
-                eigenvalues, eigenvectors = np.linalg.eigh(points_pca)
-                idx = np.argmin(eigenvalues, axis=0)
-                #best_fit_normal = eigenvectors[idx,:]
                 
                 #rotate the cloud
                 for i in range(points.shape[0]):
@@ -125,6 +122,7 @@ def handle_folder(folder):
             #Method 1 : fraction
             interest_points = np.array(candidate[:int(fraction*len(points)), 0], dtype=np.int)
             labels_fraction[interest_points] = 1
+
             '''
             #Method 2 : cluster
             print("Clustering...")
@@ -135,7 +133,8 @@ def handle_folder(folder):
                 if np.min(distances) > cluster_threshold :
                     Q = np.concatenate((Q, query), axis=0)
                     labels_cluster[int(candidate[i, 0])] = 1
-            '''    
+            ''' 
+               
             # Save the result
             #write_ply('data//results//bunny_IPD.ply', [points, labels_fraction, labels_cluster], ['x', 'y', 'z', 'labels_fraction', 'labels_cluster'])
             filename = file.split('cleaned')[0] + "kpts_"+file.split('.')[-2] + ".npy"
@@ -157,6 +156,8 @@ def handle_folder(folder):
 
 def main():  
     folders = os.listdir(DATA_PATH)
+    handle_folder(folders[0])
+    exit()
     with Pool(cpu_count()) as p:
         p.map(handle_folder, folders)
 
