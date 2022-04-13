@@ -21,7 +21,7 @@ os.chdir('..')
 DATAROOT = os.path.join(os.getcwd())
 CLEANED = os.path.join(ROOT, 'cleaned')
 KPTS_IN = os.path.join(ROOT,'processed','keypoints')
-kpt_method = 'harris'
+kpt_method = 'SD'
 
 viewer = App()
 

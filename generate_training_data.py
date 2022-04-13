@@ -79,7 +79,7 @@ def get_SD_keypoints(vertices, normals, r=0.1, kpts_fraction=0.1):
 def get_harris_keypoints(vertices):
     points = deepcopy(vertices)
     # parameters
-    delta = 0.05
+    delta = 0.025
     k = 0.04
     fraction = 0.1
 
@@ -121,8 +121,7 @@ def get_harris_keypoints(vertices):
         # Compute response
         resp[i] = fx2*fy2 - fxfy*fxfy - k*(fx2 + fy2)*(fx2 + fy2)
 
-    #Select interest points
-    #search for local maxima
+    #Select interest points at local maxima
     candidate = []
     for i in neighborhood.keys() :
         if resp[i] >= np.max(resp[neighborhood[i]]) :

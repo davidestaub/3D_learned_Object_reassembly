@@ -12,24 +12,3 @@ Deleted a small fragment of shard: 9
 Deleted a small fragment of shard: 9
 Deleted a small fragment of shard: 9
 Deleted a small fragment of shard: 9
-
-bottle_10_seed_1_kpts_0.npy : 299
-bottle_10_seed_1_kpts_1.npy : 268
-bottle_10_seed_1_kpts_2.npy : 268
-bottle_10_seed_1_kpts_3.npy : 123
-bottle_10_seed_1_kpts_4.npy : 500
-bottle_10_seed_1_kpts_5.npy : 500
-bottle_10_seed_1_kpts_6.npy : 500
-bottle_10_seed_1_kpts_7.npy : 500
-bottle_10_seed_1_kpts_8.npy : 240
-bottle_10_seed_1_kpts_9.npy : 126
-bottle_10_seed_1_kpts_0.npy : 299
-bottle_10_seed_1_kpts_1.npy : 268
-bottle_10_seed_1_kpts_2.npy : 268
-bottle_10_seed_1_kpts_3.npy : 123
-bottle_10_seed_1_kpts_4.npy : 500
-bottle_10_seed_1_kpts_5.npy : 500
-bottle_10_seed_1_kpts_6.npy : 500
-bottle_10_seed_1_kpts_7.npy : 500
-bottle_10_seed_1_kpts_8.npy : 240
-bottle_10_seed_1_kpts_9.npy : 126
