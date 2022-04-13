@@ -1,17 +1,35 @@
 The object:     bottle_10_seed_1_shard.001.obj had 2 loose parts!
 The object:     bottle_10_seed_1_shard.002.obj had 3 loose parts!
+Deleted a small fragment of shard: 2
+Deleted a small fragment of shard: 2
 The object:     bottle_10_seed_1_shard.003.obj had 3 loose parts!
+Deleted a small fragment of shard: 3
 The object:     bottle_10_seed_1_shard.008.obj had 3 loose parts!
+Deleted a small fragment of shard: 8
+Deleted a small fragment of shard: 8
 The object:     bottle_10_seed_1_shard.009.obj had 5 loose parts!
-----------------------------------------------------------------
-Average number of faces before subdv: 5910.916666666667
-Average number of vertices before subdv: 4944.416666666667
-Minimal number of vertices before subdv: 1230
-Maximum number of vertices before subdv: 12275
-Average number of edges before subdv: 10811.666666666666
-----------------------------------------------------------------
-Average number of faces after subdv: 16662.916666666668
-Average number of vertices after subdv: 10306.833333333334
-Minimal number of vertices after subdv: 6401
-Maximum number of vertices after subdv: 15740
-Average number of edges after subdv: 26921.416666666668
+Deleted a small fragment of shard: 9
+Deleted a small fragment of shard: 9
+Deleted a small fragment of shard: 9
+Deleted a small fragment of shard: 9
+
+bottle_10_seed_1_kpts_0.npy : 299
+bottle_10_seed_1_kpts_1.npy : 268
+bottle_10_seed_1_kpts_2.npy : 268
+bottle_10_seed_1_kpts_3.npy : 123
+bottle_10_seed_1_kpts_4.npy : 500
+bottle_10_seed_1_kpts_5.npy : 500
+bottle_10_seed_1_kpts_6.npy : 500
+bottle_10_seed_1_kpts_7.npy : 500
+bottle_10_seed_1_kpts_8.npy : 240
+bottle_10_seed_1_kpts_9.npy : 126
+bottle_10_seed_1_kpts_0.npy : 299
+bottle_10_seed_1_kpts_1.npy : 268
+bottle_10_seed_1_kpts_2.npy : 268
+bottle_10_seed_1_kpts_3.npy : 123
+bottle_10_seed_1_kpts_4.npy : 500
+bottle_10_seed_1_kpts_5.npy : 500
+bottle_10_seed_1_kpts_6.npy : 500
+bottle_10_seed_1_kpts_7.npy : 500
+bottle_10_seed_1_kpts_8.npy : 240
+bottle_10_seed_1_kpts_9.npy : 126

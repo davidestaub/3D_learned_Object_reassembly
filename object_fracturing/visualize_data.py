@@ -21,7 +21,7 @@ print(1, "normal")
 print(2, "cleaned")
 print(3, "subdivided")
 choice = int(input("Which version do you want to plot?\n"))
-if choice not in [1,2,3]:
+if choice not in [1, 2, 3]:
     exit("You failed to type an integer between 1 and 3...\n\n\n")
 
 if choice == 1:
@@ -57,10 +57,11 @@ if (explode):
             if choice == 1 and "shard" not in filename:
                 continue
             FILE_I = os.path.join(FOLDER, filename)
-            printProgressBar(counter+1,file_nums, prefix="Loading Fragments")
+            printProgressBar(counter+1, file_nums, prefix="Loading Fragments")
             mesh = Mesh.from_obj(FILE_I)
             mesh_center = mesh.centroid()
-            vec = cg.Vector(*[a - b for (a, b) in zip(mesh_center, mass_center)])
+            vec = cg.Vector(
+                *[a - b for (a, b) in zip(mesh_center, mass_center)])
             vec = vec * 0.5
             T = cg.Translation.from_vector(vec)
             mesh_transform_numpy(mesh, T)
@@ -72,7 +73,7 @@ else:
         # is plotted
         if choice == 1 and "shard" not in filename:
             continue
-        printProgressBar(counter+1,file_nums, prefix="Loading Fragments")
+        printProgressBar(counter+1, file_nums, prefix="Loading Fragments")
         FILE_I = os.path.join(FOLDER, filename)
         mesh = Mesh.from_obj(FILE_I)
         len_vertices = len(list(mesh.vertices()))

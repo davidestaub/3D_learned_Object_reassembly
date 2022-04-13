@@ -1,3 +1,4 @@
+from joblib import Parallel, delayed
 from tools import *
 import numpy as np
 import pandas as pd
@@ -9,15 +10,15 @@ sigma = 0.001
 
 # get root path
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-out_folder = os.path.join(here,'training_data\\')
-data_folder = os.path.join(here,'data\\')
+out_folder = os.path.join(here, 'training_data\\')
+data_folder = os.path.join(here, 'data\\')
 
 # mode (connected_1vN or connected_1v1)
 mode = 'connected_1vN'
-from joblib import Parallel, delayed
 
 names1_1vN = []
 names2_1vN = []
+
 
 def handle_folder(folder):
     if folder == 'keypoints':
@@ -25,13 +26,11 @@ def handle_folder(folder):
     global index
     global names1_1vN
     global names2_1vN
-    
-    # change to the subdivided folder
-    folder = os.path.join(folder,'subdv\\')
-     
-    files = [ob for ob in os.listdir(folder) if ob.endswith(".npy")]
 
-    
+    # change to the subdivided folder
+    folder = os.path.join(folder, 'subdv\\')
+
+    files = [ob for ob in os.listdir(folder) if ob.endswith(".npy")]
 
     rng = np.random.default_rng()
     fragment = []
@@ -49,18 +48,21 @@ def handle_folder(folder):
         fragment_set = np.zeros((1, 6))
 
         for j in range(num_fragments):
-            printProgressBar(j+1, num_fragments,prefix="Comparing Parts against fragment"+str(i))
+            printProgressBar(j+1, num_fragments,
+                             prefix="Comparing Parts against fragment"+str(i))
             if i == j:
                 continue
             # search for corresponding points in two parts (distance below a treshold)
-            matches = np.count_nonzero(cdist(fragment[i][:, :3], fragment[j][:, :3]) < 1e-3)
+            matches = np.count_nonzero(
+                cdist(fragment[i][:, :3], fragment[j][:, :3]) < 1e-3)
             #print(f'Fragments {i} and {j} have {matches} matches')
             # if there are more than 100 matches, the parts are considered neighbours
             if matches > 100:
                 #print('Its a match!')
                 names2_temp.append(fragment_names[j])
                 # all matching parts are concatenated together in one file, as if they where one point cloud
-                fragment_set = np.concatenate((fragment_set, fragment[j]), axis=0)
+                fragment_set = np.concatenate(
+                    (fragment_set, fragment[j]), axis=0)
 
         # delete row of zeros at the beginning
         fragment_set = np.delete(fragment_set, 0, axis=0)
@@ -80,11 +82,17 @@ def handle_folder(folder):
             number = name.split('.')[-2]
             name_1 = '_'.join([prefix, 'part', number])
             name_2 = '_'.join([prefix, 'counterpart', number])
-            np.save(f'{out_folder}/{mode}/fragments_1/{name_1}.npy', fragment[i] + noise_i)
-            np.save(f'{out_folder}/{mode}/fragments_2/{name_2}.npy', fragment_set + noise_set)
+            np.save(f'{out_folder}/{mode}/fragments_1/{name_1}.npy',
+                    fragment[i] + noise_i)
+            np.save(f'{out_folder}/{mode}/fragments_2/{name_2}.npy',
+                    fragment_set + noise_set)
 
-Parallel(n_jobs=8)(delayed(handle_folder)(os.path.join(data_folder, object)) for object in os.listdir(data_folder))
+
+Parallel(n_jobs=8)(delayed(handle_folder)(os.path.join(data_folder, object))
+                   for object in os.listdir(data_folder))
 
 # save list of used parts to file
-pd.DataFrame(names1_1vN).to_csv(f'{out_folder}/{mode}/fragments_1.csv', index=False, header=False)
-pd.DataFrame(names2_1vN).to_csv(f'{out_folder}/{mode}/fragments_2.csv', index=False, header=False)
+pd.DataFrame(names1_1vN).to_csv(
+    f'{out_folder}/{mode}/fragments_1.csv', index=False, header=False)
+pd.DataFrame(names2_1vN).to_csv(
+    f'{out_folder}/{mode}/fragments_2.csv', index=False, header=False)
