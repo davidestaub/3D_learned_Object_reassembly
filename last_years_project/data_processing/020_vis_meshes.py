@@ -8,7 +8,7 @@ from compas_view2.app import App
 # File
 # ==============================================================================
 HERE = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-FILE_FOLDER = os.path.join(HERE, 'data', 'cube_6')
+FILE_FOLDER = os.path.join(HERE, 'data', 'sword')
 # FILE_I = os.path.join(HERE, 'data', 'cube_6/Cube_shard.obj')
 
 # initialize viewer

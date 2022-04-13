@@ -8,6 +8,7 @@ import open3d as o3d
 import pyshot
 from compas.datastructures import Mesh, mesh_split_face
 from scipy.spatial.distance import cdist
+from scipy.sparse import save_npz, load_npz, csr_matrix
 
 
 # from tools import *
@@ -57,7 +58,10 @@ from scipy.spatial.distance import cdist
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
-    matching_matrix_path = os.path.join(folder_path, 'matching', f'{object_name}_matching_matrix.npy')
+    match_path = os.path.join(folder_path,'processed', 'matching')
+    os.makedirs(match_path, exist_ok=True)
+
+    matching_matrix_path = os.path.join(match_path, f'{object_name}_matching_matrix.npy')
 
     # If matching is calculated already, use it.
     if os.path.exists(matching_matrix_path):
@@ -215,9 +219,11 @@ def process_folder(folder_path, args):
     for i in range(num_fragments):
         for j in range(i):
             if matching_matrix[i, j]:
-                keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j])
+                keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j]).astype(int)
                 print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
-                np.savetxt('test.txt', keypoint_assignment)
+                # save the matching matrix as sparse scipy file
+                path = os.path.join(folder_path,'processed', 'matching', f'match_matrix_{i}_{j}')
+                save_npz(path, csr_matrix(keypoint_assignment))
 
 
 def main():
@@ -226,7 +232,7 @@ def main():
     parser.add_argument("--keypoint_method", type=str, default='iss', choices=['iss'])
     parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
 
-    parser.add_argument("--data_dir", type=str, default="./object_fraccturing/data/")
+    parser.add_argument("--data_dir", type=str, default='')
 
     # Args for SHOT descriptors.
     parser.add_argument("--radius", type=float, default=100)

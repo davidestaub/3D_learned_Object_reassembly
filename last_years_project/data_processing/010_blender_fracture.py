@@ -19,9 +19,9 @@ for seed in range(1, 5):
     # bpy.ops.mesh.select_all(action='DESELECT')
     for o in bpyscene.objects:
         if o.type == 'MESH':
-            o.select = True
+            o.select_set(True)
         else:
-            o.select = False
+            o.select_set(False)
     bpy.ops.object.delete()
 
     # Create an empty mesh and the object.
@@ -34,8 +34,8 @@ for seed in range(1, 5):
     for ob in bpyscene.objects:
         if ob.type == 'MESH':
             # make the current object active and select it
-            bpyscene.objects.active = ob
-            ob.select = True
+            bpy.context.view_layer.objects.active = ob
+            ob.select_set(True)
 
     ob = bpy.context.active_object
 
@@ -54,7 +54,8 @@ for seed in range(1, 5):
                             cuts=40,
                             use_grid_fill=True,
                             )
-
+    print("Subdivided Object")
+    
     # Write back to the mesh
     bpy.ops.mesh.select_all(action='DESELECT')
     bm.select_flush(True)
@@ -66,7 +67,8 @@ for seed in range(1, 5):
 
     # variables
     count = 20
-
+    
+    '''
     # modifier = object.modifiers.new(name="Fracture", frac_algorithm='BOOLEAN_FRACTAL')
     bpy.ops.object.modifier_add(type='FRACTURE')
     md = ob.modifiers["Fracture"]
@@ -78,8 +80,9 @@ for seed in range(1, 5):
     md.point_seed = seed  # random seed
 
     bpy.ops.object.fracture_refresh(reset=True)
+    '''
+    
     bpy.ops.object.rigidbody_convert_to_objects()
-
 
 
     folder = os.path.abspath("C:\\Users\\Chaoyu\\Documents\\Github\\3d_fracture_reassmbly\\data")
