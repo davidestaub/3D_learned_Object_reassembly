@@ -140,14 +140,7 @@ class KeypointEncoder(nn.Module):
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
     # but if we happen to have confidence scores aswell we can reintroduce it
-    def forward(self, kpts, #scores
-                 ):
-        # We should keep the dimensions to be swapped (1,2) as is as long as we are using the same tensor dimensions that they are using, with an empty first dimension
-        # If we remove the empty dimension this should be changed to (0,1)
-        #print(kpts.shape)
-        #kpts = kpts[:,:,None]
-        inputs = [kpts#.transpose(0, 1)#, scores.unsqueeze(1)
-        ]
+    def forward(self, kpts,):
         kpts = kpts.transpose(1, 2)
         return self.encoder(kpts)
 
@@ -302,8 +295,6 @@ class SuperGlue(nn.Module):
         desc0, desc1 = data['descriptors0'], data['descriptors1']
         kpts0, kpts1 = data['keypoints0'], data['keypoints1']
 
-        print("desc shape = ",desc0.shape)
-
         if kpts0.shape[1] == 0 or kpts1.shape[1] == 0:  # no keypoints
             shape0, shape1 = kpts0.shape[:-1], kpts1.shape[:-1]
             return {
@@ -313,56 +304,25 @@ class SuperGlue(nn.Module):
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
 
-        #if model_conf["input_dim"] != model_conf["descriptor_dim"]:
-            #print("dims not the same !!!")
-            #desc0 = self.input_proj(desc0)
-            #desc1 = self.input_proj(desc1)
-
         # Keypoint normalization.
         #TODO: remove this hack! previously was image.shape but we have fragments not images
         #kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
         #kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
 
-        # Keypoint MLP encoder.
-        #TODO: What are scores ?
-
-        print("here kpts shape is =",kpts0.shape)
-        #print((self.kenc(kpts0, data['scores0'])).shape)
-        print("===")
-        print(desc0.shape)
-        print(kpts0.shape)
-
-
         encoded_kpt0 = self.kenc(kpts0)
         encoded_kpt1 = self.kenc(kpts1)
-
-
-
-        print(encoded_kpt0.shape)
-        print("===")
-
 
         encoded_kpt0 = encoded_kpt0.squeeze()
         encoded_kpt1 = encoded_kpt1.squeeze()
 
-
-        print(encoded_kpt0.shape)
-
-
-
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
-
-        #desc0 = desc0.unsqueeze(dim=2)
-        #desc1 = desc1.unsqueeze(dim=2)
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
 
         # Final MLP projection.
         mdesc0, mdesc1 = self.final_proj(desc0), self.final_proj(desc1)
-
-        print("mdesc = ",mdesc1.shape)
 
         # Compute matching descriptor distance.
         scores = torch.einsum('bdn,bdm->bnm', mdesc0, mdesc1)
@@ -387,8 +347,6 @@ class SuperGlue(nn.Module):
         indices0 = torch.where(valid0, indices0, indices0.new_tensor(-1))
         indices1 = torch.where(valid1, indices1, indices1.new_tensor(-1))
 
-        print("scores = ",scores, "with shape",scores.shape)
-
         return {
             **pred,
             'log_assignment': scores,
@@ -405,25 +363,18 @@ class SuperGlue(nn.Module):
 
         # an nxm matrix with boolean value indicating whether keypoints i,j are a match (1) or not (0)
         positive = data['gt_assignment'].float()
-        print(positive)
+
         num_pos = torch.max(positive.sum((1, 2)), positive.new_tensor(1))
-        print("numpos = ",num_pos)
+
         #data[gt_matches_0] is an array of dimension n were each entry cooresponds to the indice of the corresponding match in the other image or a -1 if there is no match
         # the same holds for gt_matches_1 just that it is dimension m and has indices of the 0-image array
         neg0 = (data['gt_matches0'] == -1).float()
-        print(neg0)
-        print(neg0.sum(0))
         neg1 = (data['gt_matches1'] == -1).float()
         #changed dimension added tensor
         #removed max with new_temsor
         num_neg = neg0.sum(1) + neg1.sum(1)
 
         log_assignment = pred['log_assignment']
-        print("log_assignment = ",log_assignment.shape)
-        print("positive",positive.shape)
-        print(positive)
-        a = log_assignment[:, :-1, :-1]
-        print(a,a.shape)
         nll_pos = -(log_assignment[:, :-1, :-1]*positive).sum((1, 2))
         nll_pos /= num_pos
         nll_neg0 = -(log_assignment[:, :-1, -1]*neg0).sum(1)
@@ -451,26 +402,13 @@ class SuperGlue(nn.Module):
             #added this
             #m=m.squeeze()
             #gt_m = gt_m.unsqueeze(dim=1)
-            print(gt_m,gt_m.shape)
+
             mask = (gt_m > -1).float()
-            print(mask)
-            print(mask.sum(1))
-            print("m = ", m,m.shape)
-            print("gt_m = ", gt_m, gt_m.shape)
-            print((m == gt_m)*mask)
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
         def precision(m, gt_m):
 
             mask = ((m > -1) & (gt_m >= -1)).float()
-            print("========")
-            print(mask)
-            print(m)
-            print(gt_m)
-            print((m > -1))
-            print((gt_m >= -1))
-            print(((m == gt_m)*mask))
-            print("========")
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
         rec = recall(pred['matches0'], data['gt_matches0'])
@@ -511,12 +449,10 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
             del pred, data
         numbers = {**metrics, **{'loss/'+k: v for k, v in losses.items()}}
         for k, v in numbers.items():
-            print(k,v,"\n")
             if k not in results:
                 results[k] = AverageMetric()
                 if k in train_conf["median_metrics"]:
                     results[k+'_median'] = MedianMetric()
-            #print(results[k])
 
             results[k].update(v)
             if k in train_conf["median_metrics"]:
@@ -529,7 +465,7 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset
-    def __init__(self, data):
+    def __init__(self, dataset):
         self.number_of_samples = 32
 
     # number of rows in the dataset
@@ -538,6 +474,7 @@ class FragmentsDataset(td.Dataset):
 
     # get a row at an index
     def __getitem__(self, idx):
+
 
         k0 = data["keypoints0"]
         k1 = data["keypoints1"]
@@ -557,7 +494,6 @@ class FragmentsDataset(td.Dataset):
         return sample
 
 def dummy_training(data,model,train_conf):
-    print("at the start is = ",data["keypoints0"].shape)
     init_cp = None
     set_seed(train_conf["seed"])
     writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
@@ -566,20 +502,16 @@ def dummy_training(data,model,train_conf):
 
     #Loading the fragment data
     dataset = FragmentsDataset(data)
-    print(dataset)
-
 
     #Splitting into train test
     train_size = int(0.8 * len(dataset))
-    print("len(dataset= ",len(dataset))
-    print(train_size)
     test_size = len(dataset) - train_size
 
     train, test = td.random_split(dataset, [train_size, test_size])
     # create a data loader for train and test sets
-    print(train)
-    train_dl = td.DataLoader(train, batch_size=8, shuffle=True)
+    train_dl = td.DataLoader(train, batch_size=train_size, shuffle=True)
     test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
+
 
     logging.info(f'Training loader has {len(train_dl)} batches')
     logging.info(f'Validation loader has {len(test_dl)} batches')
@@ -622,10 +554,6 @@ def dummy_training(data,model,train_conf):
             raise ValueError(train_conf["lr_schedule"]["type"])
 
     lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
-    #if args.restore:
-        #optimizer.load_state_dict(init_cp['optimizer'])
-        #if 'lr_scheduler' in init_cp:
-            #lr_scheduler.load_state_dict(init_cp['lr_scheduler'])
 
     logging.info(f'Starting training with configuration:\n{train_conf}')
 
@@ -736,8 +664,6 @@ for i in range(0,data['gt_assignment'].shape[0]):
 
 
 data['gt_matches0'] = np.ndarray((data['keypoints0'].shape[0]))
-print(data['keypoints0'].shape[0])
-print(data["gt_matches0"].shape)
 for i in range(0,data['gt_assignment'].shape[0]):
     current_array = data['gt_assignment'][i]
     data['gt_matches0'][i] = -1
@@ -751,7 +677,6 @@ data['gt_matches0'] = torch.from_numpy(data['gt_matches0'])
 
 #For now as they are simmetric
 data['gt_matches1'] = data['gt_matches0']
-
 
 print("starting shape printing: \n")
 print(data["descriptors0"].shape)
@@ -792,7 +717,7 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 10,  # number of epochs
+    'epochs': 100,  # number of epochs
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
@@ -811,18 +736,22 @@ train_conf = {
 
 
 np.set_printoptions(threshold=sys.maxsize)
-
-
-
+dataset= FragmentsDataset(data)
 myGlue = SuperGlue(model_conf)
 
-#dummy_training(data,myGlue,train_conf)
-# END of forward pass
+dummy_training(dataset,myGlue,train_conf)
+torch.save(myGlue.state_dict(), "weights_01.pth")
 
 
-#torch.save(myGlue.state_dict(), "weights_01.pth")
 
+test_data = FragmentsDataset(data)
+myGlue.eval()
+test_dl = td.DataLoader(test_data, batch_size=32, shuffle=False)
+for it, datatest in enumerate(test_dl):
+    #device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    #data = batch_to_device(datatest, device, non_blocking=True)
+    pred = myGlue(datatest)
+    print("The final output is: \n \n")
+    print(pred)
 
-result = myGlue.forward(data=data)
-print(result)
 
