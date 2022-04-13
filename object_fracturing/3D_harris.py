@@ -4,6 +4,7 @@ import neighborhoords
 import shutil
 import itertools
 import numpy as np
+from numpy.linalg import lstsq
 from sklearn.decomposition import PCA
 from math import sqrt
 import os
@@ -22,19 +23,13 @@ def length(vector):
     return sqrt(dot_product(vector, vector))
 
 
-def angle(v1, v2):
-    a = dot_product(v1, v2)/(length(v1)*length(v2))
-    a = np.clip(a, -1, 1)
-    return(np.arccos(a))
-
-
 def polyfit3d(x, y, z, order=3):
     ncols = (order + 1)**2
     G = np.zeros((x.size, ncols))
     ij = itertools.product(range(order+1), range(order+1))
     for k, (i, j) in enumerate(ij):
         G[:, k] = x**i * y**j
-    m, _, _, _ = np.linalg.lstsq(G, z)
+    m, _, _, _ = lstsq(G, z)
     return m
 
 
@@ -69,11 +64,11 @@ def find_keypoints(fragment_path, file, kpts_path):
     points_pca = pca.fit_transform(np.transpose(points_centred))
     eigenvalues, eigenvectors = np.linalg.eigh(points_pca)
 
-    for i in neighborhood.keys():
+     # rotate the cloud
+    for i in range(points.shape[0]):
+        points[i, :] = np.dot(np.transpose(eigenvectors), points[i, :])
 
-        # rotate the cloud
-        for i in range(points.shape[0]):
-            points[i, :] = np.dot(np.transpose(eigenvectors), points[i, :])
+    for i in neighborhood.keys():
 
         # restrict to XY plane and translate
         points_2D = points[:, :2]-points[i, :2]
@@ -89,21 +84,17 @@ def find_keypoints(fragment_path, file, kpts_path):
 
         # Compute response
         resp[i] = fx2*fy2 - fxfy*fxfy - k*(fx2 + fy2)*(fx2 + fy2)
-
-        # rotate back
-        for i in range(points.shape[0]):
-            points[i, :] = np.dot(eigenvectors, points[i, :])
+    
+    # rotate back
+    for i in range(points.shape[0]):
+        points[i, :] = np.dot(eigenvectors, points[i, :])
 
     # Select interest points
     # search for local maxima
-    candidate = []
-    for i in neighborhood.keys():
-        if resp[i] >= np.max(resp[neighborhood[i]]):
-            candidate.append([i, resp[i]])
-    
+    candidate = [[i, resp[i]] for i in neighborhood.keys() if resp[i] >= np.max(resp[neighborhood[i]])]
+
     # sort by decreasing order
-    candidate.sort(reverse=True, key=lambda x: x[1])
-    candidate = np.array(candidate)
+    candidate = np.array(candidate.sort(reverse=True, key=lambda x: x[1]))
 
     # Method 1 : fraction
     interest_points = np.array(candidate[:int(fraction*len(points)), 0], dtype=np.int)

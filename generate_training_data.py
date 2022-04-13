@@ -180,7 +180,7 @@ def process_folder(folder_path, args):
     os.makedirs(os.path.join(folder_path, 'processed'), exist_ok=True)
 
     # TODO: reading from binary might be much faster according to Martin.
-    obj_files = glob(os.path.join(folder_path, 'subdv', '*.obj'))
+    obj_files = glob(os.path.join(folder_path, 'cleaned', '*.obj'))
     fragments_vertices = []
     fragments_faces = []
 
@@ -191,7 +191,7 @@ def process_folder(folder_path, args):
         return
 
     for i in range(num_fragments):
-        mesh = Mesh.from_obj(os.path.join(folder_path, 'subdv', f'{object_name}_subdv.{i}.obj'))
+        mesh = Mesh.from_obj(os.path.join(folder_path, 'cleaned', f'{object_name}cleaned.{i}.obj'))
         # Some faces are still polygons other than triangles :(
         mesh_faces_to_triangles(mesh)
         vertices, faces = mesh.to_vertices_and_faces()
@@ -217,7 +217,7 @@ def process_folder(folder_path, args):
             if matching_matrix[i, j]:
                 keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j])
                 print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
-                # TODO: save this
+                np.savetxt('test.txt', keypoint_assignment)
 
 
 def main():
