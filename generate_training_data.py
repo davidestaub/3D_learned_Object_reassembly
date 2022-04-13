@@ -2,10 +2,11 @@ import argparse
 import os
 from glob import glob
 from typing import List
-import open3d as o3d
+
 import numpy as np
+import open3d as o3d
 import pyshot
-from compas.datastructures import Mesh, mesh_quads_to_triangles, mesh_split_face
+from compas.datastructures import Mesh, mesh_split_face
 from scipy.spatial.distance import cdist
 
 
@@ -83,20 +84,10 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
 # Copied from compas and modified to also take care of 5 sidede meshes.
 def mesh_faces_to_triangles(mesh):
     """Convert all quadrilateral faces of a mesh to triangles by adding a diagonal edge.
-
-    Parameters
-    ----------
-    mesh : :class:`~compas.datastructures.Mesh`
-        A mesh data structure.
-    check_angles : bool, optional
-        Flag indicating that the angles of the quads should be checked to choose the best diagonal.
-
-    Returns
-    -------
-    None
-        The mesh is modified in place.
-
+    mesh : :class:`~compas.datastructures.Mesh` A mesh data structure.
+    The mesh is modified in place.
     """
+
     def cut_off_traingle(fkey):
         attr = mesh.face_attributes(fkey)
         attr.custom_only = True
@@ -114,20 +105,6 @@ def mesh_faces_to_triangles(mesh):
 
     for fkey in list(mesh.faces()):
         cut_off_traingle(fkey)
-
-        # if len(vertices) == 4:
-        #     a, b, c, d = vertices
-        #     t1, t2 = mesh_split_face(mesh, fkey, b, d)
-        #     mesh.face_attributes(t1, attr.keys(), attr.values())
-        #     mesh.face_attributes(t2, attr.keys(), attr.values())
-        #     # mesh.facedata[t1] = attr.copy()
-        #     # mesh.facedata[t2] = attr.copy()
-        #     if fkey in mesh.facedata:
-        #         del mesh.facedata[fkey]
-
-
-def process_fragment(mesh):
-    pass
 
 
 def get_iss_keypoints(vertices):
@@ -148,15 +125,71 @@ def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
     return keypoint_assignment
 
 
+def get_descriptors(i, vertices, faces, args, folder_path):
+    method = args.descriptor_method
+
+    descriptor_path = os.path.join(folder_path, 'processed', 'descriptors_all_points',
+                                   f'descriptors_all_points_{method}.{i}.npy')
+    os.makedirs(os.path.dirname(descriptor_path), exist_ok=True)
+
+    if os.path.exists(descriptor_path):
+        descriptors = np.load(descriptor_path)
+        return descriptors
+    if args.descriptor_method == 'shot':
+        descriptors = pyshot.get_descriptors(vertices, faces,
+                                             radius=args.radius,
+                                             local_rf_radius=args.local_rf_radius,
+                                             min_neighbors=args.min_neighbors,
+                                             n_bins=args.n_bins,
+                                             double_volumes_sectors=args.double_volumes_sectors,
+                                             use_interpolation=args.use_interpolation,
+                                             use_normalization=args.use_normalization,
+                                             )
+        np.save(descriptor_path, descriptors)
+        return descriptors
+    else:
+        raise NotImplementedError
+
+
+def get_keypoints(i, vertices, descriptors, args, folder_path):
+    method = args.keypoint_method
+
+    keypoint_path = os.path.join(folder_path, 'processed', 'keypoints',
+                                 f'keypoints_{method}.{i}.npy')
+    keypoint_descriptors_path = os.path.join(folder_path, 'processed', 'keypoint_descriptors',
+                                             f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
+    os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
+    os.makedirs(os.path.dirname(keypoint_descriptors_path), exist_ok=True)
+    if os.path.exists(keypoint_path) and os.path.exists(keypoint_descriptors_path):
+        keypoints = np.load(keypoint_path)
+        keypoint_descriptors = np.load(keypoint_descriptors_path)
+        return keypoints, keypoint_descriptors
+
+    if args.keypoint_method == 'iss':
+        keypoints, keypoint_idxs = get_iss_keypoints(vertices)
+        keypoint_descriptors = descriptors[keypoint_idxs]
+        np.save(keypoint_path, keypoints)
+        np.save(keypoint_descriptors_path, keypoint_descriptors)
+        return keypoints, keypoint_descriptors
+    else:
+        raise NotImplementedError
+
+
 def process_folder(folder_path, args):
     object_name = os.path.basename(folder_path)
+    os.makedirs(os.path.join(folder_path, 'processed'), exist_ok=True)
 
+    # TODO: reading from binary might be much faster according to Martin.
     obj_files = glob(os.path.join(folder_path, 'subdv', '*.obj'))
     fragments_vertices = []
     fragments_faces = []
 
     # Load obj files in order, so fragments_*[0] has shard 0.
     num_fragments = len(obj_files)
+    if num_fragments == 0:
+        print(f"No fragments found in {folder_path}")
+        return
+
     for i in range(num_fragments):
         mesh = Mesh.from_obj(os.path.join(folder_path, 'subdv', f'{object_name}_subdv.{i}.obj'))
         # Some faces are still polygons other than triangles :(
@@ -171,19 +204,11 @@ def process_folder(folder_path, args):
     keypoints = []
     descriptors = []
     for i in range(num_fragments):
-        fragment_keypoints, keypoint_idxs = get_iss_keypoints(fragments_vertices[i])
-        fragment_descriptors = pyshot.get_descriptors(fragments_vertices[i], fragments_faces[i],
-                                             radius=args.radius,
-                                             local_rf_radius=args.local_rf_radius,
-                                             min_neighbors=args.min_neighbors,
-                                             n_bins=args.n_bins,
-                                             double_volumes_sectors=args.double_volumes_sectors,
-                                             use_interpolation=args.use_interpolation,
-                                             use_normalization=args.use_normalization,
-                                             )
-        fragment_descriptors = fragment_descriptors[keypoint_idxs]
+        fragment_descriptors = get_descriptors(i, fragments_vertices[i], fragments_faces[i], args, folder_path)
+        fragment_keypoints, fragment_keypoint_descriptors = get_keypoints(i, fragments_vertices[i],
+                                                                          fragment_descriptors, args, folder_path)
         keypoints.append(fragment_keypoints)
-        descriptors.append(fragment_descriptors)
+        descriptors.append(fragment_keypoint_descriptors)
 
     matching_matrix = get_fragment_matchings(fragments_vertices, folder_path)
 
@@ -192,12 +217,16 @@ def process_folder(folder_path, args):
             if matching_matrix[i, j]:
                 keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j])
                 print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
+                # TODO: save this
 
 
 def main():
     parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
 
-    parser.add_argument("--data_dir", type=str, default=None, )
+    parser.add_argument("--keypoint_method", type=str, default='iss', choices=['iss'])
+    parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
+
+    parser.add_argument("--data_dir", type=str, default=None)
 
     # Args for SHOT descriptors.
     parser.add_argument("--radius", type=float, default=100)
