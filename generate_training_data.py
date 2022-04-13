@@ -256,14 +256,15 @@ def process_folder(folder_path, args):
                 keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j]).astype(int)
                 print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
                 # save the matching matrix as sparse scipy file
-                path = os.path.join(folder_path,'processed', 'matching', f'match_matrix_{i}_{j}')
+                name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
+                path = os.path.join(folder_path,'processed', 'matching', name)
                 save_npz(path, csr_matrix(keypoint_assignment))
 
 
 def main():
     parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
 
-    parser.add_argument("--keypoint_method", type=str, default='SD', choices=['iss', 'SD'])
+    parser.add_argument("--keypoint_method", type=str, default='iss', choices=['iss', 'SD'])
     parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
 
     parser.add_argument("--data_dir", type=str, default='')
