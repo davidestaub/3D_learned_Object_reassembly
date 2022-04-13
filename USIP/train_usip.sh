@@ -1,1 +1,0 @@
-bsub -I -R "rusage[ngpus_excl_p=1,mem=5000]" python ./USIP/modelnet/train_detector.py

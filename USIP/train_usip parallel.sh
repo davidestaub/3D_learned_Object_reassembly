@@ -1,1 +1,0 @@
-bsub -n 20 -R -I "rusage[mem=4500,ngpus_excl_p=8]" -R "select[gpu_model0==GeForceGTX1080Ti]"  python ./USIP/modelnet/train_detector.py
