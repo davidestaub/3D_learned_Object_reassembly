@@ -7,8 +7,9 @@ import numpy as np
 import open3d as o3d
 import pyshot
 from compas.datastructures import Mesh, mesh_split_face
+from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
-from scipy.sparse import save_npz, load_npz, csr_matrix
+from scipy.sparse import save_npz, csr_matrix
 
 
 # from tools import *
@@ -117,6 +118,30 @@ def get_iss_keypoints(vertices):
     keypoint_idxs = np.where(cdist(vertices, keypoints, metric='cityblock') == 0)[0]
     return keypoints, keypoint_idxs
 
+def compute_SD_point(neighbourhood, points, normals, p_idx):
+		p_i = points[p_idx]
+		n_p_i = normals[p_idx]
+		p_i_bar = np.mean(points[neighbourhood], axis=0)
+		v = p_i - p_i_bar
+		SD = np.dot(v, n_p_i)
+		return SD
+
+def get_SD_keypoints(vertices, normals, r, kpts_fraction=0.1):
+    nkeypoints = int(len(vertices) * kpts_fraction)
+    n_points = len(vertices)
+    tree = KDTree(vertices)
+    # Compute SD
+    SD = np.zeros((n_points))
+    neighbourhoods = tree.query_ball_point(vertices, r, workers=-1)
+
+    for i in range(n_points):
+        neighbourhood = np.asarray(neighbourhoods[i])
+        SD[i] = compute_SD_point(neighbourhood, vertices, normals, i)
+
+    indices_to_keep = np.argsort(np.abs(SD))[-nkeypoints:]
+    keypoints = vertices[indices_to_keep]
+    return keypoints, indices_to_keep
+
 
 def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
     dists = cdist(keypoints1, keypoints2)
@@ -155,7 +180,7 @@ def get_descriptors(i, vertices, faces, args, folder_path):
         raise NotImplementedError
 
 
-def get_keypoints(i, vertices, descriptors, args, folder_path):
+def get_keypoints(i, vertices,normals, descriptors, args, folder_path):
     method = args.keypoint_method
 
     keypoint_path = os.path.join(folder_path, 'processed', 'keypoints',
@@ -175,6 +200,12 @@ def get_keypoints(i, vertices, descriptors, args, folder_path):
         np.save(keypoint_path, keypoints)
         np.save(keypoint_descriptors_path, keypoint_descriptors)
         return keypoints, keypoint_descriptors
+    if args.keypoint_method == 'SD':
+        keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.01)
+        keypoint_descriptors = descriptors[keypoint_idxs]
+        np.save(keypoint_path, keypoints)
+        np.save(keypoint_descriptors_path, keypoint_descriptors)
+        return keypoints, keypoint_descriptors   
     else:
         raise NotImplementedError
 
@@ -187,6 +218,7 @@ def process_folder(folder_path, args):
     obj_files = glob(os.path.join(folder_path, 'cleaned', '*.obj'))
     fragments_vertices = []
     fragments_faces = []
+    fragments_normals = []
 
     # Load obj files in order, so fragments_*[0] has shard 0.
     num_fragments = len(obj_files)
@@ -199,17 +231,19 @@ def process_folder(folder_path, args):
         # Some faces are still polygons other than triangles :(
         mesh_faces_to_triangles(mesh)
         vertices, faces = mesh.to_vertices_and_faces()
+        normals = [mesh.vertex_normal(vkey) for vkey in mesh.vertices()]
 
         # The only faces left are degenerate, i e same vertex is part of it twice. Filter them out.
         faces = list(filter(lambda vertex_list: len(vertex_list) == 3, faces))
         fragments_vertices.append(np.array(vertices))
         fragments_faces.append(np.array(faces))
+        fragments_normals.append(np.array(normals))
 
     keypoints = []
     descriptors = []
     for i in range(num_fragments):
         fragment_descriptors = get_descriptors(i, fragments_vertices[i], fragments_faces[i], args, folder_path)
-        fragment_keypoints, fragment_keypoint_descriptors = get_keypoints(i, fragments_vertices[i],
+        fragment_keypoints, fragment_keypoint_descriptors = get_keypoints(i, fragments_vertices[i], fragments_normals[i],
                                                                           fragment_descriptors, args, folder_path)
         keypoints.append(fragment_keypoints)
         descriptors.append(fragment_keypoint_descriptors)
@@ -229,7 +263,7 @@ def process_folder(folder_path, args):
 def main():
     parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
 
-    parser.add_argument("--keypoint_method", type=str, default='iss', choices=['iss'])
+    parser.add_argument("--keypoint_method", type=str, default='SD', choices=['iss', 'SD'])
     parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
 
     parser.add_argument("--data_dir", type=str, default='')
