@@ -1,10 +1,11 @@
 import os
+import sys
 from secrets import choice
 from compas.datastructures import Mesh
 from compas.utilities import i_to_rgb
 from matplotlib.pyplot import show
 from sympy import primitive
-from tools import *
+
 from compas.datastructures import mesh_transform_numpy
 import compas.geometry as cg
 from compas.geometry import Point, Pointcloud
@@ -14,6 +15,8 @@ from compas_view2.app import App
 # chose a data folder
 here = os.path.dirname(os.path.abspath(__file__))
 data_list = os.listdir(os.path.join(here, 'data'))
+
+
 print("id  name")
 for idx, val in enumerate(data_list):
     print(idx, " ", val)
@@ -26,7 +29,9 @@ os.chdir(ROOT)
 os.chdir('..')
 DATAROOT = os.path.join(os.getcwd())
 CLEANED = os.path.join(ROOT, 'cleaned')
-KPTS_IN = os.path.join(ROOT, 'keypoints_harris')
+KPTS_IN = os.path.join(ROOT,'processed','keypoints')
+
+kpts_mode = 'SD'
 
 # chose a fragments
 data_list = os.listdir(CLEANED)
@@ -39,7 +44,7 @@ file = data_list[idx]
 file_path = os.path.join(CLEANED, file)
 
 # extract the corresponding filename
-kpts_file = file.replace('cleaned.', 'kpts_')
+kpts_file = ''.join(['keypoints_', kpts_mode, file.split('cleaned')[1]])
 kpts_file = kpts_file.replace('obj', 'npy')
 kpts_file_path = os.path.join(KPTS_IN, kpts_file)
 

@@ -1,6 +1,6 @@
 from multiprocessing import Pool, cpu_count
-import transformation
-import neighborhoords
+import object_fracturing.tools.transformation as transformation
+import object_fracturing.tools.neighborhoords as neighborhoords
 import shutil
 import itertools
 import numpy as np
@@ -59,19 +59,20 @@ def find_keypoints(fragment_path, file, kpts_path):
 
     points_centred, _ = transformation.centering_centroid(points)
 
-    # best fitting point, this was calculated in the loop before, maybe that's not necessary?!
-    pca = PCA(n_components=3)  # Principal Component Analysis
-    points_pca = pca.fit_transform(np.transpose(points_centred))
-    eigenvalues, eigenvectors = np.linalg.eigh(points_pca)
 
-     # rotate the cloud
-    for i in range(points.shape[0]):
-        points[i, :] = np.dot(np.transpose(eigenvectors), points[i, :])
 
     for i in neighborhood.keys():
 
-        # restrict to XY plane and translate
-        points_2D = points[:, :2]-points[i, :2]
+        # best fitting point, this was calculated in the loop before, maybe that's not necessary?!
+        pca = PCA(n_components=3)  # Principal Component Analysis
+        points_pca = pca.fit_transform(np.transpose(points_centred))
+        eigenvalues, eigenvectors = np.linalg.eigh(points_pca)
+
+        # rotate the cloud
+        for i in range(points.shape[0]):
+            points[i, :] = np.dot(np.transpose(eigenvectors), points[i, :])
+            # restrict to XY plane and translate
+            points_2D = points[:, :2]-points[i, :2]
 
         # fit a quadratic surface
         m = polyfit3d(points_2D[:, 0], points_2D[:, 1], points[:, 2], order=2)
@@ -84,10 +85,10 @@ def find_keypoints(fragment_path, file, kpts_path):
 
         # Compute response
         resp[i] = fx2*fy2 - fxfy*fxfy - k*(fx2 + fy2)*(fx2 + fy2)
-    
-    # rotate back
-    for i in range(points.shape[0]):
-        points[i, :] = np.dot(eigenvectors, points[i, :])
+        
+        # rotate back
+        for i in range(points.shape[0]):
+            points[i, :] = np.dot(eigenvectors, points[i, :])
 
     # Select interest points
     # search for local maxima

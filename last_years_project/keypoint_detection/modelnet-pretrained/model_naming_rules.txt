@@ -1,3 +1,0 @@
-Naming: pointNum-nodeNum-fisrtK-secondK
-firstK and secondK are two params that controls the receptive field. firstK is always 1.
-nodeNum controls the receptive field as well.

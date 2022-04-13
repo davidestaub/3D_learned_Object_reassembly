@@ -2,7 +2,7 @@ import os
 from secrets import choice
 from compas.datastructures import Mesh
 from compas.utilities import i_to_rgb
-from tools import *
+from tools.tools import *
 from compas.datastructures import mesh_transform_numpy
 import compas.geometry as cg
 from compas.geometry import Point, Sphere

@@ -1,8 +1,7 @@
 import os
 from compas.datastructures import Mesh
 from compas.utilities import i_to_rgb
-from tools import *
-from compas.geometry import Point, Pointcloud, distance_point_point, closest_point_in_cloud, 
+from compas.geometry import Pointcloud, closest_point_in_cloud
 import numpy as np
 from compas_view2.app import App
 
@@ -21,7 +20,8 @@ os.chdir(ROOT)
 os.chdir('..')
 DATAROOT = os.path.join(os.getcwd())
 CLEANED = os.path.join(ROOT, 'cleaned')
-KPTS_IN = os.path.join(ROOT, 'keypoints_harris')
+KPTS_IN = os.path.join(ROOT,'processed','keypoints')
+kpt_method = 'harris'
 
 viewer = App()
 
@@ -31,14 +31,15 @@ fragment_files = [file for file in  os.listdir(CLEANED) if file.endswith('.obj')
 fragment_num = len(fragment_files)
 # add all fragments to the visualizer
 for fragment in fragment_files:
-    if fragment_idx > 1:
-        continue
     mesh = Mesh().from_obj(os.path.join(CLEANED, fragment))
     viewer.add(mesh, facecolor=i_to_rgb(fragment_idx/fragment_num, True))
     fragment_idx += 1
 
 # load all the keypoints
 kpt_files = [file for file in  os.listdir(KPTS_IN) if file.endswith('.npy')]
+# filter by method
+kpt_files = [file for file in kpt_files if kpt_method in file]
+
 clouds = []
 for pointcloud in kpt_files:
     kpt_in = np.load(os.path.join(KPTS_IN, pointcloud))

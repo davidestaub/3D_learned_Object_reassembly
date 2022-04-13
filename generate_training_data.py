@@ -1,61 +1,20 @@
 import argparse
+from copy import deepcopy
 import os
 from glob import glob
 from typing import List
+from sklearn.decomposition import PCA
+from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
+from tools.neighborhoords import k_ring_delaunay_adaptive
+from tools.transformation import centering_centroid
 
 import numpy as np
 import open3d as o3d
 import pyshot
-from compas.datastructures import Mesh, mesh_split_face
+from compas.datastructures import Mesh
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from scipy.sparse import save_npz, csr_matrix
-
-
-# from tools import *
-
-# # create pointcloud from the mesh vertices
-# vertices = np.array([part_mesh.vertex_coordinates(vkey) for vkey in part_mesh.vertices()])
-# mesh_points = []
-# pcd_points = []
-#
-# # get the points of the fragment as pure data and points for
-# for vert in vertices:
-#     pcd_points.append([vert[0], vert[1], vert[2]])
-#     mesh_points.append(Point(x=vert[0], y=vert[1], z=vert[2]))
-# part_ptc = Pointcloud(mesh_points)
-#
-# # generate iss points
-# pcd = o3d.geometry.PointCloud()
-# pcd.points = o3d.utility.Vector3dVector(pcd_points)
-# keypoints = o3d.geometry.keypoint.compute_iss_keypoints(pcd)
-#
-# # make keypoints back to pointcloud in compas
-# iss_ptc = []
-# for point in keypoints.points:
-#     iss_ptc.append(Point(x=point[0], y=point[1], z=point[2]))
-# iss_ptc = Pointcloud(iss_ptc)
-#
-# # load the counter part
-# counter_part = np.load(os.path.join(frag_2, file_counterpart))
-#
-# # generate a pointcloud
-# counterpart_ptc = Pointcloud([Point(i[0], i[1], i[2]) for i in counter_part])
-#
-# # find closest points
-# closest_points = []
-# for points in iss_ptc:
-#     closest_points.append(closest_point_in_cloud(points, counterpart_ptc))
-#
-# min_dist = min([item[0] for item in closest_points])
-#
-# closest_points_thresh = []
-# for point in closest_points:
-#     if point[0] < 10 * min_dist:
-#         closest_points_thresh.append(point[1])
-#
-# closest_ptc = Pointcloud(closest_points_thresh)
-
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
@@ -86,37 +45,12 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     return matching_matrix
 
 
-# Copied from compas and modified to also take care of 5 sidede meshes.
-def mesh_faces_to_triangles(mesh):
-    """Convert all quadrilateral faces of a mesh to triangles by adding a diagonal edge.
-    mesh : :class:`~compas.datastructures.Mesh` A mesh data structure.
-    The mesh is modified in place.
-    """
-
-    def cut_off_traingle(fkey):
-        attr = mesh.face_attributes(fkey)
-        attr.custom_only = True
-        vertices = mesh.face_vertices(fkey)
-        # We skip degenerate faces because compas can't even handle deleting them.
-        if len(vertices) >= 4 and len(vertices) == len(set(vertices)):
-            a = vertices[0]
-            c = vertices[2]
-            t1, t2 = mesh_split_face(mesh, fkey, a, c)  # Cut off abc triangle.
-            mesh.face_attributes(t1, attr.keys(), attr.values())
-            mesh.face_attributes(t2, attr.keys(), attr.values())
-            if fkey in mesh.facedata:
-                del mesh.facedata[fkey]
-            cut_off_traingle(t2)  # t2 still can have more than 3 vertices.
-
-    for fkey in list(mesh.faces()):
-        cut_off_traingle(fkey)
-
-
 def get_iss_keypoints(vertices):
     pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(vertices))
     keypoints = np.asarray(o3d.geometry.keypoint.compute_iss_keypoints(pcd).points)
     keypoint_idxs = np.where(cdist(vertices, keypoints, metric='cityblock') == 0)[0]
     return keypoints, keypoint_idxs
+
 
 def compute_SD_point(neighbourhood, points, normals, p_idx):
 		p_i = points[p_idx]
@@ -126,7 +60,7 @@ def compute_SD_point(neighbourhood, points, normals, p_idx):
 		SD = np.dot(v, n_p_i)
 		return SD
 
-def get_SD_keypoints(vertices, normals, r, kpts_fraction=0.1):
+def get_SD_keypoints(vertices, normals, r=0.1, kpts_fraction=0.1):
     nkeypoints = int(len(vertices) * kpts_fraction)
     n_points = len(vertices)
     tree = KDTree(vertices)
@@ -142,6 +76,66 @@ def get_SD_keypoints(vertices, normals, r, kpts_fraction=0.1):
     keypoints = vertices[indices_to_keep]
     return keypoints, indices_to_keep
 
+def get_harris_keypoints(vertices):
+    points = deepcopy(vertices)
+    # parameters
+    delta = 0.05
+    k = 0.04
+    fraction = 0.1
+
+    # subsample for big pointclouds
+    if len(points) > 5000:
+        samp_idx = np.random.choice(len(points), 5000, replace=False)
+        points = points[samp_idx]
+
+    # initialisation of the solution
+    labels_fraction = np.zeros(len(points))
+    resp = np.zeros(len(points))
+
+    # compute neighborhood
+    neighborhood = k_ring_delaunay_adaptive(points, delta)
+
+    for i in neighborhood.keys():
+        points_centred, _ = centering_centroid(points)
+        
+        #best fitting point
+        points_pca = PCA(n_components=3).fit_transform(np.transpose(points_centred))
+        _, eigenvectors = np.linalg.eigh(points_pca)
+
+        # rotate the cloud
+        for i in range(points.shape[0]):
+            points[i, :] = np.dot(np.transpose(eigenvectors), points[i, :])
+        # restrict to XY plane and translate
+
+        points_2D = points[:, :2]-points[i, :2]
+
+        # fit a quadratic surface
+        m = polyfit3d(points_2D[:, 0], points_2D[:, 1], points[:, 2], order=2)
+        m = m.reshape((3, 3))
+
+        # Compute the derivative
+        fx2  = m[1, 0]*m[1, 0] + 2*m[2, 0]*m[2, 0] + 2*m[1, 1]*m[1, 1]  # A
+        fy2  = m[1, 0]*m[1, 0] + 2*m[1, 1]*m[1, 1] + 2*m[0, 2]*m[0, 2]  # B
+        fxfy = m[1, 0]*m[0, 1] + 2*m[2, 0]*m[1, 1] + 2*m[1, 1]*m[0, 2]  # C
+
+        # Compute response
+        resp[i] = fx2*fy2 - fxfy*fxfy - k*(fx2 + fy2)*(fx2 + fy2)
+
+    #Select interest points
+    #search for local maxima
+    candidate = []
+    for i in neighborhood.keys() :
+        if resp[i] >= np.max(resp[neighborhood[i]]) :
+            candidate.append([i, resp[i]])
+    #sort by decreasing order
+    candidate.sort(reverse=True, key=lambda x:x[1])
+    candidate = np.array(candidate)
+    
+    #Method 1 : fraction
+    keypoint_indexes = np.array(candidate[:int(fraction*len(points)), 0], dtype=np.int)
+    labels_fraction[keypoint_indexes] = 1
+
+    return keypoint_indexes
 
 def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
     dists = cdist(keypoints1, keypoints2)
@@ -180,7 +174,7 @@ def get_descriptors(i, vertices, faces, args, folder_path):
         raise NotImplementedError
 
 
-def get_keypoints(i, vertices,normals, descriptors, args, folder_path):
+def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
     method = args.keypoint_method
 
     keypoint_path = os.path.join(folder_path, 'processed', 'keypoints',
@@ -202,6 +196,13 @@ def get_keypoints(i, vertices,normals, descriptors, args, folder_path):
         return keypoints, keypoint_descriptors
     if args.keypoint_method == 'SD':
         keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.01)
+        keypoint_descriptors = descriptors[keypoint_idxs]
+        np.save(keypoint_path, keypoints)
+        np.save(keypoint_descriptors_path, keypoint_descriptors)
+        return keypoints, keypoint_descriptors
+    if args.keypoint_method == 'harris':
+        keypoint_idxs = get_harris_keypoints(vertices)
+        keypoints = vertices[keypoint_idxs]
         keypoint_descriptors = descriptors[keypoint_idxs]
         np.save(keypoint_path, keypoints)
         np.save(keypoint_descriptors_path, keypoint_descriptors)
@@ -264,7 +265,7 @@ def process_folder(folder_path, args):
 def main():
     parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
 
-    parser.add_argument("--keypoint_method", type=str, default='iss', choices=['iss', 'SD'])
+    parser.add_argument("--keypoint_method", type=str, default='SD', choices=['iss', 'SD', 'harris'])
     parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
 
     parser.add_argument("--data_dir", type=str, default='')
