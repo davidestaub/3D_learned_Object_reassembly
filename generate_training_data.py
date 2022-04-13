@@ -226,7 +226,7 @@ def main():
     parser.add_argument("--keypoint_method", type=str, default='iss', choices=['iss'])
     parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
 
-    parser.add_argument("--data_dir", type=str, default=None)
+    parser.add_argument("--data_dir", type=str, default="./object_fraccturing/data/")
 
     # Args for SHOT descriptors.
     parser.add_argument("--radius", type=float, default=100)
