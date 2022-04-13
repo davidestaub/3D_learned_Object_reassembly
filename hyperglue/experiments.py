@@ -8,6 +8,7 @@ import re
 from omegaconf import OmegaConf
 import torch
 import os
+import glob
 
 #from ..settings import EXPER_PATH
 #from ..models import get_model
@@ -18,8 +19,8 @@ EXPER_PATH = "experiment_folder"
 def list_checkpoints(dir_):
     """List all valid checkpoints in a given directory."""
     checkpoints = []
-    for p in dir_.glob('checkpoint_*.tar'):
-        numbers = re.findall(r'(\d+)', p.name)
+    for p in glob.glob(os.path.join(dir_, 'checkpoint_*.tar')):
+        numbers = re.findall(r'(\d+)', p)
         if len(numbers) == 0:
             continue
         assert len(numbers) == 1
@@ -49,8 +50,8 @@ def delete_old_checkpoints(dir_, num_keep):
     kept = 0
     for ckpt in ckpts:
         if ('_interrupted' in str(ckpt[1]) and kept > 0) or kept >= num_keep:
-            logging.info(f'Deleting checkpoint {ckpt[1].name}')
-            ckpt[1].unlink()
+            logging.info(f'Deleting checkpoint {ckpt[1]}')
+            Path(ckpt[1]).unlink()
         else:
             kept += 1
 

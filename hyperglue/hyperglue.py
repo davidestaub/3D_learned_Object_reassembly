@@ -43,7 +43,6 @@
 from copy import deepcopy
 from pathlib import Path
 from typing import List, Tuple
-
 import torch
 from torch import nn
 import torch.utils.data as td
@@ -65,8 +64,7 @@ from experiments import (
 from stdout_capturing import capture_outputs
 import argparse
 import sys
-
-
+import tarfile
 
 
 #I created this function here in order to avoid nasty imports
@@ -108,6 +106,7 @@ class MedianMetric:
         else:
             return np.nanmedian(self._elements)
 
+
 def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
     """ Multi-layer perceptron """
     n = len(channels)
@@ -120,8 +119,6 @@ def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
                 layers.append(nn.BatchNorm1d(channels[i]))
             layers.append(nn.ReLU())
     return nn.Sequential(*layers)
-
-
 
 
 def normalize_keypoints(kpts, image_shape):
@@ -143,14 +140,9 @@ class KeypointEncoder(nn.Module):
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
     # but if we happen to have confidence scores aswell we can reintroduce it
-    def forward(self, kpts, #scores
-                 ):
-        # We should keep the dimensions to be swapped (1,2) as is as long as we are using the same tensor dimensions that they are using, with an empty first dimension
-        # If we remove the empty dimension this should be changed to (0,1)
-        print(kpts.shape)
-        inputs = [kpts.transpose(1, 2)#, scores.unsqueeze(1)
-        ]
-        return self.encoder(torch.cat(inputs, dim=1))
+    def forward(self, kpts,):
+        kpts = kpts.transpose(1, 2)
+        return self.encoder(kpts)
 
 
 def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
@@ -261,7 +253,7 @@ class SuperGlue(nn.Module):
     """
     default_config = {
         'descriptor_dim': 256,
-        'weights': 'indoor',
+        'weights': None,
         'keypoint_encoder': [32, 64, 128,256],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
@@ -288,12 +280,14 @@ class SuperGlue(nn.Module):
         print(bin_score.item())
         self.register_parameter('bin_score', bin_score)
 
-        #assert self.config['weights'] in ['indoor', 'outdoor']
-        #path = Path(__file__).parent
-        #path = path / 'SuperGluePretrainedNetwork/models/weights/superglue_{}.pth'.format(self.config['weights'])
-        #self.load_state_dict(torch.load(str(path)))
-        #print('Loaded SuperGlue model (\"{}\" weights)'.format(
-            #self.config['weights']))
+
+        if train_conf["load_weights"]:
+            path = Path(__file__).parent
+            path = path / '{}.pth'.format(self.config['weights'])
+            self.load_state_dict(torch.load(str(path)))
+            print('Loaded SuperGlue model (\"{}\" weights)'.format(
+                self.config['weights']))
+
 
     def forward(self, data):
         pred = {}
@@ -310,41 +304,19 @@ class SuperGlue(nn.Module):
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
 
-        if model_conf["bottleneck_dim"] is not None:
-            pred['down_descriptors0'] = desc0 = self.bottleneck_down(desc0)
-            pred['down_descriptors1'] = desc1 = self.bottleneck_down(desc1)
-            desc0 = self.bottleneck_up(desc0)
-            desc1 = self.bottleneck_up(desc1)
-            desc0 = nn.functional.normalize(desc0, p=2, dim=1)
-            desc1 = nn.functional.normalize(desc1, p=2, dim=1)
-            pred['bottleneck_descriptors0'] = desc0
-            pred['bottleneck_descriptors1'] = desc1
-            if model_conf["loss"]["nll_weight"] == 0:
-                desc0 = desc0.detach()
-                desc1 = desc1.detach()
-
-        #if model_conf["input_dim"] != model_conf["descriptor_dim"]:
-            #print("dims not the same !!!")
-            #desc0 = self.input_proj(desc0)
-            #desc1 = self.input_proj(desc1)
-
         # Keypoint normalization.
         #TODO: remove this hack! previously was image.shape but we have fragments not images
         #kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
         #kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
 
-        # Keypoint MLP encoder.
-        #TODO: What are scores ?
+        encoded_kpt0 = self.kenc(kpts0)
+        encoded_kpt1 = self.kenc(kpts1)
 
-        print("here kpts shape is =",kpts0.shape)
-        #print((self.kenc(kpts0, data['scores0'])).shape)
-        print("a")
-        desc0 = desc0 + self.kenc(kpts0#, data['scores0']
-        )
-        desc1 = desc1 + self.kenc(kpts1#, data['scores1']
-        )
-        print(desc0.shape)
-        print(desc1.shape)
+        encoded_kpt0 = encoded_kpt0.squeeze()
+        encoded_kpt1 = encoded_kpt1.squeeze()
+
+        desc0 = desc0.transpose(1, 2) + encoded_kpt0
+        desc1 = desc1.transpose(1, 2) + encoded_kpt1
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
@@ -389,12 +361,18 @@ class SuperGlue(nn.Module):
     def loss(self, pred, data):
         losses = {'total': 0}
 
+        # an nxm matrix with boolean value indicating whether keypoints i,j are a match (1) or not (0)
         positive = data['gt_assignment'].float()
+
         num_pos = torch.max(positive.sum((1, 2)), positive.new_tensor(1))
-        num_pos = 10
+
+        #data[gt_matches_0] is an array of dimension n were each entry cooresponds to the indice of the corresponding match in the other image or a -1 if there is no match
+        # the same holds for gt_matches_1 just that it is dimension m and has indices of the 0-image array
         neg0 = (data['gt_matches0'] == -1).float()
         neg1 = (data['gt_matches1'] == -1).float()
-        num_neg = torch.max(neg0.sum(1) + neg1.sum(1), neg0.new_tensor(1))
+        #changed dimension added tensor
+        #removed max with new_temsor
+        num_neg = neg0.sum(1) + neg1.sum(1)
 
         log_assignment = pred['log_assignment']
         nll_pos = -(log_assignment[:, :-1, :-1]*positive).sum((1, 2))
@@ -405,17 +383,9 @@ class SuperGlue(nn.Module):
         nll = (model_conf["loss"]["nll_balancing"] * nll_pos
                + (1 - model_conf["loss"]["nll_balancing"]) * nll_neg)
         losses['assignment_nll'] = nll
+
         if model_conf["loss"]["nll_weight"] > 0:
             losses['total'] = nll*model_conf["loss"]["nll_weight"]
-
-        if model_conf["loss"]["reward_weight"] > 0:
-            reward = data['match_reward']
-            prob = log_assignment[:, :-1, :-1].exp()
-            reward_loss = - torch.sum(prob * reward, (1, 2))
-            norm = torch.sum(torch.clamp(reward, min=0), (1, 2))
-            reward_loss /= torch.clamp(norm, min=1)
-            losses['expected_match_reward'] = reward_loss
-            losses['total'] += model_conf["loss"]["reward_weight"] * reward_loss
 
         # Some statistics
         losses['num_matchable'] = num_pos
@@ -423,31 +393,28 @@ class SuperGlue(nn.Module):
         losses['sinkhorn_norm'] = log_assignment.exp()[:, :-1].sum(2).mean(1)
         losses['bin_score'] = self.bin_score[None]
 
-        if model_conf["loss"]["bottleneck_l2_weight"] > 0:
-            assert model_conf["bottleneck_dim"] is not None
-            l2_0 = torch.sum((data['descriptors0']
-                              - pred['bottleneck_descriptors0'])**2, 1)
-            l2_1 = torch.sum((data['descriptors1']
-                              - pred['bottleneck_descriptors1'])**2, 1)
-            l2 = (l2_0.mean(-1) + l2_1.mean(-1)) / 2
-            losses['bottleneck_l2'] = l2
-            losses['total'] += l2*model_conf["loss"]["bottleneck_l2_weight"]
 
         return losses
 
     # Copied from superglue_v1.py
     def metrics(self, pred, data):
         def recall(m, gt_m):
+            #added this
+            #m=m.squeeze()
+            #gt_m = gt_m.unsqueeze(dim=1)
+
             mask = (gt_m > -1).float()
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
         def precision(m, gt_m):
+
             mask = ((m > -1) & (gt_m >= -1)).float()
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
         rec = recall(pred['matches0'], data['gt_matches0'])
         prec = precision(pred['matches0'], data['gt_matches0'])
         return {'match_recall': rec, 'match_precision': prec}
+
 
 def map_tensor(input_, func):
     if isinstance(input_, torch.Tensor):
@@ -462,11 +429,13 @@ def map_tensor(input_, func):
         raise TypeError(
             f'input must be tensor, dict or list; found {type(input_)}')
 
+
 def batch_to_device(batch, device, non_blocking=True):
     def _func(tensor):
         return tensor.to(device=device, non_blocking=non_blocking)
 
     return map_tensor(batch, _func)
+
 
 def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
     model.eval()
@@ -482,10 +451,11 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
         for k, v in numbers.items():
             if k not in results:
                 results[k] = AverageMetric()
-                if k in conf.median_metrics:
+                if k in train_conf["median_metrics"]:
                     results[k+'_median'] = MedianMetric()
+
             results[k].update(v)
-            if k in conf.median_metrics:
+            if k in train_conf["median_metrics"]:
                 results[k+'_median'].update(v)
     results = {k: results[k].compute() for k in results}
     return results
@@ -495,26 +465,8 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset
-    def __init__(self, data):
-        self.number_of_samples = data["keypoints1"].shape[1]
-        print("number of samples =",self.number_of_samples)
-        print(data["keypoints1"].shape)
-        ##store the inputs and outputs
-        # y should be an array type of either 1's (match) or -1's (no match)
-        # X is the input data, an array type holding a pair of kepoints and descriptors
-        #TODO: Need to make sure that the input data hear fits with the input data for a forward pass
-        #combined_input = []
-        #for i in range(0,keyp1.shape[0]):
-            #row = []
-            #row.append(keyp1[i])
-            #row.append(keyp2[i])
-            #row.append(desc1[i])
-            #row.append(desc2[i])
-            #combined_input.append(row)
-        #self.X = torch.FloatTensor(combined_input)
-        #self.X = torch.TensorDataset(keyp1,keyp2,desc1,desc2)
-        #self.y = torch.TensorDataset(gt)
-        #self.y = torch.from_numpy(gt)
+    def __init__(self, dataset):
+        self.number_of_samples = 32
 
     # number of rows in the dataset
     def __len__(self):
@@ -522,36 +474,26 @@ class FragmentsDataset(td.Dataset):
 
     # get a row at an index
     def __getitem__(self, idx):
-        #print(data["keypoints0"])
-        #print("data = ",data["keypoints0"][0][idx])
-        #print("shape is = ",data["keypoints0"][0][idx].shape)
-        #print(data["keypoints0"])
-        #print("========")
-        #print(data["keypoints0"][0])
-        #print("========")
-        #print(data["keypoints0"][0][idx])
-        #print("========")
-        k0 = data["keypoints0"][0][idx]
-        k0 = k0[None,:]
-        k1 = data["keypoints1"][0][idx]
-        k1 = k1[None,:]
-        d0 = data["descriptors0"][0][idx]
-        d0 = d0[None, :]
-        d1 = data["descriptors1"][0][idx]
-        d1 = d1[None, :]
-        gt = torch.tensor([data["gt_matches"][0][idx]])
-        print(gt)
-        gt = gt[None,:]
+
+
+        k0 = data["keypoints0"]
+        k1 = data["keypoints1"]
+        d0 = data["descriptors0"]
+        d1 = data["descriptors1"]
+        gt = data['gt_assignment']
+        m0 = data['gt_matches0']
+        m1 = data['gt_matches1']
 
         sample = {
             "keypoints0": k0,"keypoints1": k1,
             "descriptors0": d0,"descriptors1": d1,
-            "gt_matches":gt
+            "gt_assignment":gt,
+            "gt_matches0": m0,
+            "gt_matches1":m1
                   }
         return sample
 
-def dummy_training(data,model_config,train_conf):
-    print("at the start is = ",data["keypoints0"].shape)
+def dummy_training(data,model,train_conf):
     init_cp = None
     set_seed(train_conf["seed"])
     writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
@@ -560,26 +502,19 @@ def dummy_training(data,model_config,train_conf):
 
     #Loading the fragment data
     dataset = FragmentsDataset(data)
-    print(dataset)
-
 
     #Splitting into train test
     train_size = int(0.8 * len(dataset))
-    print("len(dataset= ",len(dataset))
-    print(train_size)
     test_size = len(dataset) - train_size
 
     train, test = td.random_split(dataset, [train_size, test_size])
     # create a data loader for train and test sets
-    print(train)
-    train_dl = td.DataLoader(train, batch_size=32, shuffle=True)
-    test_dl = td.DataLoader(test, batch_size=1024, shuffle=False)
+    train_dl = td.DataLoader(train, batch_size=train_size, shuffle=True)
+    test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
+
 
     logging.info(f'Training loader has {len(train_dl)} batches')
     logging.info(f'Validation loader has {len(test_dl)} batches')
-
-    # Changed from get_model() to this
-    model = SuperGlue(model_config)
 
     loss_fn, metrics_fn = model.loss, model.metrics
     model = model.to(device)
@@ -619,10 +554,6 @@ def dummy_training(data,model_config,train_conf):
             raise ValueError(train_conf["lr_schedule"]["type"])
 
     lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
-    #if args.restore:
-        #optimizer.load_state_dict(init_cp['optimizer'])
-        #if 'lr_scheduler' in init_cp:
-            #lr_scheduler.load_state_dict(init_cp['lr_scheduler'])
 
     logging.info(f'Starting training with configuration:\n{train_conf}')
 
@@ -649,16 +580,16 @@ def dummy_training(data,model_config,train_conf):
             optimizer.step()
             lr_scheduler.step()
 
-            if it % train_conf["og_every_iter"] == 0:
-                for k in sorted(losses.keys()):
-                    losses[k] = torch.mean(losses[k]).item()
-                    str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
-                    logging.info('[E {} | it {}] loss {{{}}}'.format(
-                        epoch, it, ', '.join(str_losses)))
-                    for k, v in losses.items():
-                        writer.add_scalar('training/' + k, v, tot_it)
-                    writer.add_scalar(
-                        'training/lr', optimizer.param_groups[0]['lr'], tot_it)
+            #if it % train_conf["log_every_iter"] == 0:
+                #for k in sorted(losses.keys()):
+                    #losses[k] = torch.mean(losses[k]).item()
+                   # str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
+                    #logging.info('[E {} | it {}] loss {{{}}}'.format(
+                     #   epoch, it, ', '.join(str_losses)))
+                   # for k, v in losses.items():
+                      #  writer.add_scalar('training/' + k, v, tot_it)
+                    #writer.add_scalar(
+                        #'training/lr', optimizer.param_groups[0]['lr'], tot_it)
 
             del pred, data, loss, losses
 
@@ -671,25 +602,33 @@ def dummy_training(data,model_config,train_conf):
                     writer.add_scalar('val/' + k, v, tot_it)
                 torch.cuda.empty_cache()  # should be cleared at the first iter
 
-        state = (model.module if args.distributed else model).state_dict()
+        #removed distributed
+        state = (model).state_dict()
         checkpoint = {
                 'model': state,
                 'optimizer': optimizer.state_dict(),
                 'lr_scheduler': lr_scheduler.state_dict(),
-                'conf': OmegaConf.to_container(conf, resolve=True),
+                #removed omegaconf
+                'conf': train_conf,
                 'epoch': epoch,
                 'losses': losses_,
                 'eval': results,
             }
-        cp_name = f'checkpoint_{epoch}'
-        logging.info(f'Saving checkpoint {cp_name}')
-        cp_path = str(train_conf["output_dir"] / (cp_name + '.tar'))
+        #changed string formatting
+        cp_name = 'checkpoint_{}'.format(epoch)
+        logging.info('Saving checkpoint {}'.format(cp_name))
+        #changed string formatting
+        cp_path = str(train_conf["output_dir"] +"/"+ (cp_name + '.tar'))
         torch.save(checkpoint, cp_path)
+
+        #TODO: no idea where best eval comes from so i just set it here for testing reasons
+        best_eval = 10000
+
         if results[train_conf["best_key"]] < best_eval:
             best_eval = results[train_conf["best_key"]]
             logging.info(
                 f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
-            shutil.copy(cp_path, str(train_conf["output_dir"] / 'checkpoint_best.tar'))
+            shutil.copy(cp_path, str(train_conf["output_dir"] +"/" + 'checkpoint_best.tar'))
         delete_old_checkpoints(
             train_conf["output_dir"], train_conf["keep_last_checkpoints"])
         del checkpoint
@@ -700,302 +639,51 @@ def dummy_training(data,model_config,train_conf):
 
     writer.close()
 
-def training(rank, conf, output_dir, args,model_config,dataset):
-    ''''Removing this for now'''''
-    if args.restore:
-        logging.info(f'Restoring from previous training of {args.experiment}')
-        init_cp = get_last_checkpoint(args.experiment, allow_interrupted=False)
-        logging.info(f'Restoring from checkpoint {init_cp.name}')
-        init_cp = torch.load(str(init_cp), map_location='cpu')
-        conf = OmegaConf.merge(OmegaConf.create(init_cp['conf']), conf)
-        epoch = init_cp['epoch'] + 1
-
-        ## get the best loss or eval metric from the previous best checkpoint
-        best_cp = get_best_checkpoint(args.experiment)
-        best_cp = torch.load(str(best_cp), map_location='cpu')
-        best_eval = best_cp['eval'][conf.train.best_key]
-        del best_cp
-    else:
-        # we start a new, fresh training
-        ''''Also removing this for now'''''
-        #conf.train = OmegaConf.merge(default_train_conf, conf.train)
-        epoch = 0
-        best_eval = float('inf')
-        if conf.train.load_experiment:
-            logging.info(f'Will fine-tune from weights of {conf.train.load_experiment}')
-            #the user has to make sure that the weights are compatible
-            init_cp = get_last_checkpoint(conf.train.load_experiment)
-            init_cp = torch.load(str(init_cp), map_location='cpu')
-        #else:
-        init_cp = None
-
-    OmegaConf.set_struct(conf, True)  # prevent access to unknown entries
-    set_seed(conf.train.seed)
-    if rank == 0:
-        writer = SummaryWriter(log_dir=str(output_dir))
-
-    data_conf = copy.deepcopy(conf.data)
-    if args.distributed:
-        logging.info(f'Training in distributed mode with {args.n_gpus} GPUs')
-        assert torch.cuda.is_available()
-        device = rank
-        lock = Path(os.getcwd(),
-                    f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
-        assert not Path(lock).exists(), lock
-        torch.distributed.init_process_group(
-                backend='nccl', world_size=args.n_gpus, rank=device,
-                init_method='file://'+str(lock))
-        torch.cuda.set_device(device)
-
-        # adjust batch size and num of workers since these are per GPU
-        if 'batch_size' in data_conf:
-            data_conf.batch_size = int(data_conf.batch_size / args.n_gpus)
-        if 'train_batch_size' in data_conf:
-            data_conf.train_batch_size = int(
-                data_conf.train_batch_size / args.n_gpus)
-        if 'num_workers' in data_conf:
-            data_conf.num_workers = int(
-                (data_conf.num_workers + args.n_gpus - 1) / args.n_gpus)
-    else:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    logging.info(f'Using device {device}')
-
-    '''Removed for now and just give as input'''
-    #dataset = get_dataset(data_conf.name)(data_conf)
-    if args.overfit:
-        # we train and eval with the same single training batch
-        logging.info('Data in overfitting mode')
-        assert not args.distributed
-        train_loader = dataset.get_overfit_loader('train')
-        val_loader = dataset.get_overfit_loader('val')
-    else:
-        train_loader = dataset.get_data_loader(
-            'train', distributed=args.distributed)
-        val_loader = dataset.get_data_loader('val')
-    if rank == 0:
-        logging.info(f'Training loader has {len(train_loader)} batches')
-        logging.info(f'Validation loader has {len(val_loader)} batches')
-
-    # interrupts are caught and delayed for graceful termination
-    def sigint_handler(signal, frame):
-        logging.info('Caught keyboard interrupt signal, will terminate')
-        nonlocal stop
-        if stop:
-            raise KeyboardInterrupt
-        stop = True
-    stop = False
-    signal.signal(signal.SIGINT, sigint_handler)
-
-    #Changed from get_model() to this
-    model = SuperGlue(model_config)
-
-    loss_fn, metrics_fn = model.loss, model.metrics
-    model = model.to(device)
-    if init_cp is not None:
-        model.load_state_dict(init_cp['model'])
-    if args.distributed:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[device])
-    if rank == 0:
-        logging.info(f'Model: \n{model}')
-    torch.backends.cudnn.benchmark = True
-
-    optimizer_fn = {'sgd': torch.optim.SGD,
-                    'adam': torch.optim.Adam,
-                    'rmsprop': torch.optim.RMSprop}[conf.train.optimizer]
-    params = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
-    if conf.train.opt_regexp:
-        # examples: '.*(weight|bias)$', 'cnn\.(enc0|enc1).*bias'
-        def filter_fn(x):
-            n, p = x
-            match = re.search(conf.train.opt_regexp, n)
-            if not match:
-                p.requires_grad = False
-            return match
-        params = list(filter(filter_fn, params))
-        assert len(params) > 0, conf.train.opt_regexp
-        logging.info('Selected parameters:\n'+'\n'.join(n for n, p in params))
-    optimizer = optimizer_fn(
-        [p for n, p in params], lr=conf.train.lr,
-        **conf.train.optimizer_options)
-    def lr_fn(it):  # noqa: E306
-        if conf.train.lr_schedule.type is None:
-            return 1
-        if conf.train.lr_schedule.type == 'exp':
-            gam = 10**(-1/conf.train.lr_schedule.exp_div_10)
-            return 1 if it < conf.train.lr_schedule.start else gam
-        else:
-            raise ValueError(conf.train.lr_schedule.type)
-    lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
-    if args.restore:
-        optimizer.load_state_dict(init_cp['optimizer'])
-        if 'lr_scheduler' in init_cp:
-            lr_scheduler.load_state_dict(init_cp['lr_scheduler'])
-
-    if rank == 0:
-        logging.info(f'Starting training with configuration:\n{conf.pretty()}')
-    losses_ = None
-
-    while epoch < conf.train.epochs and not stop:
-        if rank == 0:
-            logging.info(f'Starting epoch {epoch}')
-        set_seed(conf.train.seed + epoch)
-        if args.distributed:
-            train_loader.sampler.set_epoch(epoch)
-        if epoch > 0 and conf.train.dataset_callback_fn:
-            getattr(train_loader.dataset, conf.train.dataset_callback_fn)(
-                conf.train.seed + epoch)
-
-        for it, data in enumerate(train_loader):
-            tot_it = len(train_loader)*epoch + it
-
-            model.train()
-            optimizer.zero_grad()
-            data = batch_to_device(data, device, non_blocking=True)
-            pred = model(data)
-            losses = loss_fn(pred, data)
-            loss = torch.mean(losses['total'])
-            loss.backward()
-            optimizer.step()
-            lr_scheduler.step()
-
-            if it % conf.train.log_every_iter == 0:
-                for k in sorted(losses.keys()):
-                    if args.distributed:
-                        losses[k] = losses[k].sum()
-                        torch.distributed.reduce(losses[k], dst=0)
-                        losses[k] /= (train_loader.batch_size * args.n_gpus)
-                    losses[k] = torch.mean(losses[k]).item()
-                if rank == 0:
-                    str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
-                    logging.info('[E {} | it {}] loss {{{}}}'.format(
-                        epoch, it, ', '.join(str_losses)))
-                    for k, v in losses.items():
-                        writer.add_scalar('training/'+k, v, tot_it)
-                    writer.add_scalar(
-                        'training/lr', optimizer.param_groups[0]['lr'], tot_it)
-
-            del pred, data, loss, losses
-
-            if ((it % conf.train.eval_every_iter == 0) or stop
-                    or it == (len(train_loader)-1)):
-                results = do_evaluation(
-                    model, val_loader, device, loss_fn, metrics_fn, conf.train,
-                    pbar=(rank == 0))
-                if rank == 0:
-                    str_results = [f'{k} {v:.3E}' for k, v in results.items()]
-                    logging.info(f'[Validation] {{{", ".join(str_results)}}}')
-                    for k, v in results.items():
-                        writer.add_scalar('val/'+k, v, tot_it)
-                torch.cuda.empty_cache()  # should be cleared at the first iter
-
-            if stop:
-                break
-
-        if rank == 0:
-            state = (model.module if args.distributed else model).state_dict()
-            checkpoint = {
-                'model': state,
-                'optimizer': optimizer.state_dict(),
-                'lr_scheduler': lr_scheduler.state_dict(),
-                'conf': OmegaConf.to_container(conf, resolve=True),
-                'epoch': epoch,
-                'losses': losses_,
-                'eval': results,
-            }
-            cp_name = f'checkpoint_{epoch}' + ('_interrupted' if stop else '')
-            logging.info(f'Saving checkpoint {cp_name}')
-            cp_path = str(output_dir / (cp_name + '.tar'))
-            torch.save(checkpoint, cp_path)
-            if results[conf.train.best_key] < best_eval:
-                best_eval = results[conf.train.best_key]
-                logging.info(
-                    f'New best checkpoint: {conf.train.best_key}={best_eval}')
-                shutil.copy(cp_path, str(output_dir / 'checkpoint_best.tar'))
-            delete_old_checkpoints(
-                output_dir, conf.train.keep_last_checkpoints)
-            del checkpoint
-
-        epoch += 1
-
-    logging.info(f'Finished training on process {rank}.')
-    if rank == 0:
-        writer.close()
-
-
-def main_worker(rank, conf, output_dir, args):
-    if rank == 0:
-        with capture_outputs(output_dir / 'log.txt'):
-            training(rank, conf, output_dir, args)
-    else:
-        training(rank, conf, output_dir, args)
-
-
-
-
-
 
 data = {}
 
 # This dimensionality is accepted by superglue,
 #First dimenions is alway feature dimension i.e for descritors 128, for keypoints 4 and second dimension is number of points (in this case 32 for both "images")
-#d1 = np.random.rand(256,32)
-#d1 = d1.astype(np.float32)
-#d2 = np.random.rand(256,32)
-#d2 = d2.astype(np.float32)
-#k1 = np.random.rand(32,2)
-#k1 = k1.astype(np.float32)
-#k2 = np.random.rand(32,2)
-#k2 = k2.astype(np.float32)
-#s1 = np.random.rand(32)
-#s1 = s1.astype(np.float32)
-#s2 = np.random.rand(32)
-#s2 = s2.astype(np.float32)
-
-#data["descriptors0"] = torch.from_numpy(d1)
-#data["descriptors1"] = torch.from_numpy(d2)
-#data["keypoints0"] = torch.from_numpy(k1)
-#data["keypoints1"] = torch.from_numpy(k2)
-#data["scores0"] = torch.from_numpy(s1)
-#data["scores1"] = torch.from_numpy(s2)
-
-
-
-
-
 
 data['descriptors0'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/0.npy").T.astype(np.float32))
-#data['descriptors0'] = data['descriptors0'][None, :]
-
 data['descriptors1'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/1.npy").T.astype(np.float32))
-#data['descriptors1'] = data['descriptors1'][None, :]
-
 data['keypoints0'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/features/brick_1vN/0.npy")[0:32,0:3].astype(np.float32))
 data['keypoints0'] = data["keypoints0"]
-#data['keypoints0'] = data['keypoints0'][None, :]
-
 data['keypoints1'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/keypoints_4/brick_1vN/1.npy")[0:32,0:3].astype(np.float32))
 data['keypoints1'] = data["keypoints0"]
-#data['keypoints1'] = data['keypoints1'][None, :]
-
-data["gt_matches"] = torch.from_numpy(np.ones(data['keypoints1'].shape[0]).astype(np.float32))
 
 
-#Add empty dim
-data['descriptors0'] = data['descriptors0'][None, :]
-data['descriptors1'] = data['descriptors1'][None, :]
-data['keypoints0'] = data['keypoints0'][None, :]
-data['keypoints1'] = data['keypoints1'][None, :]
-data['gt_matches'] = data['gt_matches'][None, :]
+#pretty useless bc its just the diagonals that are one but once real data is here this will be different
+data['gt_assignment'] = np.ndarray(shape=(data['keypoints0'].shape[0],data['keypoints1'].shape[0]),dtype=np.float32)
+for i in range(0,data['gt_assignment'].shape[0]):
+    for j in range(0,data['gt_assignment'].shape[1]):
+        if i == j and i < data['gt_assignment'].shape[1] * 0.5:
+            data['gt_assignment'][i,j] = 1
+        else:
+            data['gt_assignment'][i, j] = 0
 
+
+data['gt_matches0'] = np.ndarray((data['keypoints0'].shape[0]))
+for i in range(0,data['gt_assignment'].shape[0]):
+    current_array = data['gt_assignment'][i]
+    data['gt_matches0'][i] = -1
+    for j in range(0,data['gt_assignment'].shape[1]):
+        if data['gt_assignment'][i,j] == 1 and i < data['gt_assignment'].shape[1] * 0.5:
+            data['gt_matches0'][i] = j
+
+
+data['gt_assignment'] = torch.from_numpy(data['gt_assignment'])
+data['gt_matches0'] = torch.from_numpy(data['gt_matches0'])
+
+#For now as they are simmetric
+data['gt_matches1'] = data['gt_matches0']
 
 print("starting shape printing: \n")
 print(data["descriptors0"].shape)
 print(data["descriptors1"].shape)
 print(data["keypoints0"].shape)
 print(data["keypoints1"].shape)
-print(data["gt_matches"].shape)
+print(data["gt_matches0"].shape)
 print("end of shape printing")
 
 
@@ -1011,69 +699,25 @@ print("end of shape printing")
 #scores1.shape =torch.Size([1, 344])
 
 
-# How they did it, however we do not have the same dataset,
-# Currently not runable
-do_training=False
-if do_training:
-    parser = argparse.ArgumentParser()
-    parser.add_argument('experiment', type=str)
-    parser.add_argument('--conf', type=str)
-    parser.add_argument('--overfit', action='store_true')
-    parser.add_argument('--restore', action='store_true')
-    parser.add_argument('--distributed', action='store_true')
-    parser.add_argument('dotlist', nargs='*')
-    args = parser.parse_intermixed_args()
-
-    logging.info(f'Starting experiment {args.experiment}')
-    output_dir = Path("experiment_folder", args.experiment)
-    output_dir.mkdir(exist_ok=True, parents=True)
-
-    conf = OmegaConf.from_cli(args.dotlist)
-    if args.conf:
-        conf = OmegaConf.merge(OmegaConf.load(args.conf), conf)
-    if not args.restore:
-        if conf.train.seed is None:
-            conf.train.seed = torch.initial_seed() & (2**32 - 1)
-        OmegaConf.save(conf, str(output_dir / 'config.yaml'))
-
-    if args.distributed:
-        args.n_gpus = torch.cuda.device_count()
-        torch.multiprocessing.spawn(
-            main_worker, nprocs=args.n_gpus,
-            args=(conf, output_dir, args))
-    else:
-        main_worker(0, conf, output_dir, args)
-
-
-    training(0,conf,output_dir,args,model_config,dataset)
-
-
-
-
-
-#Begin forward pass
-
-#Do a forward pass (input is just random tensors with dimensionality accepted by superglue)
 model_conf = {
     'descriptor_dim': 128,
-    'weights': 'indoor',
+    'weights': 'weights_01',
     'keypoint_encoder': [32, 64, 128,256],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
-    'bottleneck_dim': None,
+    #'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
         'nll_balancing': 0.5,
-        'reward_weight': 0.,
-        'bottleneck_l2_weight': 0.,
+        #'reward_weight': 0.,
+        #'bottleneck_l2_weight': 0.,
     },
 }
 
-
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 1,  # number of epochs
+    'epochs': 100,  # number of epochs
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
@@ -1086,25 +730,28 @@ train_conf = {
     'median_metrics': [],  # add the median of some metrics
     'best_key': 'loss/total',  # key to use to select the best checkpoint
     'dataset_callback_fn': None,  # data func called at the start of each epoch
-    'output_dir': "output"
+    'output_dir': "output",
+    'load_weights':True
 }
-#myGlue = SuperGlue(model_conf)
-#result = myGlue.forward(data=data)
-#print(result)
-# END of forward pass#
+
 
 np.set_printoptions(threshold=sys.maxsize)
+dataset= FragmentsDataset(data)
+myGlue = SuperGlue(model_conf)
+
+dummy_training(dataset,myGlue,train_conf)
+torch.save(myGlue.state_dict(), "weights_01.pth")
 
 
-#d1 = np.load("last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/0.npy")
-#d1 = d1.T
-#d2 = d1
-#k1 = np.load("last_years_project/keypoint_descriptor/data/keypoints/keypoints_4/brick_1v1/3.npy")
-#k1 = np.delete(k1, np.s_[-1:], axis=1)
-#k1 = k1[0:32]
-#k2 = k1
-#gt = np.ones(len(d1))
-#print(d1.shape,d2.shape,k1.shape)
-#print(d1)
 
-dummy_training(data,model_conf,train_conf)
+test_data = FragmentsDataset(data)
+myGlue.eval()
+test_dl = td.DataLoader(test_data, batch_size=32, shuffle=False)
+for it, datatest in enumerate(test_dl):
+    #device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    #data = batch_to_device(datatest, device, non_blocking=True)
+    pred = myGlue(datatest)
+    print("The final output is: \n \n")
+    print(pred)
+
+
