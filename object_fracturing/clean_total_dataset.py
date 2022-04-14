@@ -32,7 +32,7 @@ def handle_folder(object_folder, dataroot):
 
     # delete the premade cleaned and subdv folder
     try:
-        shutil.rmtree(os.path.join(folder_path, 'cleaned\\'))
+        shutil.rmtree(os.path.join(folder_path, 'cleaned'))
     except:
         pass
 
@@ -46,7 +46,7 @@ def handle_folder(object_folder, dataroot):
     
     # clean the folder
     for filename in os.listdir(folder_path):
-        if filename == 'keypoints':
+        if filename in ['keypoints', 'keypoints_harris', 'processed']:
             try:
                 shutil.rmtree(os.path.join(folder_path, filename))
             except:
@@ -106,10 +106,10 @@ def handle_folder(object_folder, dataroot):
                     log.append(f'Deleted a small fragment of shard: {shard_counter}\n')
                     continue
 
-                # center to origin
-                center = ex_mesh.centroid()
-                vec =  cg.Vector(-center[0], -center[1], -center[2])
-                mesh_transform_numpy(ex_mesh, cg.Translation.from_vector(vec))
+                # center to origin (this destroys matching!!)
+                #center = ex_mesh.centroid()
+                #vec =  cg.Vector(-center[0], -center[1], -center[2])
+                #mesh_transform_numpy(ex_mesh, cg.Translation.from_vector(vec))
                 # save to new file
                 name = object_folder + "_cleaned." + str(piece_counter)
                 FILE_NPY = os.path.join(folder_path, 'cleaned', name + ".npy")

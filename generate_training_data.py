@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.transformation import centering_centroid
-
+from joblib import Parallel, delayed
 import numpy as np
 import open3d as o3d
 import pyshot
@@ -136,7 +136,7 @@ def get_harris_keypoints(vertices):
 
     return keypoint_indexes
 
-def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
+def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.001):
     dists = cdist(keypoints1, keypoints2)
     close_enough_mask = np.min(dists, axis=0) < threshold
     closest = np.argmin(dists, axis=0)
@@ -158,7 +158,6 @@ def get_descriptors(i, vertices, faces, args, folder_path):
         descriptors = np.load(descriptor_path)
         return descriptors
     if method == 'shot':
-        print("get_descriptor")
         descriptors = pyshot.get_descriptors(vertices, faces,
                                              radius=args.radius,
                                              local_rf_radius=args.local_rf_radius,
@@ -214,6 +213,7 @@ def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
 def process_folder(folder_path, args):
     object_name = os.path.basename(folder_path)
     os.makedirs(os.path.join(folder_path, 'processed'), exist_ok=True)
+    print(f'Processing folder {folder_path}')
 
     # TODO: reading from binary might be much faster according to Martin.
     obj_files = glob(os.path.join(folder_path, 'cleaned', '*.obj'))
@@ -230,7 +230,11 @@ def process_folder(folder_path, args):
     for i in range(num_fragments):
         mesh = Mesh.from_obj(os.path.join(folder_path, 'cleaned', f'{object_name}_cleaned.{i}.obj'))
         # Some faces are still polygons other than triangles :(
-        mesh_faces_to_triangles(mesh)
+        try:
+            mesh_faces_to_triangles(mesh)
+        except:
+            print("Error in faces to triangles for folder: ", folder_path)
+            return
         vertices, faces = mesh.to_vertices_and_faces()
         normals = [mesh.vertex_normal(vkey) for vkey in mesh.vertices()]
 
@@ -255,11 +259,13 @@ def process_folder(folder_path, args):
         for j in range(i):
             if matching_matrix[i, j]:
                 keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j]).astype(int)
-                print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
+                #print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
                 # save the matching matrix as sparse scipy file
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
                 path = os.path.join(folder_path,'processed', 'matching', name)
                 save_npz(path, csr_matrix(keypoint_assignment))
+    
+    print(f'Processed folder {folder_path}')
 
 
 def main():
@@ -282,12 +288,15 @@ def main():
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
     args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
-
     object_folders = glob(os.path.join(args.data_dir, '*'))
+
+    #Parallel(n_jobs=4)(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
+    #exit(1)
     for f in object_folders:
         if os.path.isdir(f):
             process_folder(f, args)
 
+    
 
 if __name__ == '__main__':
     main()
