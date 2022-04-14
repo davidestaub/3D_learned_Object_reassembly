@@ -157,7 +157,8 @@ def get_descriptors(i, vertices, faces, args, folder_path):
     if os.path.exists(descriptor_path):
         descriptors = np.load(descriptor_path)
         return descriptors
-    if args.descriptor_method == 'shot':
+    if method == 'shot':
+        print("get_descriptor")
         descriptors = pyshot.get_descriptors(vertices, faces,
                                              radius=args.radius,
                                              local_rf_radius=args.local_rf_radius,
@@ -166,7 +167,7 @@ def get_descriptors(i, vertices, faces, args, folder_path):
                                              double_volumes_sectors=args.double_volumes_sectors,
                                              use_interpolation=args.use_interpolation,
                                              use_normalization=args.use_normalization,
-                                             )
+                                             )                       
         np.save(descriptor_path, descriptors)
         return descriptors
     else:

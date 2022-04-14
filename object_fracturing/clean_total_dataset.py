@@ -1,41 +1,38 @@
-from hashlib import new
-from importlib.resources import path
-from msilib.schema import Class
 import os
 import numpy as np
-from tools import *
 import shutil
-
+import sys
 from joblib import Parallel, delayed
-
-from compas.datastructures import Mesh
+from compas.datastructures import Mesh, mesh_transform_numpy
 from compas.datastructures import mesh_explode
 from compas.datastructures import mesh_subdivide_corner
+import compas.geometry as cg
+here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+dataroot = os.path.join(here, 'data')
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from tools.tools import mesh_faces_to_triangles
 dashed_line = "----------------------------------------------------------------\n"
 # ==============================================================================
 # File
 # ==============================================================================
-here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-dataroot = os.path.join(here, 'data')
+
+
+
 
 # total folders (-1 for keypoint folder)
 total_folders = len([i for i in os.listdir(dataroot)]) - 1
 subdivide = False 
 
 
-def handle_folder(object_folder, dataroot, idx):
+def handle_folder(object_folder, dataroot):
     log = []
-    # skip keypoints
-    if object_folder == 'keypoints':
-        return
 
     folder_path = os.path.join(dataroot, object_folder)
 
     # delete the premade cleaned and subdv folder
     try:
         shutil.rmtree(os.path.join(folder_path, 'cleaned\\'))
-        shutil.rmtree(os.path.join(folder_path, 'subdv\\'))
     except:
         pass
 
@@ -46,9 +43,16 @@ def handle_folder(object_folder, dataroot, idx):
     # delete the log file
     if os.path.exists(folder_path + "\\log.txt"):
         os.remove(folder_path + "\\log.txt")
+    
     # clean the folder
     for filename in os.listdir(folder_path):
-        if filename in ['cleaned', 'subdv', 'matching', 'keypoints']:
+        if filename == 'keypoints':
+            try:
+                shutil.rmtree(os.path.join(folder_path, filename))
+            except:
+                pass
+            continue
+        if filename in ['cleaned', 'processed']:
             continue
         file_path = os.path.join(folder_path, filename)
         # delete material list files
@@ -82,6 +86,7 @@ def handle_folder(object_folder, dataroot, idx):
 
     # read the new files and clean the pointclouds
     shard_counter = 0
+    piece_counter = 0
 
     for filename in os.listdir(folder_path):
         file_path = os.path.join(folder_path, filename)
@@ -100,13 +105,18 @@ def handle_folder(object_folder, dataroot, idx):
                 if len(list(ex_mesh.vertices())) < 500:
                     log.append(f'Deleted a small fragment of shard: {shard_counter}\n')
                     continue
+
+                # center to origin
+                center = ex_mesh.centroid()
+                vec =  cg.Vector(-center[0], -center[1], -center[2])
+                mesh_transform_numpy(ex_mesh, cg.Translation.from_vector(vec))
                 # save to new file
-                name = object_folder + "_cleaned." + str(shard_counter)
+                name = object_folder + "_cleaned." + str(piece_counter)
                 FILE_NPY = os.path.join(folder_path, 'cleaned', name + ".npy")
                 FILE_OBJ = os.path.join(folder_path, 'cleaned', name + ".obj")
                 
                 ex_mesh.to_obj(FILE_OBJ)
-
+                piece_counter += 1
                 vertices = np.array([ex_mesh.vertex_coordinates(vkey)for vkey in ex_mesh.vertices()])
                 normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()])
                 data = np.concatenate((vertices, normals), axis=1)
@@ -214,4 +224,4 @@ def handle_folder(object_folder, dataroot, idx):
         text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
 
-Parallel(n_jobs=8)(delayed(handle_folder)(folder, dataroot, idx)for idx, folder in enumerate(os.listdir(dataroot)))
+Parallel(n_jobs=12)(delayed(handle_folder)(folder, dataroot) for folder in os.listdir(dataroot))
