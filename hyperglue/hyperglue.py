@@ -52,6 +52,7 @@ import os
 import random
 import copy
 import signal
+from glob import glob
 from tqdm import tqdm
 from torch._six import string_classes
 import collections.abc as collections
@@ -65,7 +66,7 @@ from stdout_capturing import capture_outputs
 import argparse
 import sys
 import tarfile
-
+from scipy.sparse import load_npz
 
 #I created this function here in order to avoid nasty imports
 def set_seed(seed):
@@ -465,35 +466,68 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset
-    def __init__(self, dataset):
-        self.number_of_samples = 32
+    def __init__(self, root):
+        self.root = root
+        self.dataset = []
+
+        # load the dataset
+        for folder in os.listdir(self.root):
+            processed = os.path.join(self.root, folder, 'processed', '')
+            matching = os.path.join(processed, 'matching','')
+            match_path = ''.join([matching, folder,'_matching_matrix.npy'])
+            match_mat = np.load(match_path)
+
+            # for each match pair load the keypoints, descripors and matches
+            # also construct the gt assignment
+            for i in range(match_mat.shape[0]):
+                for j in range(i, match_mat.shape[0]):
+                    # if the matching matrix is 1, two fragments should match
+                    # extract all the keypoint information necessary
+                    if match_mat[i][j] == 1:
+                        item = {}
+                        item['path_kpts_0'] = glob(os.path.join(processed,'keypoints',f'*.{i}.npy'))[0]
+                        item['path_kpts_1'] = glob(os.path.join(processed,'keypoints',f'*.{j}.npy'))[0]
+                        item['path_kpts_desc_0'] = glob(os.path.join(processed,'keypoint_descriptors',f'*.{i}.npy'))[0]
+                        item['path_kpts_desc_1'] = glob(os.path.join(processed,'keypoint_descriptors',f'*.{j}.npy'))[0]
+                        item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                        self.dataset.append(item)
 
     # number of rows in the dataset
     def __len__(self):
-        return self.number_of_samples
-
+        return len(self.dataset)
+        
     # get a row at an index
+    # TODO train and test modus (could be just different indizes saved somewhere else)
     def __getitem__(self, idx):
 
-
-        k0 = data["keypoints0"]
-        k1 = data["keypoints1"]
-        d0 = data["descriptors0"]
-        d1 = data["descriptors1"]
-        gt = data['gt_assignment']
-        m0 = data['gt_matches0']
-        m1 = data['gt_matches1']
-
+        # i is the keypoint index in the 0 cloud, item is the corresponding
+        # cloud of potential matchings in the other fragment
+        gtasg = load_npz(self.dataset[idx]['path_match_mat']).toarray()
+        gt_matches0 = []
+        gt_matches1 = np.zeros(gtasg.shape[1]) - 1
+        for i, kpts_j in enumerate(gtasg):
+            match_i = -1
+            for j, match in enumerate(kpts_j):
+                # if there is a match (1) then the keypoint in index i
+                # matches to the keypoint in index j of the other fragment
+                if match:
+                    match_i = j
+                    gt_matches1[j] = i
+            gt_matches0.append(match_i)
+            
         sample = {
-            "keypoints0": k0,"keypoints1": k1,
-            "descriptors0": d0,"descriptors1": d1,
-            "gt_assignment":gt,
-            "gt_matches0": m0,
-            "gt_matches1":m1
-                  }
+            "keypoints0": np.load(self.dataset[idx]['path_kpts_0']),
+            "keypoints1": np.load(self.dataset[idx]['path_kpts_1']),
+            "descriptors0": np.load(self.dataset[idx]['path_kpts_desc_0']),
+            "descriptors1": np.load(self.dataset[idx]['path_kpts_desc_1']),
+            "gt_assignment": gtasg,
+            "gt_matches0": gt_matches0,
+            "gt_matches1": gt_matches1
+        }
+
         return sample
 
-def dummy_training(data,model,train_conf):
+def dummy_training(dataroot, model,train_conf):
     init_cp = None
     set_seed(train_conf["seed"])
     writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
@@ -501,7 +535,7 @@ def dummy_training(data,model,train_conf):
     logging.info(f'Using device {device}')
 
     #Loading the fragment data
-    dataset = FragmentsDataset(data)
+    dataset= FragmentsDataset(root=dataroot)
 
     #Splitting into train test
     train_size = int(0.8 * len(dataset))
@@ -639,7 +673,7 @@ def dummy_training(data,model,train_conf):
 
     writer.close()
 
-
+'''
 data = {}
 
 # This dimensionality is accepted by superglue,
@@ -686,7 +720,7 @@ print(data["keypoints1"].shape)
 print(data["gt_matches0"].shape)
 print("end of shape printing")
 
-
+'''
 #For hyperglue the dimesions have to be 1,256,number_of_points and the values are doubles
 #Note that the number of keypoiunts/descriptors for two images do not have to be the same,
 # here is an example of two images where image 1 has 308 keypoints and image 2 has 344 keypoints
@@ -735,16 +769,19 @@ train_conf = {
 }
 
 
+root = os.path.join(os.getcwd(), 'object_fracturing', 'data')
+
 np.set_printoptions(threshold=sys.maxsize)
-dataset= FragmentsDataset(data)
 myGlue = SuperGlue(model_conf)
 
-dummy_training(dataset,myGlue,train_conf)
+dummy_training(root, myGlue,train_conf)
 torch.save(myGlue.state_dict(), "weights_01.pth")
 
 
 
-test_data = FragmentsDataset(data)
+test_data = FragmentsDataset(root=root)
+test = test_data.__getitem__(0)
+
 myGlue.eval()
 test_dl = td.DataLoader(test_data, batch_size=32, shuffle=False)
 for it, datatest in enumerate(test_dl):

@@ -61,7 +61,8 @@ def compute_SD_point(neighbourhood, points, normals, p_idx):
 		return SD
 
 def get_SD_keypoints(vertices, normals, r=0.1, kpts_fraction=0.1):
-    nkeypoints = int(len(vertices) * kpts_fraction)
+    #nkeypoints = int(len(vertices) * kpts_fraction)
+    nkeypoints = 128
     n_points = len(vertices)
     tree = KDTree(vertices)
     # Compute SD
