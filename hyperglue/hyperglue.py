@@ -142,7 +142,7 @@ class KeypointEncoder(nn.Module):
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
     # but if we happen to have confidence scores aswell we can reintroduce it
     def forward(self, kpts,):
-        kpts = kpts.transpose(1, 2)
+        kpts = kpts.transpose(1, 2).float()
         return self.encoder(kpts)
 
 
@@ -316,6 +316,10 @@ class SuperGlue(nn.Module):
         encoded_kpt0 = encoded_kpt0.squeeze()
         encoded_kpt1 = encoded_kpt1.squeeze()
 
+        print(desc0.shape)
+        print(desc1.shape)
+        print(encoded_kpt0.shape)
+        print(encoded_kpt1.shape)
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
 
@@ -503,26 +507,24 @@ class FragmentsDataset(td.Dataset):
         # i is the keypoint index in the 0 cloud, item is the corresponding
         # cloud of potential matchings in the other fragment
         gtasg = load_npz(self.dataset[idx]['path_match_mat']).toarray()
-        gt_matches0 = []
+        gt_matches0 = np.zeros(gtasg.shape[0]) - 1
         gt_matches1 = np.zeros(gtasg.shape[1]) - 1
         for i, kpts_j in enumerate(gtasg):
-            match_i = -1
             for j, match in enumerate(kpts_j):
                 # if there is a match (1) then the keypoint in index i
                 # matches to the keypoint in index j of the other fragment
                 if match:
-                    match_i = j
+                    gt_matches0[i] = j
                     gt_matches1[j] = i
-            gt_matches0.append(match_i)
             
         sample = {
-            "keypoints0": np.load(self.dataset[idx]['path_kpts_0']),
-            "keypoints1": np.load(self.dataset[idx]['path_kpts_1']),
-            "descriptors0": np.load(self.dataset[idx]['path_kpts_desc_0']),
-            "descriptors1": np.load(self.dataset[idx]['path_kpts_desc_1']),
+            "keypoints0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_0'])),
+            "keypoints1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_1'])),
+            "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0'])),
+            "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1'])),
             "gt_assignment": gtasg,
-            "gt_matches0": gt_matches0,
-            "gt_matches1": gt_matches1
+            "gt_matches0": torch.from_numpy(gt_matches0),
+            "gt_matches1": torch.from_numpy(gt_matches1)
         }
 
         return sample
@@ -535,13 +537,14 @@ def dummy_training(dataroot, model,train_conf):
     logging.info(f'Using device {device}')
 
     #Loading the fragment data
-    dataset= FragmentsDataset(root=dataroot)
+    dataset = FragmentsDataset(root=dataroot)
 
     #Splitting into train test
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
 
     train, test = td.random_split(dataset, [train_size, test_size])
+
     # create a data loader for train and test sets
     train_dl = td.DataLoader(train, batch_size=train_size, shuffle=True)
     test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
@@ -765,7 +768,7 @@ train_conf = {
     'best_key': 'loss/total',  # key to use to select the best checkpoint
     'dataset_callback_fn': None,  # data func called at the start of each epoch
     'output_dir': "output",
-    'load_weights':True
+    'load_weights':False
 }
 
 
