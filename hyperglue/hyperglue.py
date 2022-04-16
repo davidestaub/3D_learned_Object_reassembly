@@ -518,7 +518,7 @@ class FragmentsDataset(td.Dataset):
         kp0 = np.load(self.dataset[idx]['path_kpts_0']).astype(np.float32)
         kp1 = np.load(self.dataset[idx]['path_kpts_1']).astype(np.float32)
         center_0 = np.mean(kp0[:,:3], axis=0).astype(np.float32)
-        center_1 = np.mean(kp0[:,:3], axis=0).astype(np.float32)
+        center_1 = np.mean(kp1[:,:3], axis=0).astype(np.float32)
 
         sample = {
             "keypoints0": torch.from_numpy(np.subtract(kp0,center_0, dtype=np.float32)),
