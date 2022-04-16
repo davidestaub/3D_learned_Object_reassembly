@@ -530,8 +530,7 @@ def dummy_training(dataroot, model,train_conf):
     init_cp = None
     set_seed(train_conf["seed"])
     writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
-    #device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    device = 'cpu'
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logging.info(f'Using device {device}')
 
     #Loading the fragment data
