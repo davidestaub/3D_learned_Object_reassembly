@@ -513,10 +513,16 @@ class FragmentsDataset(td.Dataset):
                 if match:
                     gt_matches0[i] = j
                     gt_matches1[j] = i
-            
+
+        # center the pointclouds for relative coordinates
+        kp0 = np.load(self.dataset[idx]['path_kpts_0']).astype(np.float32)
+        kp1 = np.load(self.dataset[idx]['path_kpts_1']).astype(np.float32)
+        center_0 = np.mean(kp0[:,3:], axis=0).astype(np.float32)
+        center_1 = np.mean(kp0[:,3:], axis=0).astype(np.float32)
+
         sample = {
-            "keypoints0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_0']).astype(np.float32)),
-            "keypoints1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_1']).astype(np.float32)),
+            "keypoints0": torch.from_numpy(kp0 - center_0),
+            "keypoints1": torch.from_numpy(kp1 - center_1),
             "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
             "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
