@@ -67,6 +67,7 @@ import argparse
 import sys
 import tarfile
 from scipy.sparse import load_npz
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 #I created this function here in order to avoid nasty imports
 def set_seed(seed):
@@ -316,10 +317,6 @@ class SuperGlue(nn.Module):
         encoded_kpt0 = encoded_kpt0.squeeze()
         encoded_kpt1 = encoded_kpt1.squeeze()
 
-        print(desc0.shape)
-        print(desc1.shape)
-        print(encoded_kpt0.shape)
-        print(encoded_kpt1.shape)
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
 
@@ -506,9 +503,9 @@ class FragmentsDataset(td.Dataset):
 
         # i is the keypoint index in the 0 cloud, item is the corresponding
         # cloud of potential matchings in the other fragment
-        gtasg = load_npz(self.dataset[idx]['path_match_mat']).toarray()
-        gt_matches0 = np.zeros(gtasg.shape[0]) - 1
-        gt_matches1 = np.zeros(gtasg.shape[1]) - 1
+        gtasg = np.array(load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)
+        gt_matches0 = np.zeros(gtasg.shape[0], dtype = np.float32) - 1
+        gt_matches1 = np.zeros(gtasg.shape[1], dtype = np.float32) - 1
         for i, kpts_j in enumerate(gtasg):
             for j, match in enumerate(kpts_j):
                 # if there is a match (1) then the keypoint in index i
@@ -518,11 +515,11 @@ class FragmentsDataset(td.Dataset):
                     gt_matches1[j] = i
             
         sample = {
-            "keypoints0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_0'])),
-            "keypoints1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_1'])),
-            "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0'])),
-            "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1'])),
-            "gt_assignment": gtasg,
+            "keypoints0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_0']).astype(np.float32)),
+            "keypoints1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_1']).astype(np.float32)),
+            "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
+            "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
+            "gt_assignment": torch.from_numpy(gtasg),
             "gt_matches0": torch.from_numpy(gt_matches0),
             "gt_matches1": torch.from_numpy(gt_matches1)
         }
@@ -533,7 +530,8 @@ def dummy_training(dataroot, model,train_conf):
     init_cp = None
     set_seed(train_conf["seed"])
     writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    #device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cpu'
     logging.info(f'Using device {device}')
 
     #Loading the fragment data
@@ -546,7 +544,7 @@ def dummy_training(dataroot, model,train_conf):
     train, test = td.random_split(dataset, [train_size, test_size])
 
     # create a data loader for train and test sets
-    train_dl = td.DataLoader(train, batch_size=train_size, shuffle=True)
+    train_dl = td.DataLoader(train, batch_size=8, shuffle=False)
     test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
 
 
@@ -737,9 +735,9 @@ print("end of shape printing")
 
 
 model_conf = {
-    'descriptor_dim': 128,
+    'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [32, 64, 128,256],
+    'keypoint_encoder': [128, 256, 512,1024],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
@@ -754,7 +752,7 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 100,  # number of epochs
+    'epochs': 5,  # number of epochs
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
@@ -783,10 +781,9 @@ torch.save(myGlue.state_dict(), "weights_01.pth")
 
 
 test_data = FragmentsDataset(root=root)
-test = test_data.__getitem__(0)
 
 myGlue.eval()
-test_dl = td.DataLoader(test_data, batch_size=32, shuffle=False)
+test_dl = td.DataLoader(test_data, batch_size=8, shuffle=False)
 for it, datatest in enumerate(test_dl):
     #device = 'cuda' if torch.cuda.is_available() else 'cpu'
     #data = batch_to_device(datatest, device, non_blocking=True)
