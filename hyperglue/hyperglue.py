@@ -742,7 +742,7 @@ print("end of shape printing")
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [128, 180, 284, 336],
+    'keypoint_encoder': [42, 84, 168, 336],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
@@ -757,7 +757,7 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 10,  # number of epochs
+    'epochs': 1000,  # number of epochs
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
