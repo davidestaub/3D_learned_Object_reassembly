@@ -521,8 +521,8 @@ class FragmentsDataset(td.Dataset):
         center_1 = np.mean(kp0[:,:3], axis=0).astype(np.float32)
 
         sample = {
-            "keypoints0": torch.from_numpy(kp0 - center_0),
-            "keypoints1": torch.from_numpy(kp1 - center_1),
+            "keypoints0": torch.from_numpy(np.subtract(kp0,center_0, dtype=np.float32)),
+            "keypoints1": torch.from_numpy(np.subtract(kp1,center_1, dtype=np.float32)),
             "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
             "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
@@ -743,7 +743,7 @@ model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
     'keypoint_encoder': [128, 256, 512,1024],
-    'GNN_layers': ['self', 'cross'] * 9,
+    'GNN_layers': ['self', 'cross'] * 5,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
     #'bottleneck_dim': None,
@@ -761,7 +761,7 @@ train_conf = {
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr': 0.01,  # learning rate
+    'lr': 0.001,  # learning rate
     'lr_schedule': {'type': None, 'start': 0, 'exp_div_10': 0},
     'eval_every_iter': 1000,  # interval for evaluation on the validation set
     'log_every_iter': 200,  # interval for logging the loss to the console
