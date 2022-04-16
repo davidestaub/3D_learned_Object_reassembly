@@ -769,7 +769,8 @@ train_conf = {
 }
 
 
-root = os.path.join(os.getcwd(), 'object_fracturing', 'data')
+here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+root = os.path.join(here,'..', 'object_fracturing', 'data')
 
 np.set_printoptions(threshold=sys.maxsize)
 myGlue = SuperGlue(model_conf)
