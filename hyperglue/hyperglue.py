@@ -754,8 +754,8 @@ model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
     'keypoint_encoder': [21,42,84,168,336],
-    'GNN_layers': ['self', 'cross'] * 9,
-    'sinkhorn_iterations': 200,
+    'GNN_layers': ['self', 'cross'] * 5,
+    'sinkhorn_iterations': 1000,
     'match_threshold': 0.2,
     #'bottleneck_dim': None,
     'loss': {
@@ -777,7 +777,7 @@ train_conf = {
     'lr_schedule': {'type': "exp", 'start': 0, 'exp_div_10': 1},
     'eval_every_iter': 100,  # interval for evaluation on the validation set
     'log_every_iter': 200,  # interval for logging the loss to the console
-    'keep_last_checkpoints': 10,  # keep only the last X checkpoints
+    'keep_last_checkpoints': 5,  # keep only the last X checkpoints
     'load_experiment': None,  # initialize the model from a previous experiment
     'median_metrics': [],  # add the median of some metrics
     'best_key': 'loss/total',  # key to use to select the best checkpoint
