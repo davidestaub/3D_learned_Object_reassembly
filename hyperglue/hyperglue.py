@@ -761,11 +761,11 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 1000,  # number of epochs
+    'epochs': 100,  # number of epochs
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr': 0.001,  # learning rate
+    'lr': 0.01,  # learning rate
     'lr_schedule': {'type': "exp", 'start': 0, 'exp_div_10': 1},
     'eval_every_iter': 10,  # interval for evaluation on the validation set
     'log_every_iter': 20,  # interval for logging the loss to the console
