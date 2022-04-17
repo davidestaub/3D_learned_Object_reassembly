@@ -645,7 +645,7 @@ def dummy_training(dataroot, model,train_conf):
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf)
 
-                str_results = [f'{k} {v:.3E}' for k, v in results.items()]
+                str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
                 wandb.log(ast.literal_eval(str_results))
                 logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                 for k, v in results.items():
