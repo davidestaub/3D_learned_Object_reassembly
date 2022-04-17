@@ -520,6 +520,10 @@ class FragmentsDataset(td.Dataset):
         center_0 = np.mean(kp0[:,:3], axis=0).astype(np.float32)
         center_1 = np.mean(kp1[:,:3], axis=0).astype(np.float32)
 
+        # normalize points
+        kp0 = kp0 / max(np.max(kp0), -np.min(kp0))
+        kp1 = kp1 / max(np.max(kp1), -np.min(kp1))
+
         sample = {
             "keypoints0": torch.from_numpy(np.subtract(kp0,center_0, dtype=np.float32)),
             "keypoints1": torch.from_numpy(np.subtract(kp1,center_1, dtype=np.float32)),
