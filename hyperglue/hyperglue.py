@@ -254,9 +254,9 @@ class SuperGlue(nn.Module):
     Networks. In CVPR, 2020. https://arxiv.org/abs/1911.11763
     """
     default_config = {
-        'descriptor_dim': 256,
+        'descriptor_dim': 336,
         'weights': None,
-        'keypoint_encoder': [32, 64, 128,256],
+        'keypoint_encoder': [21,42,84,168,336],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
         'match_threshold': 0.2,
@@ -549,8 +549,8 @@ def dummy_training(dataroot, model,train_conf):
     train, test = td.random_split(dataset, [train_size, test_size])
 
     # create a data loader for train and test sets
-    train_dl = td.DataLoader(train, batch_size=8, shuffle=False)
-    test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
+    train_dl = td.DataLoader(train, batch_size=25, shuffle=True)
+    test_dl = td.DataLoader(test, batch_size=25, shuffle=False)
 
 
     logging.info(f'Training loader has {len(train_dl)} batches')
@@ -742,7 +742,7 @@ print("end of shape printing")
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [128, 184, 240, 336],
+    'keypoint_encoder': [21,42,84,168,336],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
@@ -762,9 +762,9 @@ train_conf = {
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
     'lr': 0.001,  # learning rate
-    'lr_schedule': {'type': None, 'start': 0, 'exp_div_10': 0},
-    'eval_every_iter': 1000,  # interval for evaluation on the validation set
-    'log_every_iter': 200,  # interval for logging the loss to the console
+    'lr_schedule': {'type': "exp", 'start': 0, 'exp_div_10': 1},
+    'eval_every_iter': 10,  # interval for evaluation on the validation set
+    'log_every_iter': 20,  # interval for logging the loss to the console
     'keep_last_checkpoints': 10,  # keep only the last X checkpoints
     'load_experiment': None,  # initialize the model from a previous experiment
     'median_metrics': [],  # add the median of some metrics
