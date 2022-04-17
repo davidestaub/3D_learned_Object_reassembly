@@ -68,7 +68,7 @@ import sys
 import tarfile
 from scipy.sparse import load_npz
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-
+import wandb
 #I created this function here in order to avoid nasty imports
 def set_seed(seed):
     random.seed(seed)
@@ -537,6 +537,9 @@ class FragmentsDataset(td.Dataset):
         return sample
 
 def dummy_training(dataroot, model,train_conf):
+    wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
+    wandb.config = train_conf
+
     init_cp = None
     set_seed(train_conf["seed"])
     writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
@@ -641,6 +644,7 @@ def dummy_training(dataroot, model,train_conf):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf)
 
                 str_results = [f'{k} {v:.3E}' for k, v in results.items()]
+                wandb.log(str_results)
                 logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                 for k, v in results.items():
                     writer.add_scalar('val/' + k, v, tot_it)
