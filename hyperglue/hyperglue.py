@@ -67,7 +67,6 @@ import argparse
 import sys
 import tarfile
 from scipy.sparse import load_npz
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 import wandb
 import ast
 #I created this function here in order to avoid nasty imports
@@ -646,7 +645,9 @@ def dummy_training(dataroot, model,train_conf):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf)
 
                 str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
-                wandb.log(ast.literal_eval(str_results))
+                wandb.log({'match_recall':results['match_recall']})
+                wandb.log({'match_precision':results['match_precision']})
+                wandb.log({'loss/total':results['loss/total']})
                 logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                 for k, v in results.items():
                     writer.add_scalar('val/' + k, v, tot_it)
