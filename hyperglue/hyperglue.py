@@ -612,6 +612,8 @@ def dummy_training(dataroot, model,train_conf):
     epoch = 0
 
     while epoch < train_conf["epochs"]:
+        best_eval = 10000
+
         logging.info(f'Starting epoch {epoch}')
         set_seed(train_conf["seed"] + epoch)
         if epoch > 0 and train_conf["dataset_callback_fn"]:
@@ -673,10 +675,7 @@ def dummy_training(dataroot, model,train_conf):
         #changed string formatting
         cp_path = str(train_conf["output_dir"] +"/"+ (cp_name + '.tar'))
         torch.save(checkpoint, cp_path)
-
-        #TODO: no idea where best eval comes from so i just set it here for testing reasons
-        best_eval = 10000
-
+        
         if results[train_conf["best_key"]] < best_eval:
             best_eval = results[train_conf["best_key"]]
             logging.info(
@@ -755,7 +754,7 @@ print("end of shape printing")
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [128, 128, 168, 168, 336],
+    'keypoint_encoder': [1000, 500, 336],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 1000,
     'match_threshold': 0.5,
