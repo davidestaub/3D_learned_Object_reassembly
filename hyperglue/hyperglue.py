@@ -525,8 +525,8 @@ class FragmentsDataset(td.Dataset):
         kp1 = np.subtract(kp1,center_1, dtype=np.float32)
 
         # normalize points
-        kp0 = kp0 / np.max(np.max(kp0), np.max(-1*kp0))
-        kp1 = kp1 / np.max(np.max(kp1), np.max(-1*kp1))
+        kp0 = kp0 / np.abs(kp0).max() 
+        kp1 = kp1 / np.abs(kp1).max() 
 
         sample = {
             "keypoints0": torch.from_numpy(kp0),
