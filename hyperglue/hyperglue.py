@@ -109,7 +109,7 @@ class MedianMetric:
             return np.nanmedian(self._elements)
 
 
-def MLP(channels: List[int], do_bn: bool = True, dropout = True) -> nn.Module:
+def MLP(channels: List[int], do_bn: bool = True, dropout = False) -> nn.Module:
     """ Multi-layer perceptron """
     n = len(channels)
     layers = []
