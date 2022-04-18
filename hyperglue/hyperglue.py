@@ -258,7 +258,7 @@ class SuperGlue(nn.Module):
     default_config = {
         'descriptor_dim': 336,
         'weights': None,
-        'keypoint_encoder': [21,42,84,168,336],
+        'keypoint_encoder': [336, 336, 336, 336,336],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
         'match_threshold': 0.2,
@@ -754,7 +754,7 @@ print("end of shape printing")
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [1000, 500, 336],
+    'keypoint_encoder': [100, 100, 100, 100, 336],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 1000,
     'match_threshold': 0.5,
