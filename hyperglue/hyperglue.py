@@ -540,8 +540,7 @@ class FragmentsDataset(td.Dataset):
 
 def dummy_training(dataroot, model,train_conf):
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
-    wandb.init(project="hyperglue", entity="matvogel")
-    wandb.config = train_conf
+    wandb.init(project="hyperglue", entity="matvogel", config=train_conf)
 
     init_cp = None
     set_seed(train_conf["seed"])
@@ -769,7 +768,7 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 10,  # number of epochs
+    'epochs': 1000,  # number of epochs
     'batch_size': 32, # yes
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
