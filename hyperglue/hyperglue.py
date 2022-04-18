@@ -512,17 +512,15 @@ class FragmentsDataset(td.Dataset):
             for j, match in enumerate(kpts_j):
                 # if there is a match (1) then the keypoint in index i
                 # matches to the keypoint in index j of the other fragment
-                if match:
+                if match == 1:
                     gt_matches0[i] = j
                     gt_matches1[j] = i
 
         # center the pointclouds for relative coordinates
         kp0 = np.load(self.dataset[idx]['path_kpts_0']).astype(np.float32)
         kp1 = np.load(self.dataset[idx]['path_kpts_1']).astype(np.float32)
-        center_0 = np.mean(kp0[:,:3], axis=0).astype(np.float32)
-        center_1 = np.mean(kp1[:,:3], axis=0).astype(np.float32)
-        kp0 = np.subtract(kp0,center_0, dtype=np.float32)
-        kp1 = np.subtract(kp1,center_1, dtype=np.float32)
+        kp0 = np.subtract(kp0, np.mean(kp0, axis=0), dtype=np.float32)
+        kp1 = np.subtract(kp1, np.mean(kp1, axis=0), dtype=np.float32)
 
         # normalize points
         kp0 = kp0 / np.abs(kp0).max() 
@@ -755,8 +753,8 @@ print("end of shape printing")
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [8, 32, 128, 256, 336],
-    'GNN_layers': ['self', 'cross'] * 9,
+    'keypoint_encoder': [32, 64, 128, 256, 336],
+    'GNN_layers': ['self', 'cross'] * 6,
     'sinkhorn_iterations': 50,
     'match_threshold': 0.2,
     #'bottleneck_dim': None,
