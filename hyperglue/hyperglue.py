@@ -109,7 +109,7 @@ class MedianMetric:
             return np.nanmedian(self._elements)
 
 
-def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
+def MLP(channels: List[int], do_bn: bool = True, dropout = True) -> nn.Module:
     """ Multi-layer perceptron """
     n = len(channels)
     layers = []
@@ -120,6 +120,8 @@ def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
             layers.append(nn.ReLU())
+            if dropout:
+                layers.append(nn.Dropout(0.1))
     return nn.Sequential(*layers)
 
 
@@ -753,10 +755,10 @@ print("end of shape printing")
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [21,42,84,168,336],
-    'GNN_layers': ['self', 'cross'] * 5,
+    'keypoint_encoder': [128, 128, 168, 168, 336],
+    'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 1000,
-    'match_threshold': 0.2,
+    'match_threshold': 0.5,
     #'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
@@ -768,7 +770,7 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 100,  # number of epochs
+    'epochs': 50,  # number of epochs
     'batch_size': 32, # yes
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
