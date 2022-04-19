@@ -102,7 +102,7 @@ class MedianMetric:
             return np.nanmedian(self._elements)
 
 
-def MLP(channels: List[int], do_bn: bool = True, dropout = False) -> nn.Module:
+def MLP(channels: List[int], do_bn: bool = True, dropout = False, activation='relu') -> nn.Module:
     """ Multi-layer perceptron """
     n = len(channels)
     layers = []
@@ -112,7 +112,10 @@ def MLP(channels: List[int], do_bn: bool = True, dropout = False) -> nn.Module:
         if i < (n-1):
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
-            layers.append(nn.ReLU())
+            if activation == 'relu':
+                layers.append(nn.ReLU())
+            if activation == 'tanh':
+                layers.append(nn.Tanh())
             if dropout:
                 layers.append(nn.Dropout(0.1))
     return nn.Sequential(*layers)
@@ -132,7 +135,7 @@ class KeypointEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
-        self.encoder = MLP([3] + layers + [feature_dim])
+        self.encoder = MLP([3] + layers + [feature_dim], dropout=True, activation='tanh')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
