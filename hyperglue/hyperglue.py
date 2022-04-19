@@ -311,7 +311,7 @@ class SuperGlue(nn.Module):
 
         encoded_kpt0 = encoded_kpt0.squeeze()
         encoded_kpt1 = encoded_kpt1.squeeze()
-        
+
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
 
@@ -624,17 +624,6 @@ def dummy_training(dataroot, model,train_conf):
             optimizer.step()
             lr_scheduler.step()
 
-            #if it % train_conf["log_every_iter"] == 0:
-                #for k in sorted(losses.keys()):
-                    #losses[k] = torch.mean(losses[k]).item()
-                   # str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
-                    #logging.info('[E {} | it {}] loss {{{}}}'.format(
-                     #   epoch, it, ', '.join(str_losses)))
-                   # for k, v in losses.items():
-                      #  writer.add_scalar('training/' + k, v, tot_it)
-                    #writer.add_scalar(
-                        #'training/lr', optimizer.param_groups[0]['lr'], tot_it)
-
             del pred, data, loss, losses
 
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
@@ -686,10 +675,10 @@ def dummy_training(dataroot, model,train_conf):
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [6,12,24,48,96,192,336],
+    'keypoint_encoder': [32,64,128,256,336],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
-    'match_threshold': 0.5,
+    'match_threshold': 0.2,
     #'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
@@ -702,7 +691,7 @@ model_conf = {
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 10,  # number of epochs
-    'batch_size': 24, # yes
+    'batch_size': 4, # yes
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
