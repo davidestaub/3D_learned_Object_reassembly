@@ -611,6 +611,7 @@ def dummy_training(dataroot, model,train_conf):
         if epoch > 0 and train_conf["dataset_callback_fn"]:
             getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(train_conf["seed"] + epoch)
 
+        wandb.watch(model)
         for it, data in enumerate(train_dl):
             tot_it = len(train_dl) * epoch + it
 
@@ -690,8 +691,8 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 10,  # number of epochs
-    'batch_size': 4, # yes
+    'epochs': 25,  # number of epochs
+    'batch_size': 16, # yes
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
