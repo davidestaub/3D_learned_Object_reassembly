@@ -251,7 +251,7 @@ class SuperGlue(nn.Module):
     default_config = {
         'descriptor_dim': 336,
         'weights': None,
-        'keypoint_encoder': [336, 336, 336, 336,336],
+        'keypoint_encoder': [32,64,128,256],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
         'match_threshold': 0.2,
@@ -675,7 +675,7 @@ def dummy_training(dataroot, model,train_conf):
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [32,64,128,256,336],
+    'keypoint_encoder': [32,64,128,256],
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
