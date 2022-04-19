@@ -50,8 +50,6 @@ import numpy as np
 import logging
 import os
 import random
-import copy
-import signal
 from glob import glob
 from tqdm import tqdm
 from torch._six import string_classes
@@ -59,16 +57,11 @@ import collections.abc as collections
 import re
 import shutil
 from torch.utils.tensorboard import SummaryWriter
-from omegaconf import OmegaConf
-from experiments import (
-    delete_old_checkpoints, get_last_checkpoint, get_best_checkpoint)
-from stdout_capturing import capture_outputs
-import argparse
+from experiments import (delete_old_checkpoints, get_last_checkpoint, get_best_checkpoint)
 import sys
-import tarfile
 from scipy.sparse import load_npz
 import wandb
-import ast
+
 #I created this function here in order to avoid nasty imports
 def set_seed(seed):
     random.seed(seed)
@@ -318,7 +311,7 @@ class SuperGlue(nn.Module):
 
         encoded_kpt0 = encoded_kpt0.squeeze()
         encoded_kpt1 = encoded_kpt1.squeeze()
-
+        
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
 
@@ -690,66 +683,6 @@ def dummy_training(dataroot, model,train_conf):
 
     writer.close()
 
-'''
-data = {}
-
-# This dimensionality is accepted by superglue,
-#First dimenions is alway feature dimension i.e for descritors 128, for keypoints 4 and second dimension is number of points (in this case 32 for both "images")
-
-data['descriptors0'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/0.npy").T.astype(np.float32))
-data['descriptors1'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/encoded_desc/brick_1vN/1.npy").T.astype(np.float32))
-data['keypoints0'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/features/brick_1vN/0.npy")[0:32,0:3].astype(np.float32))
-data['keypoints0'] = data["keypoints0"]
-data['keypoints1'] = torch.from_numpy(np.load("../last_years_project/keypoint_descriptor/data/keypoints/keypoints_4/brick_1vN/1.npy")[0:32,0:3].astype(np.float32))
-data['keypoints1'] = data["keypoints0"]
-
-
-#pretty useless bc its just the diagonals that are one but once real data is here this will be different
-data['gt_assignment'] = np.ndarray(shape=(data['keypoints0'].shape[0],data['keypoints1'].shape[0]),dtype=np.float32)
-for i in range(0,data['gt_assignment'].shape[0]):
-    for j in range(0,data['gt_assignment'].shape[1]):
-        if i == j and i < data['gt_assignment'].shape[1] * 0.5:
-            data['gt_assignment'][i,j] = 1
-        else:
-            data['gt_assignment'][i, j] = 0
-
-
-data['gt_matches0'] = np.ndarray((data['keypoints0'].shape[0]))
-for i in range(0,data['gt_assignment'].shape[0]):
-    current_array = data['gt_assignment'][i]
-    data['gt_matches0'][i] = -1
-    for j in range(0,data['gt_assignment'].shape[1]):
-        if data['gt_assignment'][i,j] == 1 and i < data['gt_assignment'].shape[1] * 0.5:
-            data['gt_matches0'][i] = j
-
-
-data['gt_assignment'] = torch.from_numpy(data['gt_assignment'])
-data['gt_matches0'] = torch.from_numpy(data['gt_matches0'])
-
-#For now as they are simmetric
-data['gt_matches1'] = data['gt_matches0']
-
-print("starting shape printing: \n")
-print(data["descriptors0"].shape)
-print(data["descriptors1"].shape)
-print(data["keypoints0"].shape)
-print(data["keypoints1"].shape)
-print(data["gt_matches0"].shape)
-print("end of shape printing")
-
-'''
-#For hyperglue the dimesions have to be 1,256,number_of_points and the values are doubles
-#Note that the number of keypoiunts/descriptors for two images do not have to be the same,
-# here is an example of two images where image 1 has 308 keypoints and image 2 has 344 keypoints
-
-#desc0.shape = torch.Size([1, 256, 308])
-#desc1.shape = torch.Size([1, 256, 344])
-#kpts0.shape = torch.Size([1, 308, 2])
-#kpts1.shape = torch.Size([1, 344, 2])
-#scores0.shape = torch.Size([1, 308])
-#scores1.shape =torch.Size([1, 344])
-
-
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
@@ -768,9 +701,9 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 1000,  # number of epochs
+    'epochs': 10,  # number of epochs
     'batch_size': 24, # yes
-    'optimizer': 'rmsprop',  # name of optimizer in [adam, sgd, rmsprop]
+    'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
     'lr': 0.001,  # learning rate
