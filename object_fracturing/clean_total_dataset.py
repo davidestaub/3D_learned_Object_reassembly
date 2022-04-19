@@ -62,22 +62,16 @@ def handle_folder(object_folder, dataroot):
         elif 'shard' in filename:
             # now rename the shards
             if filename.endswith('.obj'):
-                # detect shard number
-                shard_split = filename.split('.')[-2]
-                shard_number = 'XXX'
-                # there are either numbers or the name (0th shard)
-                # convert them to the number
-                if '_' in shard_split:
-                    shard_number = '000'
-                else:
-                    shard_number = shard_split
-                new_name = object_folder + "_shard." + shard_number + ".obj"
-            if filename.endswith('.ply'):
-                # detect shard number
-                shard_number = filename.split('.')[0].split('_')[-1]
-                new_name = object_folder + "_shard." + shard_number + ".ply"
-            
-            new_name = os.path.join(folder_path, new_name)
+                point_split = filename.split('.')
+                # old format
+                shard_number = 0
+                if len(point_split) > 2:
+                    shard_split = filename.split('.')[-2]
+                    if '_' in shard_split:
+                        shard_number = 0
+                    else:
+                        shard_number = int(shard_split)
+                new_name = object_folder + "_shard_" + str(shard_number) + ".obj"
             try:
                 os.rename(file_path, new_name)
             except:
@@ -86,8 +80,6 @@ def handle_folder(object_folder, dataroot):
             new_name = os.path.join(folder_path, object_folder)
             if filename.endswith('.obj'):
                 new_name = new_name + ".obj"
-            if filename.endswith('.ply'):
-                new_name = new_name + ".ply"
             try:
                 os.rename(file_path, new_name)
             except:
@@ -108,11 +100,9 @@ def handle_folder(object_folder, dataroot):
         if "shard" in filename:
             if filename.endswith('.obj'):
                 mesh = Mesh.from_obj(file_path)
-
-            if filename.endswith('.ply'):
-                mesh = Mesh.from_ply(file_path)
-                mesh.make
-
+                if not mesh.is_manifold():
+                    print(f'Mesh {filename} not manifold!')
+                    return 
             # explode them to sepparate loose parts
             exploded_meshes = mesh_explode(mesh)
             if len(exploded_meshes) > 1:
@@ -150,4 +140,4 @@ def handle_folder(object_folder, dataroot):
         text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
 
-Parallel(n_jobs=12)(delayed(handle_folder)(folder, dataroot) for folder in os.listdir(dataroot))
+Parallel(n_jobs=6)(delayed(handle_folder)(folder, dataroot) for folder in os.listdir(dataroot))

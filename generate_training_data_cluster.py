@@ -4,10 +4,11 @@ import os
 from glob import glob
 from typing import List
 from sklearn.decomposition import PCA
+from joblib import Parallel, delayed, cpu_count
 from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.transformation import centering_centroid
-
+import shutil
 import numpy as np
 import pyshot
 from compas.datastructures import Mesh
@@ -246,6 +247,9 @@ def process_folder(folder_path, args):
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
                 path = os.path.join(folder_path,'processed', 'matching', name)
                 save_npz(path, csr_matrix(keypoint_assignment))
+    
+    # delete unecessary files again
+    shutil.rmtree(os.path.join(folder_path, 'processed', 'descriptors_all_points'))
 
 
 def main():
@@ -270,10 +274,7 @@ def main():
     args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
-    for f in object_folders:
-        if os.path.isdir(f):
-            process_folder(f, args)
-
+    Parallel(n_jobs=cpu_count(only_physical_cores=True))(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
 
 if __name__ == '__main__':
     main()
