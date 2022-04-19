@@ -4,10 +4,8 @@ import os
 from glob import glob
 from typing import List
 from sklearn.decomposition import PCA
+import sys
 from joblib import Parallel, delayed, cpu_count
-from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
-from tools.neighborhoords import k_ring_delaunay_adaptive
-from tools.transformation import centering_centroid
 import shutil
 import numpy as np
 import pyshot
@@ -15,6 +13,11 @@ from compas.datastructures import Mesh
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from scipy.sparse import save_npz, csr_matrix
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
+from tools.neighborhoords import k_ring_delaunay_adaptive
+from tools.transformation import centering_centroid
+
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
