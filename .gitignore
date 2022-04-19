@@ -5,7 +5,6 @@ object_fracturing/blender_fracture_modifier
 .idea
 output
 object_fracturing/data/*
-!object_fracturing/data/bottle_10_seed_1
 object_fracturing/data.zip
 object_fracturing/real_objects
 object_fracturing/data_zip/data.zip

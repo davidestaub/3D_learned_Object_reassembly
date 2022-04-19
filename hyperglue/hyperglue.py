@@ -630,9 +630,9 @@ def dummy_training(dataroot, model,train_conf):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf)
 
                 str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
-                wandb.log({'match_recall':results['match_recall']})
-                wandb.log({'match_precision':results['match_precision']})
-                wandb.log({'loss/total':results['loss/total']})
+                wandb.log({'match_recall':results['match_recall']}, epoch=epoch)
+                wandb.log({'match_precision':results['match_precision']}, epoch=epoch)
+                wandb.log({'loss/total':results['loss/total']}, epoch=epoch)
                 logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                 for k, v in results.items():
                     writer.add_scalar('val/' + k, v, tot_it)
