@@ -56,11 +56,14 @@ from torch._six import string_classes
 import collections.abc as collections
 import re
 import shutil
+from utils import conf
+from utils.pointconv_util import PointConvDensitySetAbstraction
 from torch.utils.tensorboard import SummaryWriter
 from experiments import (delete_old_checkpoints, get_last_checkpoint, get_best_checkpoint)
 import sys
 from scipy.sparse import load_npz
 import wandb
+import torch.nn.functional as F
 
 #I created this function here in order to avoid nasty imports
 def set_seed(seed):
@@ -121,6 +124,25 @@ def MLP(channels: List[int], do_bn: bool = True, dropout = False, activation='re
     return nn.Sequential(*layers)
 
 
+def MLP_3D(channels: List[int], do_bn: bool = True, dropout: bool = False, activation='relu') -> nn.Module:
+    """ Multi-layer perceptron """
+    n = len(channels)
+    layers = []
+    for i in range(1, n):
+        layers.append(
+            nn.Conv2d(channels[i - 1], channels[i], kernel_size=3, bias=True))
+        if i < (n-1):
+            if do_bn:
+                layers.append(nn.BatchNorm2d(channels[i]))
+            if activation == 'relu':
+                layers.append(nn.ReLU())
+            if activation == 'tanh':
+                layers.append(nn.Tanh())
+            if dropout:
+                layers.append(nn.Dropout(0.1))
+    return nn.Sequential(*layers)
+
+
 def normalize_keypoints(kpts, image_shape):
     """ Normalize keypoints locations based on image image_shape"""
     _, _, height, width = image_shape
@@ -130,18 +152,31 @@ def normalize_keypoints(kpts, image_shape):
     scaling = size.max(1, keepdim=True).values * 0.7
     return (kpts - center[:, None, :]) / scaling[:, None, :]
 
-
 class KeypointEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
-        self.encoder = MLP([3] + layers + [feature_dim], dropout=True, activation='tanh')
+        self.encoder = MLP([3] + layers + [feature_dim], dropout=True, activation='relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
     # but if we happen to have confidence scores aswell we can reintroduce it
     def forward(self, kpts,):
         kpts = kpts.transpose(1, 2).float()
+        return self.encoder(kpts)
+
+
+class KeypointEncoder3D(nn.Module):
+    """ Joint encoding of visual appearance and location using MLPs"""
+    def __init__(self, feature_dim: int, layers: List[int]) -> None:
+        super().__init__()
+        self.encoder = MLP_3D([3] + layers + [feature_dim], dropout=True, activation='relu')
+        nn.init.constant_(self.encoder[-1].bias, 0.0)
+
+    # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
+    # but if we happen to have confidence scores aswell we can reintroduce it
+    def forward(self, kpts,):
+        kpts = kpts.transpose(0, 1).float()
         return self.encoder(kpts)
 
 
@@ -264,11 +299,9 @@ class SuperGlue(nn.Module):
         super().__init__()
         self.config = {**self.default_config, **config}
 
-        self.kenc = KeypointEncoder(
-            self.config['descriptor_dim'], self.config['keypoint_encoder'])
+        self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
 
-        self.gnn = AttentionalGNN(
-            feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
+        self.gnn = AttentionalGNN(feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
 
 
         self.final_proj = nn.Conv1d(
@@ -276,7 +309,7 @@ class SuperGlue(nn.Module):
             kernel_size=1, bias=True)
 
 
-        bin_score = torch.nn.Parameter(torch.tensor(1.))
+        bin_score = torch.nn.Parameter(torch.tensor(0.))
         print(bin_score.item())
         self.register_parameter('bin_score', bin_score)
 
@@ -304,14 +337,8 @@ class SuperGlue(nn.Module):
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
 
-        # Keypoint normalization.
-        #TODO: remove this hack! previously was image.shape but we have fragments not images
-        #kpts0 = normalize_keypoints(kpts0, data['image0'].shape)
-        #kpts1 = normalize_keypoints(kpts1, data['image1'].shape)
-
         encoded_kpt0 = self.kenc(kpts0)
         encoded_kpt1 = self.kenc(kpts1)
-
         encoded_kpt0 = encoded_kpt0.squeeze()
         encoded_kpt1 = encoded_kpt1.squeeze()
 
@@ -508,23 +535,24 @@ class FragmentsDataset(td.Dataset):
             for j, match in enumerate(kpts_j):
                 # if there is a match (1) then the keypoint in index i
                 # matches to the keypoint in index j of the other fragment
-                if match == 1:
+                if match:
                     gt_matches0[i] = j
                     gt_matches1[j] = i
 
         # center the pointclouds for relative coordinates
-        kp0 = np.load(self.dataset[idx]['path_kpts_0']).astype(np.float32)
-        kp1 = np.load(self.dataset[idx]['path_kpts_1']).astype(np.float32)
-        kp0 = np.subtract(kp0, np.mean(kp0, axis=0), dtype=np.float32)
-        kp1 = np.subtract(kp1, np.mean(kp1, axis=0), dtype=np.float32)
-
-        # normalize points
-        kp0 = kp0 / np.abs(kp0).max() 
-        kp1 = kp1 / np.abs(kp1).max() 
+        kp0 = np.load(self.dataset[idx]['path_kpts_0'])
+        kp1 = np.load(self.dataset[idx]['path_kpts_1'])
+        center0 = np.mean(kp0, axis=0)
+        center1 = np.mean(kp1, axis=0)
+        kp0 = kp0 - center0
+        kp1 = kp1 - center1
+        # normalize points (somehow I also now wrote 0.7....)
+        kp0 = kp0 / (np.abs(kp0).max() * 0.7)
+        kp1 = kp1 / (np.abs(kp1).max() * 0.7)
 
         sample = {
-            "keypoints0": torch.from_numpy(kp0),
-            "keypoints1": torch.from_numpy(kp1),
+            "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
+            "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
             "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
             "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
@@ -676,42 +704,8 @@ def dummy_training(dataroot, model,train_conf):
 
     writer.close()
 
-model_conf = {
-    'descriptor_dim': 336,
-    'weights': 'weights_01',
-    'keypoint_encoder': [32,64,128,256],
-    'GNN_layers': ['self', 'cross'] * 9,
-    'sinkhorn_iterations': 100,
-    'match_threshold': 0.2,
-    #'bottleneck_dim': None,
-    'loss': {
-        'nll_weight': 1.,
-        'nll_balancing': 0.5,
-        #'reward_weight': 0.,
-        #'bottleneck_l2_weight': 0.,
-    },
-}
-
-train_conf = {
-    'seed': 42,  # training seed
-    'epochs': 25,  # number of epochs
-    'batch_size': 16, # yes
-    'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
-    'opt_regexp': None,  # regular expression to filter parameters to optimize
-    'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr': 0.001,  # learning rate
-    'lr_schedule': {'type': None, 'start': 0, 'exp_div_10': 1},
-    'eval_every_iter': 100,  # interval for evaluation on the validation set
-    'log_every_iter': 200,  # interval for logging the loss to the console
-    'keep_last_checkpoints': 5,  # keep only the last X checkpoints
-    'load_experiment': None,  # initialize the model from a previous experiment
-    'median_metrics': [],  # add the median of some metrics
-    'best_key': 'loss/total',  # key to use to select the best checkpoint
-    'dataset_callback_fn': None,  # data func called at the start of each epoch
-    'output_dir': "output",
-    'load_weights':False
-}
-
+model_conf = conf.model_conf
+train_conf = conf.train_conf
 
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 root = os.path.join(here,'..', 'object_fracturing', 'data')
@@ -721,9 +715,6 @@ myGlue = SuperGlue(model_conf)
 
 dummy_training(root, myGlue,train_conf)
 torch.save(myGlue.state_dict(), "weights_01.pth")
-
-
-
 test_data = FragmentsDataset(root=root)
 
 myGlue.eval()
