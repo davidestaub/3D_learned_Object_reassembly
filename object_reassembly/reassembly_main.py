@@ -8,11 +8,63 @@ from compas.geometry import Pointcloud
 from compas.geometry import Translation, Rotation
 from compas_view2.app import App
 
+here = os.path.dirname(os.path.abspath(__file__))
 path = "../data/bottle_10_seed_1/"
 
 
-def load_example_data():
-    data = Mesh.from_obj(path + "bottle_10_seed_1_shard.000.obj")
+class FracturedObject:
+    def __int__(self):
+        self.fragments = []
+        self.fragment_matches = []
+        self.kpts = {}
+        self.kpt_matches = {}
+        self.transformations = {}
+
+    def load_object(self, path):
+        for object in os.listdir(path):
+            if object.endswith('.obj'):
+                self.fragments.append(Mesh.from_obj(object))
+
+        matches_path = os.listdir(path)[0]
+        self.fragment_matches = np.load(matches_path)
+
+        for idx, points in enumerate(os.listdir(path)):
+            self.kpts[idx] = np.load(points)
+
+    def load_kpt_matches(self, matches0, matches1, idx0, idx1):
+        self.kpt_matches[(idx0, idx1)] = matches0
+        self.kpt_matches[(idx1, idx0)] = matches1
+
+    def find_transformations_first3kpts(self):
+        for fragment0 in range(len(self.fragments)):
+            for fragment1 in range(len(self.fragments)):
+                if self.fragment_matches[fragment0][fragment1]:
+                    pts0 = np.array([self.kpts[fragment0][idx] for idx in self.kpt_matches[(fragment0, fragment1)][0:3]])
+                    pts1 = np.array([self.kpts[fragment1][idx] for idx in self.kpt_matches[(fragment1, fragment0)][0:3]])
+
+                    centroid0 = np.mean(pts0, axis=1)
+                    centroid1 = np.mean(pts1, axis=1)
+
+                    centroid0 = centroid0.reshape(-1, 1)
+                    centroid1 = centroid1.reshape(-1, 1)
+
+                    m0 = pts0 - centroid0
+                    m1 = pts1 - centroid1
+
+                    H = m0 @ np.transpose(m1)
+                    U, S, Vt = np.linalg.svd(H)
+                    R = Vt.T @ U.T
+
+                    t = -R @ centroid0 + centroid1
+
+                    self.transformations[(fragment0, fragment1)] = (R, t)
+
+
+
+def load_example_data() -> list:
+    data = []
+    for object in os.listdir(here):
+        data.append(Mesh.from_obj(object))
 
     return data
 
