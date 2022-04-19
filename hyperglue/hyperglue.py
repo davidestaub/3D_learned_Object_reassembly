@@ -602,7 +602,8 @@ def dummy_training(dataroot, model,train_conf):
     losses_ = None
 
     epoch = 0
-
+    wandb.watch(model)
+    
     while epoch < train_conf["epochs"]:
         best_eval = 10000
 
@@ -611,7 +612,6 @@ def dummy_training(dataroot, model,train_conf):
         if epoch > 0 and train_conf["dataset_callback_fn"]:
             getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(train_conf["seed"] + epoch)
 
-        wandb.watch(model)
         for it, data in enumerate(train_dl):
             tot_it = len(train_dl) * epoch + it
 
