@@ -753,10 +753,10 @@ print("end of shape printing")
 model_conf = {
     'descriptor_dim': 336,
     'weights': 'weights_01',
-    'keypoint_encoder': [4, 8, 16, 32, 64, 128, 256, 336],
+    'keypoint_encoder': [6,12,24,48,96,192,336],
     'GNN_layers': ['self', 'cross'] * 9,
-    'sinkhorn_iterations': 50,
-    'match_threshold': 0.2,
+    'sinkhorn_iterations': 100,
+    'match_threshold': 0.5,
     #'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
