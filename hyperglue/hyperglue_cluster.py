@@ -114,8 +114,9 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
     n = len(channels)
     layers = []
     for i in range(1, n):
-        layers.append(
-            nn.Conv1d(channels[i - 1], channels[i], kernel_size=1, bias=True))
+        conv_layer =  nn.Conv1d(channels[i - 1], channels[i], kernel_size=1, bias=True)
+        nn.init.xavier_uniform(conv_layer.weight)
+        layers.append(conv_layer)
         if i < (n-1):
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
@@ -670,7 +671,6 @@ def dummy_training(rank, dataroot, model, train_conf):
     losses_ = None
 
     epoch = 0
-    wandb.watch(model)
 
     while epoch < train_conf["epochs"]:
         best_eval = 10000
@@ -784,6 +784,7 @@ if __name__ == '__main__':
 
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
     wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
+    wandb.watch(myGlue)
 
     if args.distributed:
         print("distributed")

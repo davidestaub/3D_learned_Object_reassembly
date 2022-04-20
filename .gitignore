@@ -8,4 +8,4 @@ object_fracturing/
 *.zip
 object_fracturing/real_objects
 wandb/
-.vscode/launch.json
+.vscode/
