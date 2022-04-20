@@ -293,8 +293,9 @@ def main():
                                  'data_full', 'data') if not args.data_dir else args.data_dir
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
-    Parallel(n_jobs=int(cpu_count()*0.5))(delayed(process_folder)(f, args)
-                                          for f in object_folders if os.path.isdir(f))
+    for f in object_folders:
+        if os.path.isdir(f):
+            process_folder(f, args)
 
 
 if __name__ == '__main__':
