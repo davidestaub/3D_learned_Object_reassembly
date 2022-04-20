@@ -615,8 +615,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                 train_conf["batch_size"] / args.n_gpus)
 
     else:
-        device = 'cpu'
-        #device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logging.info(f'Using device {device}')
 
     # Loading the fragment data
