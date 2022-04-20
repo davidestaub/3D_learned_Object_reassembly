@@ -334,7 +334,7 @@ class SuperGlue(nn.Module):
 
     def forward(self, data):
         mlp_encoding = False
-        
+
         pred = {}
         """Run SuperGlue on a pair of keypoints and descriptors"""
         desc0, desc1 = data['descriptors0'], data['descriptors1']
@@ -356,7 +356,9 @@ class SuperGlue(nn.Module):
             encoded_kpt1 = encoded_kpt1.squeeze()
             desc0 = desc0.transpose(1, 2) + encoded_kpt0
             desc1 = desc1.transpose(1, 2) + encoded_kpt1
-
+        else:
+            desc0 = desc0.transpose(1, 2)
+            desc1 = desc1.transpose(1, 2)
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
 
