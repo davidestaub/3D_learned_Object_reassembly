@@ -279,8 +279,8 @@ def main():
     parser.add_argument("--data_dir", type=str, default='')
 
     # Args for SHOT descriptors.
-    parser.add_argument("--radius", type=float, default=30),
-    parser.add_argument("--local_rf_radius", default=30, type=float)
+    parser.add_argument("--radius", type=float, default=42),
+    parser.add_argument("--local_rf_radius", default=42, type=float)
     parser.add_argument("--min_neighbors", type=int, default=4)
     parser.add_argument("--n_bins", type=int, default=20)
     parser.add_argument("--double_volumes_sectors", action='store_true')
