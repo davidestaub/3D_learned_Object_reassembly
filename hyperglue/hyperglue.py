@@ -596,8 +596,8 @@ def dummy_training(rank,dataroot, model,train_conf):
     train, test = td.random_split(dataset, [train_size, test_size])
 
     # create a data loader for train and test sets
-    train_dl = td.DataLoader(train, batch_size=8, shuffle=False)
-    test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
+    train_dl = td.DataLoader(train, batch_size=train_conf["batch_size"], shuffle=True)
+    test_dl = td.DataLoader(test, batch_size=train_conf["batch_size"], shuffle=True)
 
     if rank == 0:
         logging.info(f'Training loader has {len(train_dl)} batches')
