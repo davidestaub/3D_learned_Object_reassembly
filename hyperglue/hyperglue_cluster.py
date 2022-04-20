@@ -122,7 +122,7 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
                 layers.append(nn.BatchNorm1d(channels[i]))
             if activation == 'relu':
                 relu_layer = nn.ReLU()
-                nn.init.xavier_uniform(relu_layer.weight)
+                nn.init.xavier_uniform(relu_layer)
                 layers.append(relu_layer)
             if activation == 'tanh':
                 layers.append(nn.Tanh())
