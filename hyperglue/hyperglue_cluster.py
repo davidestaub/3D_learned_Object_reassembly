@@ -333,6 +333,8 @@ class SuperGlue(nn.Module):
                 self.config['weights']))
 
     def forward(self, data):
+        mlp_encoding = False
+        
         pred = {}
         """Run SuperGlue on a pair of keypoints and descriptors"""
         desc0, desc1 = data['descriptors0'], data['descriptors1']
@@ -347,13 +349,13 @@ class SuperGlue(nn.Module):
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
 
-        encoded_kpt0 = self.kenc(kpts0)
-        encoded_kpt1 = self.kenc(kpts1)
-        encoded_kpt0 = encoded_kpt0.squeeze()
-        encoded_kpt1 = encoded_kpt1.squeeze()
-
-        desc0 = desc0.transpose(1, 2) + encoded_kpt0
-        desc1 = desc1.transpose(1, 2) + encoded_kpt1
+        if mlp_encoding:
+            encoded_kpt0 = self.kenc(kpts0)
+            encoded_kpt1 = self.kenc(kpts1)
+            encoded_kpt0 = encoded_kpt0.squeeze()
+            encoded_kpt1 = encoded_kpt1.squeeze()
+            desc0 = desc0.transpose(1, 2) + encoded_kpt0
+            desc1 = desc1.transpose(1, 2) + encoded_kpt1
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
