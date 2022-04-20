@@ -547,8 +547,8 @@ class FragmentsDataset(td.Dataset):
         kp0 = kp0 - center0
         kp1 = kp1 - center1
         # normalize points (somehow I also now wrote 0.7....)
-        kp0 = kp0 / (np.abs(kp0).max() * 0.7)
-        kp1 = kp1 / (np.abs(kp1).max() * 0.7)
+        #kp0 = kp0 / (np.abs(kp0).max() * 0.7)
+        #kp1 = kp1 / (np.abs(kp1).max() * 0.7)
 
 
         sample = {
