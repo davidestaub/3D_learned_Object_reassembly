@@ -359,6 +359,7 @@ class SuperGlue(nn.Module):
         else:
             desc0 = desc0.transpose(1, 2)
             desc1 = desc1.transpose(1, 2)
+        
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
 
@@ -429,9 +430,7 @@ class SuperGlue(nn.Module):
 
         if model_conf["loss"]["nll_weight"] > 0:
             losses['total'] = nll*model_conf["loss"]["nll_weight"]
-        
-        # test, define the loss only via precision and recall
-        losses['total'] = torch.tensor()
+    
         # Some statistics
         losses['num_matchable'] = num_pos
         losses['num_unmatchable'] = num_neg

@@ -1,3 +1,6 @@
+from tools.transformation import centering_centroid
+from tools.neighborhoords import k_ring_delaunay_adaptive
+from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
 import argparse
 from copy import deepcopy
 import os
@@ -14,17 +17,15 @@ from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from scipy.sparse import save_npz, csr_matrix
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
-from tools.neighborhoords import k_ring_delaunay_adaptive
-from tools.transformation import centering_centroid
 
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
-    match_path = os.path.join(folder_path,'processed', 'matching')
+    match_path = os.path.join(folder_path, 'processed', 'matching')
     os.makedirs(match_path, exist_ok=True)
 
-    matching_matrix_path = os.path.join(match_path, f'{object_name}_matching_matrix.npy')
+    matching_matrix_path = os.path.join(
+        match_path, f'{object_name}_matching_matrix.npy')
 
     # If matching is calculated already, use it.
     if os.path.exists(matching_matrix_path):
@@ -37,7 +38,8 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     for i in range(num_parts):
         for j in range(i):
             # Search for corresponding points in two parts (distance below a treshold).
-            matches = np.sum(cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
+            matches = np.sum(
+                cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
 
             # If there are more than 100 matches, the parts are considered neighbours.
             if matches > 100:
@@ -48,14 +50,15 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
 
 
 def compute_SD_point(neighbourhood, points, normals, p_idx):
-		p_i = points[p_idx]
-		n_p_i = normals[p_idx]
-		p_i_bar = np.mean(points[neighbourhood], axis=0)
-		v = p_i - p_i_bar
-		SD = np.dot(v, n_p_i)
-		return SD
+    p_i = points[p_idx]
+    n_p_i = normals[p_idx]
+    p_i_bar = np.mean(points[neighbourhood], axis=0)
+    v = p_i - p_i_bar
+    SD = np.dot(v, n_p_i)
+    return SD
 
-def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints = 128):
+
+def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=128):
     n_points = len(vertices)
     tree = KDTree(vertices)
     # Compute SD
@@ -69,6 +72,7 @@ def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints = 128):
     indices_to_keep = np.argsort(np.abs(SD))[-nkeypoints:]
     keypoints = vertices[indices_to_keep]
     return keypoints, indices_to_keep
+
 
 def get_harris_keypoints(vertices):
     points = deepcopy(vertices)
@@ -91,9 +95,10 @@ def get_harris_keypoints(vertices):
 
     for i in neighborhood.keys():
         points_centred, _ = centering_centroid(points)
-        
-        #best fitting point
-        points_pca = PCA(n_components=3).fit_transform(np.transpose(points_centred))
+
+        # best fitting point
+        points_pca = PCA(n_components=3).fit_transform(
+            np.transpose(points_centred))
         _, eigenvectors = np.linalg.eigh(points_pca)
 
         # rotate the cloud
@@ -108,27 +113,29 @@ def get_harris_keypoints(vertices):
         m = m.reshape((3, 3))
 
         # Compute the derivative
-        fx2  = m[1, 0]*m[1, 0] + 2*m[2, 0]*m[2, 0] + 2*m[1, 1]*m[1, 1]  # A
-        fy2  = m[1, 0]*m[1, 0] + 2*m[1, 1]*m[1, 1] + 2*m[0, 2]*m[0, 2]  # B
+        fx2 = m[1, 0]*m[1, 0] + 2*m[2, 0]*m[2, 0] + 2*m[1, 1]*m[1, 1]  # A
+        fy2 = m[1, 0]*m[1, 0] + 2*m[1, 1]*m[1, 1] + 2*m[0, 2]*m[0, 2]  # B
         fxfy = m[1, 0]*m[0, 1] + 2*m[2, 0]*m[1, 1] + 2*m[1, 1]*m[0, 2]  # C
 
         # Compute response
         resp[i] = fx2*fy2 - fxfy*fxfy - k*(fx2 + fy2)*(fx2 + fy2)
 
-    #Select interest points at local maxima
+    # Select interest points at local maxima
     candidate = []
-    for i in neighborhood.keys() :
-        if resp[i] >= np.max(resp[neighborhood[i]]) :
+    for i in neighborhood.keys():
+        if resp[i] >= np.max(resp[neighborhood[i]]):
             candidate.append([i, resp[i]])
-    #sort by decreasing order
-    candidate.sort(reverse=True, key=lambda x:x[1])
+    # sort by decreasing order
+    candidate.sort(reverse=True, key=lambda x: x[1])
     candidate = np.array(candidate)
-    
-    #Method 1 : fraction
-    keypoint_indexes = np.array(candidate[:int(fraction*len(points)), 0], dtype=np.int)
+
+    # Method 1 : fraction
+    keypoint_indexes = np.array(
+        candidate[:int(fraction*len(points)), 0], dtype=np.int)
     labels_fraction[keypoint_indexes] = 1
 
     return keypoint_indexes
+
 
 def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
     dists = cdist(keypoints1, keypoints2)
@@ -160,7 +167,7 @@ def get_descriptors(i, vertices, faces, args, folder_path):
                                              double_volumes_sectors=args.double_volumes_sectors,
                                              use_interpolation=args.use_interpolation,
                                              use_normalization=args.use_normalization,
-                                             )                       
+                                             )
         np.save(descriptor_path, descriptors)
         return descriptors
     else:
@@ -193,7 +200,7 @@ def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
         keypoint_descriptors = descriptors[keypoint_idxs]
         np.save(keypoint_path, keypoints)
         np.save(keypoint_descriptors_path, keypoint_descriptors)
-        return keypoints, keypoint_descriptors   
+        return keypoints, keypoint_descriptors
     else:
         raise NotImplementedError
 
@@ -216,7 +223,8 @@ def process_folder(folder_path, args):
         return
 
     for i in range(num_fragments):
-        mesh = Mesh.from_obj(os.path.join(folder_path, 'cleaned', f'{object_name}_cleaned.{i}.obj'))
+        mesh = Mesh.from_obj(os.path.join(
+            folder_path, 'cleaned', f'{object_name}_cleaned.{i}.obj'))
         # Some faces are still polygons other than triangles :(
         mesh_faces_to_triangles(mesh)
         vertices, faces = mesh.to_vertices_and_faces()
@@ -231,7 +239,8 @@ def process_folder(folder_path, args):
     keypoints = []
     descriptors = []
     for i in range(num_fragments):
-        fragment_descriptors = get_descriptors(i, fragments_vertices[i], fragments_faces[i], args, folder_path)
+        fragment_descriptors = get_descriptors(
+            i, fragments_vertices[i], fragments_faces[i], args, folder_path)
         fragment_keypoints, fragment_keypoint_descriptors = get_keypoints(i, fragments_vertices[i], fragments_normals[i],
                                                                           fragment_descriptors, args, folder_path)
         keypoints.append(fragment_keypoints)
@@ -242,40 +251,48 @@ def process_folder(folder_path, args):
     for i in range(num_fragments):
         for j in range(i):
             if matching_matrix[i, j]:
-                keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j]).astype(int)
+                keypoint_assignment = get_keypoint_assignment(
+                    keypoints[i], keypoints[j]).astype(int)
                 # save the matching matrix as sparse scipy file
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
-                path = os.path.join(folder_path,'processed', 'matching', name)
+                path = os.path.join(folder_path, 'processed', 'matching', name)
                 save_npz(path, csr_matrix(keypoint_assignment))
-    
+
     # delete unecessary files again
-    shutil.rmtree(os.path.join(folder_path, 'processed', 'descriptors_all_points'))
+    shutil.rmtree(os.path.join(
+        folder_path, 'processed', 'descriptors_all_points'))
     print(f'Processed folder {folder_path}')
 
 
 def main():
-    parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
+    parser = argparse.ArgumentParser(
+        "generate_iss_keypoints_and_shot_descriptors")
 
-    parser.add_argument("--keypoint_method", type=str, default='SD', choices=['iss', 'SD', 'harris'])
-    parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
+    parser.add_argument("--keypoint_method", type=str,
+                        default='SD', choices=['iss', 'SD', 'harris'])
+    parser.add_argument("--descriptor_method", type=str,
+                        default='shot', choices=['shot'])
 
     parser.add_argument("--data_dir", type=str, default='')
 
     # Args for SHOT descriptors.
-    parser.add_argument("--radius", type=float, default = 30),
-    parser.add_argument("--local_rf_radius", default = 30, type=float)
+    parser.add_argument("--radius", type=float, default=30),
+    parser.add_argument("--local_rf_radius", default=30, type=float)
     parser.add_argument("--min_neighbors", type=int, default=4)
     parser.add_argument("--n_bins", type=int, default=20)
-    parser.add_argument("--double_volumes_sectors",action='store_true')
+    parser.add_argument("--double_volumes_sectors", action='store_true')
     parser.add_argument("--use_interpolation", action='store_true')
     parser.add_argument("--use_normalization", action='store_true')
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
-    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data_full', 'data') if not args.data_dir else args.data_dir
+    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing',
+                                 'data_full', 'data') if not args.data_dir else args.data_dir
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
-    Parallel(n_jobs=int(cpu_count()*0.5))(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
+    Parallel(n_jobs=int(cpu_count()*0.5))(delayed(process_folder)(f, args)
+                                          for f in object_folders if os.path.isdir(f))
+
 
 if __name__ == '__main__':
     main()
