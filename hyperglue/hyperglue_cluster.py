@@ -6,7 +6,7 @@
 #
 #  Unpublished Copyright (c) 2020
 #  Magic Leap, Inc., All Rights Reserved.
-# 
+#
 # NOTICE:  All information contained herein is, and remains the property
 # of COMPANY. The intellectual and technical concepts contained herein
 # are proprietary to COMPANY and may be covered by U.S. and Foreign
@@ -60,13 +60,16 @@ import shutil
 from utils import conf
 from utils.pointconv_util import PointConvDensitySetAbstraction
 from torch.utils.tensorboard import SummaryWriter
-from experiments import (delete_old_checkpoints, get_last_checkpoint, get_best_checkpoint)
+from experiments import (delete_old_checkpoints,
+                         get_last_checkpoint, get_best_checkpoint)
 import sys
 from scipy.sparse import load_npz
 import wandb
 import torch.nn.functional as F
 
-#I created this function here in order to avoid nasty imports
+# I created this function here in order to avoid nasty imports
+
+
 def set_seed(seed):
     random.seed(seed)
     torch.manual_seed(seed)
@@ -106,7 +109,7 @@ class MedianMetric:
             return np.nanmedian(self._elements)
 
 
-def MLP(channels: List[int], do_bn: bool = True, dropout = False, activation='relu') -> nn.Module:
+def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu') -> nn.Module:
     """ Multi-layer perceptron """
     n = len(channels)
     layers = []
@@ -153,11 +156,14 @@ def normalize_keypoints(kpts, image_shape):
     scaling = size.max(1, keepdim=True).values * 0.7
     return (kpts - center[:, None, :]) / scaling[:, None, :]
 
+
 class KeypointEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
+
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
-        self.encoder = MLP([3] + layers + [feature_dim], dropout=True, activation='relu')
+        self.encoder = MLP([3] + layers + [feature_dim],
+                           dropout=True, activation='relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
@@ -169,9 +175,11 @@ class KeypointEncoder(nn.Module):
 
 class KeypointEncoder3D(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
+
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
-        self.encoder = MLP_3D([3] + layers + [feature_dim], dropout=True, activation='relu')
+        self.encoder = MLP_3D([3] + layers + [feature_dim],
+                              dropout=True, activation='relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
@@ -181,7 +189,7 @@ class KeypointEncoder3D(nn.Module):
         return self.encoder(kpts)
 
 
-def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     dim = query.shape[1]
     scores = torch.einsum('bdhn,bdhm->bhnm', query, key) / dim**.5
     prob = torch.nn.functional.softmax(scores, dim=-1)
@@ -190,6 +198,7 @@ def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tu
 
 class MultiHeadedAttention(nn.Module):
     """ Multi-head attention to increase model expressivitiy """
+
     def __init__(self, num_heads: int, d_model: int):
         super().__init__()
         assert d_model % num_heads == 0
@@ -226,7 +235,7 @@ class AttentionalGNN(nn.Module):
             for _ in range(len(layer_names))])
         self.names = layer_names
 
-    def forward(self, desc0: torch.Tensor, desc1: torch.Tensor) -> Tuple[torch.Tensor,torch.Tensor]:
+    def forward(self, desc0: torch.Tensor, desc1: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         for layer, name in zip(self.layers, self.names):
             if name == 'cross':
                 src0, src1 = desc1, desc0
@@ -290,7 +299,7 @@ class SuperGlue(nn.Module):
     default_config = {
         'descriptor_dim': 336,
         'weights': None,
-        'keypoint_encoder': [32,64,128,256],
+        'keypoint_encoder': [32, 64, 128, 256],
         'GNN_layers': ['self', 'cross'] * 9,
         'sinkhorn_iterations': 100,
         'match_threshold': 0.2,
@@ -300,20 +309,19 @@ class SuperGlue(nn.Module):
         super().__init__()
         self.config = {**self.default_config, **config}
 
-        self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
+        self.kenc = KeypointEncoder(
+            self.config['descriptor_dim'], self.config['keypoint_encoder'])
 
-        self.gnn = AttentionalGNN(feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
-
+        self.gnn = AttentionalGNN(
+            feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
 
         self.final_proj = nn.Conv1d(
             self.config['descriptor_dim'], self.config['descriptor_dim'],
             kernel_size=1, bias=True)
 
-
         bin_score = torch.nn.Parameter(torch.tensor(0.))
         print(bin_score.item())
         self.register_parameter('bin_score', bin_score)
-
 
         if train_conf["load_weights"]:
             path = Path(__file__).parent
@@ -321,7 +329,6 @@ class SuperGlue(nn.Module):
             self.load_state_dict(torch.load(str(path)))
             print('Loaded SuperGlue model (\"{}\" weights)'.format(
                 self.config['weights']))
-
 
     def forward(self, data):
         pred = {}
@@ -365,8 +372,10 @@ class SuperGlue(nn.Module):
         max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
 
         indices0, indices1 = max0.indices, max1.indices
-        mutual0 = arange_like(indices0, 1)[None] == indices1.gather(1, indices0)
-        mutual1 = arange_like(indices1, 1)[None] == indices0.gather(1, indices1)
+        mutual0 = arange_like(indices0, 1)[
+            None] == indices1.gather(1, indices0)
+        mutual1 = arange_like(indices1, 1)[
+            None] == indices0.gather(1, indices1)
         zero = scores.new_tensor(0)
         mscores0 = torch.where(mutual0, max0.values.exp(), zero)
         mscores1 = torch.where(mutual1, mscores0.gather(1, indices1), zero)
@@ -378,14 +387,14 @@ class SuperGlue(nn.Module):
         return {
             **pred,
             'log_assignment': scores,
-            'matches0': indices0, # use -1 for invalid match
-            'matches1': indices1, # use -1 for invalid match
+            'matches0': indices0,  # use -1 for invalid match
+            'matches1': indices1,  # use -1 for invalid match
             'matching_scores0': mscores0,
             'matching_scores1': mscores1,
         }
 
+    # Copied from superglue_v1.py
 
-    #Copied from superglue_v1.py
     def loss(self, pred, data):
         losses = {'total': 0}
 
@@ -394,12 +403,12 @@ class SuperGlue(nn.Module):
 
         num_pos = torch.max(positive.sum((1, 2)), positive.new_tensor(1))
 
-        #data[gt_matches_0] is an array of dimension n were each entry cooresponds to the indice of the corresponding match in the other image or a -1 if there is no match
+        # data[gt_matches_0] is an array of dimension n were each entry cooresponds to the indice of the corresponding match in the other image or a -1 if there is no match
         # the same holds for gt_matches_1 just that it is dimension m and has indices of the 0-image array
         neg0 = (data['gt_matches0'] == -1).float()
         neg1 = (data['gt_matches1'] == -1).float()
-        #changed dimension added tensor
-        #removed max with new_temsor
+        # changed dimension added tensor
+        # removed max with new_temsor
         num_neg = torch.max(neg0.sum(1) + neg1.sum(1), neg0.new_tensor(1))
 
         log_assignment = pred['log_assignment']
@@ -420,7 +429,6 @@ class SuperGlue(nn.Module):
         losses['num_unmatchable'] = num_neg
         losses['sinkhorn_norm'] = log_assignment.exp()[:, :-1].sum(2).mean(1)
         losses['bin_score'] = self.bin_score[None]
-
 
         return losses
 
@@ -484,7 +492,7 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
     return results
 
 
-#Creating a own dataset type for our input, move this to a separate file later!
+# Creating a own dataset type for our input, move this to a separate file later!
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset
@@ -495,8 +503,8 @@ class FragmentsDataset(td.Dataset):
         # load the dataset
         for folder in os.listdir(self.root):
             processed = os.path.join(self.root, folder, 'processed', '')
-            matching = os.path.join(processed, 'matching','')
-            match_path = ''.join([matching, folder,'_matching_matrix.npy'])
+            matching = os.path.join(processed, 'matching', '')
+            match_path = ''.join([matching, folder, '_matching_matrix.npy'])
             match_mat = np.load(match_path)
 
             # for each match pair load the keypoints, descripors and matches
@@ -507,26 +515,32 @@ class FragmentsDataset(td.Dataset):
                     # extract all the keypoint information necessary
                     if match_mat[i][j] == 1:
                         item = {}
-                        item['path_kpts_0'] = glob(os.path.join(processed,'keypoints',f'*.{i}.npy'))[0]
-                        item['path_kpts_1'] = glob(os.path.join(processed,'keypoints',f'*.{j}.npy'))[0]
-                        item['path_kpts_desc_0'] = glob(os.path.join(processed,'keypoint_descriptors',f'*.{i}.npy'))[0]
-                        item['path_kpts_desc_1'] = glob(os.path.join(processed,'keypoint_descriptors',f'*.{j}.npy'))[0]
-                        item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                        item['path_kpts_0'] = glob(os.path.join(
+                            processed, 'keypoints', f'*.{i}.npy'))[0]
+                        item['path_kpts_1'] = glob(os.path.join(
+                            processed, 'keypoints', f'*.{j}.npy'))[0]
+                        item['path_kpts_desc_0'] = glob(os.path.join(
+                            processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                        item['path_kpts_desc_1'] = glob(os.path.join(
+                            processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
+                        item['path_match_mat'] = glob(
+                            os.path.join(matching, f'*{j}_{i}.npz'))[0]
                         self.dataset.append(item)
 
     # number of rows in the dataset
     def __len__(self):
         return len(self.dataset)
-        
+
     # get a row at an index
     # TODO train and test modus (could be just different indizes saved somewhere else)
     def __getitem__(self, idx):
 
         # i is the keypoint index in the 0 cloud, item is the corresponding
         # cloud of potential matchings in the other fragment
-        gtasg = np.array(load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)
-        gt_matches0 = np.zeros(gtasg.shape[0], dtype = np.float32) - 1
-        gt_matches1 = np.zeros(gtasg.shape[1], dtype = np.float32) - 1
+        gtasg = np.array(
+            load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)
+        gt_matches0 = np.zeros(gtasg.shape[0], dtype=np.float32) - 1
+        gt_matches1 = np.zeros(gtasg.shape[1], dtype=np.float32) - 1
         for i, kpts_j in enumerate(gtasg):
             for j, match in enumerate(kpts_j):
                 # if there is a match (1) then the keypoint in index i
@@ -546,7 +560,6 @@ class FragmentsDataset(td.Dataset):
         #kp0 = kp0 / (np.abs(kp0).max() * 0.7)
         #kp1 = kp1 / (np.abs(kp1).max() * 0.7)
 
-
         sample = {
             "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
             "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
@@ -559,10 +572,9 @@ class FragmentsDataset(td.Dataset):
 
         return sample
 
-def dummy_training(rank,dataroot, model,train_conf):
+
+def dummy_training(rank, dataroot, model, train_conf):
     print("started training")
-    wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
-    wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
 
     init_cp = None
     set_seed(train_conf["seed"])
@@ -572,7 +584,8 @@ def dummy_training(rank,dataroot, model,train_conf):
         logging.info(f'Training in distributed mode with {args.n_gpus} GPUs')
         assert torch.cuda.is_available()
         device = rank
-        lock = Path(os.getcwd(),f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
+        lock = Path(
+            os.getcwd(), f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
         assert not Path(lock).exists(), lock
         torch.distributed.init_process_group(
             backend='nccl', world_size=args.n_gpus, rank=device,
@@ -581,24 +594,27 @@ def dummy_training(rank,dataroot, model,train_conf):
 
         # adjust batch size and num of workers since these are per GPU
         if 'batch_size' in train_conf:
-            train_conf["batch_size"] = int(train_conf["batch_size"] / args.n_gpus)
+            train_conf["batch_size"] = int(
+                train_conf["batch_size"] / args.n_gpus)
 
     else:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logging.info(f'Using device {device}')
 
-    #Loading the fragment data
+    # Loading the fragment data
     dataset = FragmentsDataset(root=dataroot)
 
-    #Splitting into train test
+    # Splitting into train test
     train_size = int(0.8 * len(dataset))
     test_size = len(dataset) - train_size
 
     train, test = td.random_split(dataset, [train_size, test_size])
 
     # create a data loader for train and test sets
-    train_dl = td.DataLoader(train, batch_size=train_conf['batch_size'], shuffle=True)
-    test_dl = td.DataLoader(test, batch_size=train_conf['batch_size'], shuffle=True)
+    train_dl = td.DataLoader(
+        train, batch_size=train_conf['batch_size'], shuffle=True)
+    test_dl = td.DataLoader(
+        test, batch_size=train_conf['batch_size'], shuffle=True)
 
     if rank == 0:
         logging.info(f'Training loader has {len(train_dl)} batches')
@@ -611,7 +627,8 @@ def dummy_training(rank,dataroot, model,train_conf):
 
     if args.distributed:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device])
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[device])
     if rank == 0:
         logging.info(f'Model: \n{model}')
     torch.backends.cudnn.benchmark = True
@@ -631,7 +648,8 @@ def dummy_training(rank,dataroot, model,train_conf):
 
         params = list(filter(filter_fn, params))
         assert len(params) > 0, train_conf["opt_regexp"]
-        logging.info('Selected parameters:\n' + '\n'.join(n for n, p in params))
+        logging.info('Selected parameters:\n' +
+                     '\n'.join(n for n, p in params))
     optimizer = optimizer_fn(
         [p for n, p in params], lr=train_conf["lr"],
         **train_conf["optimizer_options"])
@@ -640,7 +658,7 @@ def dummy_training(rank,dataroot, model,train_conf):
         if train_conf["lr_schedule"]["type"] is None:
             return 1
         if train_conf["lr_schedule"]["type"] == 'exp':
-            gam = 10 ** (-1 /train_conf["lr_schedule"]["exp_div_10"])
+            gam = 10 ** (-1 / train_conf["lr_schedule"]["exp_div_10"])
             return 1 if it < train_conf["lr_schedule"]["start"] else gam
         else:
             raise ValueError(train_conf["lr_schedule"]["type"])
@@ -653,7 +671,7 @@ def dummy_training(rank,dataroot, model,train_conf):
 
     epoch = 0
     wandb.watch(model)
-    
+
     while epoch < train_conf["epochs"]:
         best_eval = 10000
 
@@ -662,7 +680,8 @@ def dummy_training(rank,dataroot, model,train_conf):
         if args.distributed:
             train_dl.sampler.set_epoch(epoch)
         if epoch > 0 and train_conf["dataset_callback_fn"]:
-            getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(train_conf["seed"] + epoch)
+            getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(
+                train_conf["seed"] + epoch)
 
         for it, data in enumerate(train_dl):
             tot_it = len(train_dl) * epoch + it
@@ -696,13 +715,14 @@ def dummy_training(rank,dataroot, model,train_conf):
             del pred, data, loss, losses
 
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
-                results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf,pbar=(rank == 0))
+                results = do_evaluation(
+                    model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
 
                 if rank == 0:
                     str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
-                    wandb.log({'match_recall':results['match_recall']})
-                    wandb.log({'match_precision':results['match_precision']})
-                    wandb.log({'loss/total':results['loss/total']})
+                    wandb.log({'match_recall': results['match_recall']})
+                    wandb.log({'match_precision': results['match_precision']})
+                    wandb.log({'loss/total': results['loss/total']})
                     logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                     for k, v in results.items():
                         writer.add_scalar('val/' + k, v, tot_it)
@@ -711,27 +731,28 @@ def dummy_training(rank,dataroot, model,train_conf):
         if rank == 0:
             state = (model.module if args.distributed else model).state_dict()
             checkpoint = {
-                    'model': state,
-                    'optimizer': optimizer.state_dict(),
-                    'lr_scheduler': lr_scheduler.state_dict(),
-                    #removed omegaconf
-                    'conf': train_conf,
-                    'epoch': epoch,
-                    'losses': losses_,
-                    'eval': results,
-                }
-            #changed string formatting
+                'model': state,
+                'optimizer': optimizer.state_dict(),
+                'lr_scheduler': lr_scheduler.state_dict(),
+                # removed omegaconf
+                'conf': train_conf,
+                'epoch': epoch,
+                'losses': losses_,
+                'eval': results,
+            }
+            # changed string formatting
             cp_name = 'checkpoint_{}'.format(epoch)
             logging.info('Saving checkpoint {}'.format(cp_name))
-            #changed string formatting
-            cp_path = str(train_conf["output_dir"] +"/"+ (cp_name + '.tar'))
+            # changed string formatting
+            cp_path = str(train_conf["output_dir"] + "/" + (cp_name + '.tar'))
             torch.save(checkpoint, cp_path)
 
             if results[train_conf["best_key"]] < best_eval:
                 best_eval = results[train_conf["best_key"]]
                 logging.info(
                     f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
-                shutil.copy(cp_path, str(train_conf["output_dir"] +"/" + 'checkpoint_best.tar'))
+                shutil.copy(cp_path, str(
+                    train_conf["output_dir"] + "/" + 'checkpoint_best.tar'))
             delete_old_checkpoints(
                 train_conf["output_dir"], train_conf["keep_last_checkpoints"])
             del checkpoint
@@ -743,9 +764,10 @@ def dummy_training(rank,dataroot, model,train_conf):
     writer.close()
 
 
-def main_worker(rank,dataroot, model,train_conf):
-    print("hello")
-    dummy_training(rank,dataroot, model,train_conf)
+def main_worker(rank, dataroot, model, train_conf):
+    print("Spawned worker")
+    dummy_training(rank, dataroot, model, train_conf)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -754,21 +776,23 @@ if __name__ == '__main__':
     model_conf = conf.model_conf
     train_conf = conf.train_conf
 
-
     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-    root = os.path.join(here,'..', 'object_fracturing', 'data')
+    root = os.path.join(here, '..', 'object_fracturing', 'data')
 
     np.set_printoptions(threshold=sys.maxsize)
     myGlue = SuperGlue(model_conf)
 
+    wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
+    wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
 
     if args.distributed:
         print("distributed")
         args.n_gpus = torch.cuda.device_count()
-        print(" num gpus = ",args.n_gpus)
-        torch.multiprocessing.spawn(main_worker,nprocs=args.n_gpus, args=(root,myGlue,train_conf))
+        print(" num gpus = ", args.n_gpus)
+        torch.multiprocessing.spawn(
+            main_worker, nprocs=args.n_gpus, args=(root, myGlue, train_conf))
     else:
-        dummy_training(0,root, myGlue,train_conf)
+        dummy_training(0, root, myGlue, train_conf)
 
     #dummy_training(root, myGlue,train_conf)
     torch.save(myGlue.state_dict(), "weights_01.pth")
@@ -778,7 +802,8 @@ if __name__ == '__main__':
         test_data = FragmentsDataset(root=root)
 
         myGlue.eval()
-        test_dl = td.DataLoader(test_data, batch_size=train_conf['batch_size'], shuffle=False)
+        test_dl = td.DataLoader(
+            test_data, batch_size=train_conf['batch_size'], shuffle=False)
         for it, datatest in enumerate(test_dl):
             pred = myGlue(datatest)
             print(" ========  \n  The groundtruth: for data batch ", it)
@@ -786,7 +811,3 @@ if __name__ == '__main__':
             print("The final predicted output is: \n \n")
             print(pred["matches0"])
             print(" ======== ")
-
-
-
-
