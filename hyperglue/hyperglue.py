@@ -6,7 +6,7 @@
 #
 #  Unpublished Copyright (c) 2020
 #  Magic Leap, Inc., All Rights Reserved.
-#
+# 
 # NOTICE:  All information contained herein is, and remains the property
 # of COMPANY. The intellectual and technical concepts contained herein
 # are proprietary to COMPANY and may be covered by U.S. and Foreign
