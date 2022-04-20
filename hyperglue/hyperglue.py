@@ -39,7 +39,7 @@
 # %AUTHORS_END%
 # --------------------------------------------------------------------*/
 # %BANNER_END%
-
+import argparse
 from copy import deepcopy
 from pathlib import Path
 from typing import List, Tuple
@@ -399,7 +399,7 @@ class SuperGlue(nn.Module):
         neg1 = (data['gt_matches1'] == -1).float()
         #changed dimension added tensor
         #removed max with new_temsor
-        num_neg = neg0.sum(1) + neg1.sum(1)
+        num_neg = torch.max(neg0.sum(1) + neg1.sum(1), neg0.new_tensor(1))
 
         log_assignment = pred['log_assignment']
         nll_pos = -(log_assignment[:, :-1, :-1]*positive).sum((1, 2))
@@ -426,15 +426,10 @@ class SuperGlue(nn.Module):
     # Copied from superglue_v1.py
     def metrics(self, pred, data):
         def recall(m, gt_m):
-            #added this
-            #m=m.squeeze()
-            #gt_m = gt_m.unsqueeze(dim=1)
-
             mask = (gt_m > -1).float()
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
         def precision(m, gt_m):
-
             mask = ((m > -1) & (gt_m >= -1)).float()
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
@@ -563,14 +558,32 @@ class FragmentsDataset(td.Dataset):
 
         return sample
 
-def dummy_training(dataroot, model,train_conf):
+def dummy_training(rank,dataroot, model,train_conf):
+    print("started training")
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
     wandb.init(project="hyperglue", entity="matvogel", config=train_conf)
 
     init_cp = None
     set_seed(train_conf["seed"])
-    writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if rank == 0:
+        writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
+    if args.distributed:
+        logging.info(f'Training in distributed mode with {args.n_gpus} GPUs')
+        assert torch.cuda.is_available()
+        device = rank
+        lock = Path(os.getcwd(),f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
+        assert not Path(lock).exists(), lock
+        torch.distributed.init_process_group(
+            backend='nccl', world_size=args.n_gpus, rank=device,
+            init_method='file://' + str(lock))
+        torch.cuda.set_device(device)
+
+        # adjust batch size and num of workers since these are per GPU
+        if 'batch_size' in train_conf:
+            train_conf["batch_size"] = int(train_conf["batch_size"] / args.n_gpus)
+
+    else:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logging.info(f'Using device {device}')
 
     #Loading the fragment data
@@ -586,17 +599,20 @@ def dummy_training(dataroot, model,train_conf):
     train_dl = td.DataLoader(train, batch_size=8, shuffle=False)
     test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
 
-
-
-    logging.info(f'Training loader has {len(train_dl)} batches')
-    logging.info(f'Validation loader has {len(test_dl)} batches')
+    if rank == 0:
+        logging.info(f'Training loader has {len(train_dl)} batches')
+        logging.info(f'Validation loader has {len(test_dl)} batches')
 
     loss_fn, metrics_fn = model.loss, model.metrics
     model = model.to(device)
     if init_cp is not None:
         model.load_state_dict(init_cp['model'])
 
-    logging.info(f'Model: \n{model}')
+    if args.distributed:
+        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[device])
+    if rank == 0:
+        logging.info(f'Model: \n{model}')
     torch.backends.cudnn.benchmark = True
 
     optimizer_fn = {'sgd': torch.optim.SGD,
@@ -629,8 +645,8 @@ def dummy_training(dataroot, model,train_conf):
             raise ValueError(train_conf["lr_schedule"]["type"])
 
     lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
-
-    logging.info(f'Starting training with configuration:\n{train_conf}')
+    if rank == 0:
+        logging.info(f'Starting training with configuration:\n{train_conf}')
 
     losses_ = None
 
@@ -642,6 +658,8 @@ def dummy_training(dataroot, model,train_conf):
 
         logging.info(f'Starting epoch {epoch}')
         set_seed(train_conf["seed"] + epoch)
+        if args.distributed:
+            train_dl.sampler.set_epoch(epoch)
         if epoch > 0 and train_conf["dataset_callback_fn"]:
             getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(train_conf["seed"] + epoch)
 
@@ -658,47 +676,64 @@ def dummy_training(dataroot, model,train_conf):
             optimizer.step()
             lr_scheduler.step()
 
+            if it % train_conf["log_every_iter"] == 0:
+                for k in sorted(losses.keys()):
+                    if args.distributed:
+                        losses[k] = losses[k].sum()
+                        torch.distributed.reduce(losses[k], dst=0)
+                        losses[k] /= (train_dl.batch_size * args.n_gpus)
+                    losses[k] = torch.mean(losses[k]).item()
+                if rank == 0:
+                    str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
+                    logging.info('[E {} | it {}] loss {{{}}}'.format(
+                        epoch, it, ', '.join(str_losses)))
+                    for k, v in losses.items():
+                        writer.add_scalar('training/'+k, v, tot_it)
+                    writer.add_scalar(
+                        'training/lr', optimizer.param_groups[0]['lr'], tot_it)
+
             del pred, data, loss, losses
 
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
-                results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf)
+                results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf,pbar=(rank == 0))
 
-                str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
-                wandb.log({'match_recall':results['match_recall']})
-                wandb.log({'match_precision':results['match_precision']})
-                wandb.log({'loss/total':results['loss/total']})
-                logging.info(f'[Validation] {{{", ".join(str_results)}}}')
-                for k, v in results.items():
-                    writer.add_scalar('val/' + k, v, tot_it)
+                if rank == 0:
+                    str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
+                    wandb.log({'match_recall':results['match_recall']})
+                    wandb.log({'match_precision':results['match_precision']})
+                    wandb.log({'loss/total':results['loss/total']})
+                    logging.info(f'[Validation] {{{", ".join(str_results)}}}')
+                    for k, v in results.items():
+                        writer.add_scalar('val/' + k, v, tot_it)
                 torch.cuda.empty_cache()  # should be cleared at the first iter
 
-        #removed distributed
-        state = (model).state_dict()
-        checkpoint = {
-                'model': state,
-                'optimizer': optimizer.state_dict(),
-                'lr_scheduler': lr_scheduler.state_dict(),
-                #removed omegaconf
-                'conf': train_conf,
-                'epoch': epoch,
-                'losses': losses_,
-                'eval': results,
-            }
-        #changed string formatting
-        cp_name = 'checkpoint_{}'.format(epoch)
-        logging.info('Saving checkpoint {}'.format(cp_name))
-        #changed string formatting
-        cp_path = str(train_conf["output_dir"] +"/"+ (cp_name + '.tar'))
-        torch.save(checkpoint, cp_path)
-        
-        if results[train_conf["best_key"]] < best_eval:
-            best_eval = results[train_conf["best_key"]]
-            logging.info(
-                f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
-            shutil.copy(cp_path, str(train_conf["output_dir"] +"/" + 'checkpoint_best.tar'))
-        delete_old_checkpoints(
-            train_conf["output_dir"], train_conf["keep_last_checkpoints"])
-        del checkpoint
+        if rank == 0:
+            state = (model.module if args.distributed else model).state_dict()
+            checkpoint = {
+                    'model': state,
+                    'optimizer': optimizer.state_dict(),
+                    'lr_scheduler': lr_scheduler.state_dict(),
+                    #removed omegaconf
+                    'conf': train_conf,
+                    'epoch': epoch,
+                    'losses': losses_,
+                    'eval': results,
+                }
+            #changed string formatting
+            cp_name = 'checkpoint_{}'.format(epoch)
+            logging.info('Saving checkpoint {}'.format(cp_name))
+            #changed string formatting
+            cp_path = str(train_conf["output_dir"] +"/"+ (cp_name + '.tar'))
+            torch.save(checkpoint, cp_path)
+
+            if results[train_conf["best_key"]] < best_eval:
+                best_eval = results[train_conf["best_key"]]
+                logging.info(
+                    f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
+                shutil.copy(cp_path, str(train_conf["output_dir"] +"/" + 'checkpoint_best.tar'))
+            delete_old_checkpoints(
+                train_conf["output_dir"], train_conf["keep_last_checkpoints"])
+            del checkpoint
 
         epoch += 1
 
@@ -706,31 +741,50 @@ def dummy_training(dataroot, model,train_conf):
 
     writer.close()
 
-model_conf = conf.model_conf
-train_conf = conf.train_conf
+
+def main_worker(rank,dataroot, model,train_conf):
+    print("hello")
+    dummy_training(rank,dataroot, model,train_conf)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--distributed', action='store_true')
+    args = parser.parse_intermixed_args()
+    model_conf = conf.model_conf
+    train_conf = conf.train_conf
 
 
-here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-root = os.path.join(here,'..', 'object_fracturing', 'data')
+    here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+    root = os.path.join(here,'..', 'object_fracturing', 'data')
 
-np.set_printoptions(threshold=sys.maxsize)
-myGlue = SuperGlue(model_conf)
+    np.set_printoptions(threshold=sys.maxsize)
+    myGlue = SuperGlue(model_conf)
 
-dummy_training(root, myGlue,train_conf)
-torch.save(myGlue.state_dict(), "weights_01.pth")
-test_data = FragmentsDataset(root=root)
 
-myGlue.eval()
-test_dl = td.DataLoader(test_data, batch_size=train_conf['batch_size'], shuffle=False)
-for it, datatest in enumerate(test_dl):
-    #device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    #data = batch_to_device(datatest, device, non_blocking=True)
-    pred = myGlue(datatest)
-    print(" ========  \n  The groundtruth: for data batch ", it)
-    print(datatest["gt_matches0"])
-    print("The final predicted output is: \n \n")
-    print(pred["matches0"])
-    print(" ======== ")
+    if args.distributed:
+        print("distributed")
+        args.n_gpus = torch.cuda.device_count()
+        print(args.n_gpus)
+        torch.multiprocessing.spawn(main_worker,nprocs=args.n_gpus, args=(root,myGlue,train_conf))
+    else:
+        dummy_training(0,root, myGlue,train_conf)
+
+    #dummy_training(root, myGlue,train_conf)
+    torch.save(myGlue.state_dict(), "weights_01.pth")
+
+    evaluation = False
+    if evaluation:
+        test_data = FragmentsDataset(root=root)
+
+        myGlue.eval()
+        test_dl = td.DataLoader(test_data, batch_size=train_conf['batch_size'], shuffle=False)
+        for it, datatest in enumerate(test_dl):
+            pred = myGlue(datatest)
+            print(" ========  \n  The groundtruth: for data batch ", it)
+            print(datatest["gt_matches0"])
+            print("The final predicted output is: \n \n")
+            print(pred["matches0"])
+            print(" ======== ")
 
 
 
