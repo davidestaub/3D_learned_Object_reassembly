@@ -206,6 +206,7 @@ class MultiHeadedAttention(nn.Module):
         self.dim = d_model // num_heads
         self.num_heads = num_heads
         self.merge = nn.Conv1d(d_model, d_model, kernel_size=1)
+        nn.init.xavier_uniform(self.merge.weight)
         self.proj = nn.ModuleList([deepcopy(self.merge) for _ in range(3)])
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
@@ -424,7 +425,9 @@ class SuperGlue(nn.Module):
 
         if model_conf["loss"]["nll_weight"] > 0:
             losses['total'] = nll*model_conf["loss"]["nll_weight"]
-
+        
+        # test, define the loss only via precision and recall
+        losses['total'] = torch.tensor()
         # Some statistics
         losses['num_matchable'] = num_pos
         losses['num_unmatchable'] = num_neg
@@ -585,8 +588,7 @@ def dummy_training(rank, dataroot, model, train_conf):
         logging.info(f'Training in distributed mode with {args.n_gpus} GPUs')
         assert torch.cuda.is_available()
         device = rank
-        lock = Path(
-            os.getcwd(), f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
+        lock = Path(os.getcwd(), f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
         assert not Path(lock).exists(), lock
         torch.distributed.init_process_group(
             backend='nccl', world_size=args.n_gpus, rank=device,
