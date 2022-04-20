@@ -272,10 +272,10 @@ def main():
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
-    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
+    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data_full', 'data') if not args.data_dir else args.data_dir
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
-    Parallel(n_jobs=cpu_count())(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
+    Parallel(n_jobs=int(cpu_count()*0.5))(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
 
 if __name__ == '__main__':
     main()
