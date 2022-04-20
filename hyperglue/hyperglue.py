@@ -41,6 +41,7 @@
 # %BANNER_END%
 
 from copy import deepcopy
+from distutils.command.config import config
 from pathlib import Path
 from typing import List, Tuple
 import torch
@@ -565,7 +566,7 @@ class FragmentsDataset(td.Dataset):
 
 def dummy_training(dataroot, model,train_conf):
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
-    wandb.init(project="hyperglue", entity="matvogel", config=train_conf)
+    wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
 
     init_cp = None
     set_seed(train_conf["seed"])
@@ -583,8 +584,8 @@ def dummy_training(dataroot, model,train_conf):
     train, test = td.random_split(dataset, [train_size, test_size])
 
     # create a data loader for train and test sets
-    train_dl = td.DataLoader(train, batch_size=8, shuffle=False)
-    test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
+    train_dl = td.DataLoader(train, batch_size=train_conf['batch_size'], shuffle=True)
+    test_dl = td.DataLoader(test, batch_size=train_conf['batch_size'], shuffle=True)
 
 
 
