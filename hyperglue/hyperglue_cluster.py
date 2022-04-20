@@ -333,7 +333,7 @@ class SuperGlue(nn.Module):
                 self.config['weights']))
 
     def forward(self, data):
-        mlp_encoding = False
+        mlp_encoding = True
 
         pred = {}
         """Run SuperGlue on a pair of keypoints and descriptors"""

@@ -1,6 +1,6 @@
 from tools.transformation import centering_centroid
 from tools.neighborhoords import k_ring_delaunay_adaptive
-from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
+from tools.tools import polyfit3d, mesh_faces_to_triangles
 import argparse
 from copy import deepcopy
 import os
