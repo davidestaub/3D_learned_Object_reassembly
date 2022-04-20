@@ -121,7 +121,9 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
             if activation == 'relu':
-                layers.append(nn.ReLU())
+                relu_layer = nn.ReLU()
+                nn.init.xavier_uniform(relu_layer.weight)
+                layers.append(relu_layer)
             if activation == 'tanh':
                 layers.append(nn.Tanh())
             if dropout:
