@@ -115,17 +115,18 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
     layers = []
     for i in range(1, n):
         conv_layer =  nn.Conv1d(channels[i - 1], channels[i], kernel_size=1, bias=True)
-        nn.init.xavier_uniform(conv_layer.weight)
+        nn.init.kaiming_normal_(conv_layer.weight)
         layers.append(conv_layer)
         if i < (n-1):
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
             if activation == 'relu':
                 relu_layer = nn.ReLU()
-                nn.init.xavier_uniform(relu_layer)
                 layers.append(relu_layer)
             if activation == 'tanh':
                 layers.append(nn.Tanh())
+            if activation == 'sigmoid':
+                layers.append(nn.Sigmoid())
             if dropout:
                 layers.append(nn.Dropout(0.1))
     return nn.Sequential(*layers)
