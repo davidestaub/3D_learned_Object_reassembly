@@ -206,7 +206,6 @@ class MultiHeadedAttention(nn.Module):
         self.dim = d_model // num_heads
         self.num_heads = num_heads
         self.merge = nn.Conv1d(d_model, d_model, kernel_size=1)
-        nn.init.xavier_uniform(self.merge.weight)
         self.proj = nn.ModuleList([deepcopy(self.merge) for _ in range(3)])
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> torch.Tensor:
