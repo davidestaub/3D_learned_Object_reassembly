@@ -809,7 +809,11 @@ if __name__ == '__main__':
 
         myGlue.eval()
         test_dl = td.DataLoader(
-            test_data, batch_size=train_conf['batch_size'], shuffle=False)
+            test_data,
+            batch_size = train_conf['batch_size'],
+            shuffle=False,
+            num_workers=4,
+            pin_memory=True)
         for it, datatest in enumerate(test_dl):
             pred = myGlue(datatest)
             print(" ========  \n  The groundtruth: for data batch ", it)
