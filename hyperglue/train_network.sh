@@ -1,1 +1,1 @@
-bsub -R "rusage[ngpus_excl_p=4,mem=5000]" python hyperglue.py
+bsub -n 4 -R "rusage[ngpus_excl_p=1, mem=5000]" python hyperglue_cluster.py
