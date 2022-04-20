@@ -262,20 +262,20 @@ def main():
     parser.add_argument("--data_dir", type=str, default='')
 
     # Args for SHOT descriptors.
-    parser.add_argument("--radius", type=float, default = 50),
-    parser.add_argument("--local_rf_radius", default = 50, type=float)
+    parser.add_argument("--radius", type=float, default = 30),
+    parser.add_argument("--local_rf_radius", default = 30, type=float)
     parser.add_argument("--min_neighbors", type=int, default=4)
     parser.add_argument("--n_bins", type=int, default=20)
-    parser.add_argument("--double_volumes_sectors", action='store_true')
+    parser.add_argument("--double_volumes_sectors",action='store_true')
     parser.add_argument("--use_interpolation", action='store_true')
-    parser.add_argument("--use_normalization", default=True, action='store_true')
+    parser.add_argument("--use_normalization", action='store_true')
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
     args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
-    Parallel(n_jobs=8)(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
+    Parallel(n_jobs=cpu_count())(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
 
 if __name__ == '__main__':
     main()
