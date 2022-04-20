@@ -520,10 +520,6 @@ class FragmentsDataset(td.Dataset):
         center_0 = np.mean(kp0[:,:3], axis=0).astype(np.float32)
         center_1 = np.mean(kp1[:,:3], axis=0).astype(np.float32)
 
-        # normalize points
-        kp0 = kp0 / max(np.max(kp0), -np.min(kp0))
-        kp1 = kp1 / max(np.max(kp1), -np.min(kp1))
-
         sample = {
             "keypoints0": torch.from_numpy(np.subtract(kp0,center_0, dtype=np.float32)),
             "keypoints1": torch.from_numpy(np.subtract(kp1,center_1, dtype=np.float32)),
@@ -553,8 +549,8 @@ def dummy_training(dataroot, model,train_conf):
     train, test = td.random_split(dataset, [train_size, test_size])
 
     # create a data loader for train and test sets
-    train_dl = td.DataLoader(train, batch_size=25, shuffle=True)
-    test_dl = td.DataLoader(test, batch_size=25, shuffle=False)
+    train_dl = td.DataLoader(train, batch_size=8, shuffle=False)
+    test_dl = td.DataLoader(test, batch_size=8, shuffle=False)
 
 
     logging.info(f'Training loader has {len(train_dl)} batches')
@@ -766,8 +762,8 @@ train_conf = {
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
     'lr': 0.001,  # learning rate
-    'lr_schedule': {'type': "exp", 'start': 0, 'exp_div_10': 1},
-    'eval_every_iter': 100,  # interval for evaluation on the validation set
+    'lr_schedule': {'type': None, 'start': 0, 'exp_div_10': 0},
+    'eval_every_iter': 1000,  # interval for evaluation on the validation set
     'log_every_iter': 200,  # interval for logging the loss to the console
     'keep_last_checkpoints': 10,  # keep only the last X checkpoints
     'load_experiment': None,  # initialize the model from a previous experiment
@@ -775,7 +771,7 @@ train_conf = {
     'best_key': 'loss/total',  # key to use to select the best checkpoint
     'dataset_callback_fn': None,  # data func called at the start of each epoch
     'output_dir': "output",
-    'load_weights':False
+    'load_weights':True
 }
 
 
@@ -798,7 +794,12 @@ for it, datatest in enumerate(test_dl):
     #device = 'cuda' if torch.cuda.is_available() else 'cpu'
     #data = batch_to_device(datatest, device, non_blocking=True)
     pred = myGlue(datatest)
-    print("The final output is: \n \n")
-    print(pred)
+    print(" ========  \n  The groundtruth: for data batch ", it)
+    print(datatest["gt_matches0"])
+    print("The final predicted output is: \n \n")
+    print(pred["matches0"])
+    print(" ======== ")
+
+
 
 
