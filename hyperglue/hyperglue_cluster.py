@@ -115,7 +115,6 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
     layers = []
     for i in range(1, n):
         conv_layer =  nn.Conv1d(channels[i - 1], channels[i], kernel_size=1, bias=True)
-        nn.init.kaiming_normal_(conv_layer.weight)
         layers.append(conv_layer)
         if i < (n-1):
             if do_bn:
@@ -166,8 +165,9 @@ class KeypointEncoder(nn.Module):
 
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
-        self.encoder = MLP([3] + layers + [feature_dim],
-                           dropout=True, activation='relu')
+        self.encoder = MLP(channels = [3] + layers + [feature_dim],
+                           dropout = False,
+                           activation = 'relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
