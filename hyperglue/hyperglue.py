@@ -764,7 +764,7 @@ if __name__ == '__main__':
     if args.distributed:
         print("distributed")
         args.n_gpus = torch.cuda.device_count()
-        print(args.n_gpus)
+        print(" num gpus = ",args.n_gpus)
         torch.multiprocessing.spawn(main_worker,nprocs=args.n_gpus, args=(root,myGlue,train_conf))
     else:
         dummy_training(0,root, myGlue,train_conf)
