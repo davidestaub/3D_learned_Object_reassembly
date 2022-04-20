@@ -4,16 +4,20 @@ import os
 from glob import glob
 from typing import List
 from sklearn.decomposition import PCA
-from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
-from tools.neighborhoords import k_ring_delaunay_adaptive
-from tools.transformation import centering_centroid
-
+import sys
+from joblib import Parallel, delayed, cpu_count
+import shutil
 import numpy as np
 import pyshot
 from compas.datastructures import Mesh
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from scipy.sparse import save_npz, csr_matrix
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
+from tools.neighborhoords import k_ring_delaunay_adaptive
+from tools.transformation import centering_centroid
+
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
@@ -37,7 +41,6 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
 
             # If there are more than 100 matches, the parts are considered neighbours.
             if matches > 100:
-                # print(f'{name}: {i} and {j} match!')
                 matching_matrix[i, j] = matching_matrix[j, i] = 1
 
     np.save(matching_matrix_path, matching_matrix)
@@ -52,8 +55,7 @@ def compute_SD_point(neighbourhood, points, normals, p_idx):
 		SD = np.dot(v, n_p_i)
 		return SD
 
-def get_SD_keypoints(vertices, normals, r=0.1, kpts_fraction=0.1):
-    nkeypoints = int(len(vertices) * kpts_fraction)
+def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints = 128):
     n_points = len(vertices)
     tree = KDTree(vertices)
     # Compute SD
@@ -150,7 +152,6 @@ def get_descriptors(i, vertices, faces, args, folder_path):
         descriptors = np.load(descriptor_path)
         return descriptors
     if method == 'shot':
-        print("get_descriptor")
         descriptors = pyshot.get_descriptors(vertices, faces,
                                              radius=args.radius,
                                              local_rf_radius=args.local_rf_radius,
@@ -199,6 +200,7 @@ def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
 
 def process_folder(folder_path, args):
     object_name = os.path.basename(folder_path)
+    shutil.rmtree(os.path.join(folder_path, 'processed'), ignore_errors=True)
     os.makedirs(os.path.join(folder_path, 'processed'), exist_ok=True)
 
     # TODO: reading from binary might be much faster according to Martin.
@@ -241,11 +243,14 @@ def process_folder(folder_path, args):
         for j in range(i):
             if matching_matrix[i, j]:
                 keypoint_assignment = get_keypoint_assignment(keypoints[i], keypoints[j]).astype(int)
-                print(f"{keypoint_assignment.sum()} matching keypoint in pair {i} {j}")
                 # save the matching matrix as sparse scipy file
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
                 path = os.path.join(folder_path,'processed', 'matching', name)
                 save_npz(path, csr_matrix(keypoint_assignment))
+    
+    # delete unecessary files again
+    shutil.rmtree(os.path.join(folder_path, 'processed', 'descriptors_all_points'))
+    print(f'Processed folder {folder_path}')
 
 
 def main():
@@ -257,23 +262,20 @@ def main():
     parser.add_argument("--data_dir", type=str, default='')
 
     # Args for SHOT descriptors.
-    parser.add_argument("--radius", type=float, default=100)
-    parser.add_argument("--local_rf_radius", type=float, default=None)
+    parser.add_argument("--radius", type=float, default = 50),
+    parser.add_argument("--local_rf_radius", default = 50, type=float)
     parser.add_argument("--min_neighbors", type=int, default=4)
     parser.add_argument("--n_bins", type=int, default=20)
     parser.add_argument("--double_volumes_sectors", action='store_true')
     parser.add_argument("--use_interpolation", action='store_true')
-    parser.add_argument("--use_normalization", action='store_true')
+    parser.add_argument("--use_normalization", default=True, action='store_true')
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
     args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
-    for f in object_folders:
-        if os.path.isdir(f):
-            process_folder(f, args)
-
+    Parallel(n_jobs=8)(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
 
 if __name__ == '__main__':
     main()

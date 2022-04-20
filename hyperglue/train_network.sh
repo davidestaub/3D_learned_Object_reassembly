@@ -1,0 +1,1 @@
+bsub -R "rusage[ngpus_excl_p=4,mem=5000]" python hyperglue.py

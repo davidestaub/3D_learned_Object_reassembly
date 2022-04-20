@@ -7,7 +7,6 @@ from sklearn.decomposition import PCA
 from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.transformation import centering_centroid
-from joblib import Parallel, delayed
 import numpy as np
 import open3d as o3d
 import pyshot
@@ -291,8 +290,6 @@ def main():
     args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
     object_folders = glob(os.path.join(args.data_dir, '*'))
 
-    #Parallel(n_jobs=4)(delayed(process_folder)(f, args) for f in object_folders if os.path.isdir(f))
-    #exit(1)
     for f in object_folders:
         if os.path.isdir(f):
             process_folder(f, args)
