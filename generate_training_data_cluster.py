@@ -261,6 +261,9 @@ def process_folder(folder_path, args):
     # delete unecessary files again
     shutil.rmtree(os.path.join(
         folder_path, 'processed', 'descriptors_all_points'))
+
+    del keypoints, descriptors, matching_matrix, fragment_descriptors
+
     print(f'Processed folder {folder_path}')
 
 
