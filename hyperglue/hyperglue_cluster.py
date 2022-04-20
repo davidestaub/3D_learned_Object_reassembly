@@ -58,17 +58,17 @@ import collections.abc as collections
 import re
 import shutil
 from utils import conf
-from utils.pointconv_util import PointConvDensitySetAbstraction
+from utils.utils import PointNetEncoder
+
 from torch.utils.tensorboard import SummaryWriter
-from experiments import (delete_old_checkpoints,
-                         get_last_checkpoint, get_best_checkpoint)
+from experiments import delete_old_checkpoints
 import sys
 from scipy.sparse import load_npz
 import wandb
 import torch.nn.functional as F
 
 # I created this function here in order to avoid nasty imports
-
+from utils.conf import pointnet
 
 def set_seed(seed):
     random.seed(seed)
@@ -313,9 +313,11 @@ class SuperGlue(nn.Module):
         super().__init__()
         self.config = {**self.default_config, **config}
 
-        self.kenc = KeypointEncoder(
-            self.config['descriptor_dim'], self.config['keypoint_encoder'])
-
+        if pointnet:
+            self.kenc = PointNetEncoder()
+        else:
+            self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
+        
         self.gnn = AttentionalGNN(
             feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
 
@@ -351,7 +353,14 @@ class SuperGlue(nn.Module):
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
 
-        if mlp_encoding:
+        if pointnet:
+            desc0 = self.kenc(kpts0.transpose(1, 0).transpose(1,2))[0]
+            desc1 = self.kenc(kpts1.transpose(1, 0).transpose(1,2))[0]
+            desc0.squeeze()
+            desc1.squeeze()
+            desc0.transpose(0,1)
+            desc1.transpose(0,1)
+        elif mlp_encoding:
             encoded_kpt0 = self.kenc(kpts0)
             encoded_kpt1 = self.kenc(kpts1)
             encoded_kpt0 = encoded_kpt0.squeeze()
@@ -361,7 +370,7 @@ class SuperGlue(nn.Module):
         else:
             desc0 = desc0.transpose(1, 2)
             desc1 = desc1.transpose(1, 2)
-        
+
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
 
@@ -606,7 +615,8 @@ def dummy_training(rank, dataroot, model, train_conf):
                 train_conf["batch_size"] / args.n_gpus)
 
     else:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cpu'
+        #device = 'cuda' if torch.cuda.is_available() else 'cpu'
     logging.info(f'Using device {device}')
 
     # Loading the fragment data
@@ -620,7 +630,12 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
-        train, batch_size=train_conf['batch_size'], shuffle=True)
+        train,
+        batch_size=train_conf['batch_size'],
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True
+        )
     test_dl = td.DataLoader(
         test, batch_size=train_conf['batch_size'], shuffle=True)
 
