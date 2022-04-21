@@ -654,9 +654,8 @@ def dummy_training(rank, dataroot, model, train_conf):
     losses_ = None
 
     epoch = 0
-
+    best_eval = 10000
     while epoch < train_conf["epochs"]:
-        best_eval = 10000
 
         logging.info(f'Starting epoch {epoch}')
         set_seed(train_conf["seed"] + epoch)
@@ -673,6 +672,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             optimizer.zero_grad()
             data = batch_to_device(data, device, non_blocking=True)
             pred = model(data)
+            print(pred)
             losses = loss_fn(pred, data)
             loss = torch.mean(losses['total'])
             loss.backward()
@@ -732,12 +732,10 @@ def dummy_training(rank, dataroot, model, train_conf):
 
             if results[train_conf["best_key"]] < best_eval:
                 best_eval = results[train_conf["best_key"]]
-                logging.info(
-                    f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
-                shutil.copy(cp_path, str(
-                    train_conf["output_dir"] + "/" + 'checkpoint_best.tar'))
-            delete_old_checkpoints(
-                train_conf["output_dir"], train_conf["keep_last_checkpoints"])
+                logging.info(f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
+                shutil.copy(cp_path, str(train_conf["output_dir"] + "/" + 'checkpoint_best.tar'))
+            
+            delete_old_checkpoints(train_conf["output_dir"], train_conf["keep_last_checkpoints"])
             del checkpoint
 
         epoch += 1
