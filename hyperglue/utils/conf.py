@@ -5,13 +5,13 @@ model_conf = {
     'descriptor_dim': 336, # the descriptor dimension, this is what SHOT gives us
     'weights': 'weights_01',
     'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 3, last to 336
-    'GNN_layers': ['self', 'cross'] * 5,
+    'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 200,
     'match_threshold': 0.5,
     # 'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
-        'nll_balancing': 0.9,
+        'nll_balancing': 0.5,
         # 'reward_weight': 0.,
         # 'bottleneck_l2_weight': 0.,
     },
@@ -21,8 +21,8 @@ model_conf = {
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 25,  # number of epochs
-    'batch_size_train': 1,  # training batch size
-    'batch_size_test': 1, #test batch size
+    'batch_size_train': 24,  # training batch size
+    'batch_size_test': 24, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
