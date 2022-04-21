@@ -129,6 +129,7 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
                 layers.append(nn.Dropout(0.1))
     return nn.Sequential(*layers)
 
+
 def pc_normalize(pc):
     """normalizes a pointcloud by centering and unit scaling"""
     centroid = np.mean(pc, axis=0)
@@ -136,6 +137,7 @@ def pc_normalize(pc):
     m = np.max(np.sqrt(np.sum(pc ** 2, axis=1)))
     pc = pc / m
     return pc
+
 
 class KeypointEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
@@ -266,7 +268,7 @@ class SuperGlue(nn.Module):
         self.config = config
 
         if self.config['use_pointnet']:
-            self.kenc = PointNetEncoder(global_feat = False,feature_transform = False, channel=4)
+            self.kenc = PointNetEncoder(global_feat = True, feature_transform = False, channel=4)
             self.config['descriptor_dim'] = 1024
         else:
             self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
@@ -402,6 +404,7 @@ class SuperGlue(nn.Module):
         losses['bin_score'] = self.bin_score[None]
 
         return losses
+
 
     # Copied from superglue_v1.py
     def metrics(self, pred, data):
