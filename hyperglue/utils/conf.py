@@ -1,6 +1,6 @@
 model_conf = {
     'normalize_data': True, # normalizing the pointcloud
-    'use_pointnet': False, # if true, using the pointnet as encoder and ignores the mlp one
+    'use_pointnet': True, # if true, using the pointnet as encoder and ignores the mlp one
     'use_mlp': True, # using the mlp encoder, only works if pointnet is false
     'descriptor_dim': 336, # the descriptor dimension, this is what SHOT gives us
     'weights': 'weights_01',
@@ -21,8 +21,8 @@ model_conf = {
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 5000,  # number of epochs
-    'batch_size_train': 8,  # training batch size
-    'batch_size_test': 8, #test batch size
+    'batch_size_train': 32,  # training batch size
+    'batch_size_test': 32, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
