@@ -672,7 +672,6 @@ def dummy_training(rank, dataroot, model, train_conf):
             optimizer.zero_grad()
             data = batch_to_device(data, device, non_blocking=True)
             pred = model(data)
-            print(pred)
             losses = loss_fn(pred, data)
             loss = torch.mean(losses['total'])
             loss.backward()
