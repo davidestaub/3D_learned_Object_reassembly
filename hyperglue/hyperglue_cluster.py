@@ -306,10 +306,10 @@ class SuperGlue(nn.Module):
 
         # switch between different types of encoding keypoints
         if self.config['use_pointnet']:
-            comb0 = torch.cat((kpts0, scores0), dim=1)
-            comb1 = torch.cat((kpts1, scores1), dim=1)
-            desc0 = self.kenc(comb0.transpose(1, 0).transpose(1,2))[0]
-            desc1 = self.kenc(comb1.transpose(1, 0).transpose(1,2))[0]
+            desc0 = data['pointnet_in0']
+            desc1 = data['pointnet_in1']
+            desc0 = self.kenc(desc0.transpose(1, 0).transpose(1,2))[0]
+            desc1 = self.kenc(desc1.transpose(1, 0).transpose(1,2))[0]
             desc0.squeeze()
             desc1.squeeze()
             desc0.transpose(0,1)
@@ -519,21 +519,24 @@ class FragmentsDataset(td.Dataset):
                     gt_matches0[i] = j
                     gt_matches1[j] = i
 
-        kp0 = np.load(self.dataset[idx]['path_kpts_0'])
-        kp1 = np.load(self.dataset[idx]['path_kpts_1'])
-        sc0 = kp0[:,-1]
-        sc1 = kp1[:,-1]
-        kp0 = kp0[:,:3]
-        kp1 = kp1[:,:3]
+        kp0_full = np.load(self.dataset[idx]['path_kpts_0'])
+        kp1_full = np.load(self.dataset[idx]['path_kpts_1'])
+        sc0 = kp0_full[:,-1]
+        sc1 = kp1_full[:,-1]
+        kp0 = kp0_full[:,:3]
+        kp1 = kp1_full[:,:3]
         if self.normalize:
             kp0 = pc_normalize(kp0[:,:3])
             kp1 = pc_normalize(kp1[:,:3])
         
+        # TODO, make pointnet in afterwards in forward pass from kpts and scores
         sample = {
             "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
             "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
             "scores0": torch.from_numpy(sc0.astype(np.float32)),
             "scores1": torch.from_numpy(sc1.astype(np.float32)),
+            "pointnet_in0": torch.from_numpy(kp0_full.astype(np.float32)),
+            "pointnet_in1": torch.from_numpy(kp1_full.astype(np.float32)),
             "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
             "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
