@@ -67,8 +67,6 @@ from scipy.sparse import load_npz
 import wandb
 import torch.nn.functional as F
 
-# I created this function here in order to avoid nasty imports
-from utils.conf import pointnet
 
 def set_seed(seed):
     random.seed(seed)
@@ -130,68 +128,29 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
                 layers.append(nn.Dropout(0.1))
     return nn.Sequential(*layers)
 
-
-def MLP_3D(channels: List[int], do_bn: bool = True, dropout: bool = False, activation='relu') -> nn.Module:
-    """ Multi-layer perceptron """
-    n = len(channels)
-    layers = []
-    for i in range(1, n):
-        layers.append(
-            nn.Conv2d(channels[i - 1], channels[i], kernel_size=3, bias=True))
-        if i < (n-1):
-            if do_bn:
-                layers.append(nn.BatchNorm2d(channels[i]))
-            if activation == 'relu':
-                layers.append(nn.ReLU())
-            if activation == 'tanh':
-                layers.append(nn.Tanh())
-            if dropout:
-                layers.append(nn.Dropout(0.1))
-    return nn.Sequential(*layers)
-
-
-def normalize_keypoints(kpts, image_shape):
-    """ Normalize keypoints locations based on image image_shape"""
-    _, _, height, width = image_shape
-    one = kpts.new_tensor(1)
-    size = torch.stack([one*width, one*height])[None]
-    center = size / 2
-    scaling = size.max(1, keepdim=True).values * 0.7
-    return (kpts - center[:, None, :]) / scaling[:, None, :]
-
+def pc_normalize(pc):
+    """normalizes a pointcloud by centering and unit scaling"""
+    centroid = np.mean(pc, axis=0)
+    pc = pc - centroid
+    m = np.max(np.sqrt(np.sum(pc ** 2, axis=1)))
+    pc = pc / m
+    return pc
 
 class KeypointEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
 
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
-        self.encoder = MLP(channels = [3] + layers + [feature_dim],
+        self.encoder = MLP(channels = [4] + layers + [feature_dim],
                            dropout = False,
                            activation = 'relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
-    # but if we happen to have confidence scores aswell we can reintroduce it
-    def forward(self, kpts,):
-        kpts = kpts.transpose(1, 2).float()
-        return self.encoder(kpts)
-
-
-class KeypointEncoder3D(nn.Module):
-    """ Joint encoding of visual appearance and location using MLPs"""
-
-    def __init__(self, feature_dim: int, layers: List[int]) -> None:
-        super().__init__()
-        self.encoder = MLP_3D([3] + layers + [feature_dim],
-                              dropout=True, activation='relu')
-        nn.init.constant_(self.encoder[-1].bias, 0.0)
-
-    # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
-    # but if we happen to have confidence scores aswell we can reintroduce it
-    def forward(self, kpts,):
-        kpts = kpts.transpose(0, 1).float()
-        return self.encoder(kpts)
-
+    # but if we happen to have confidence scores aswell we can reintroduce it -> We reintroduces it now
+    def forward(self, kpts, scores):
+        inputs = [kpts.transpose(1, 2), scores.unsqueeze(1)]
+        return self.encoder(torch.cat(inputs, dim=1))
 
 def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     dim = query.shape[1]
@@ -300,21 +259,14 @@ class SuperGlue(nn.Module):
     Rabinovich. SuperGlue: Learning Feature Matching with Graph Neural
     Networks. In CVPR, 2020. https://arxiv.org/abs/1911.11763
     """
-    default_config = {
-        'descriptor_dim': 336,
-        'weights': None,
-        'keypoint_encoder': [32, 64, 128, 256],
-        'GNN_layers': ['self', 'cross'] * 9,
-        'sinkhorn_iterations': 100,
-        'match_threshold': 0.2,
-    }
 
     def __init__(self, config):
         super().__init__()
-        self.config = {**self.default_config, **config}
+        self.config = config
 
-        if pointnet:
-            self.kenc = PointNetEncoder()
+        if self.config['use_pointnet']:
+            self.kenc = PointNetEncoder(global_feat = False,feature_transform = False, channel=4)
+            self.config['descriptor_dim'] = 1024
         else:
             self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
         
@@ -326,7 +278,6 @@ class SuperGlue(nn.Module):
             kernel_size=1, bias=True)
 
         bin_score = torch.nn.Parameter(torch.tensor(0.))
-        print(bin_score.item())
         self.register_parameter('bin_score', bin_score)
 
         if train_conf["load_weights"]:
@@ -337,13 +288,13 @@ class SuperGlue(nn.Module):
                 self.config['weights']))
 
     def forward(self, data):
-        mlp_encoding = True
+        """Run SuperGlue on a pair of keypoints and descriptors"""
 
         pred = {}
-        """Run SuperGlue on a pair of keypoints and descriptors"""
         desc0, desc1 = data['descriptors0'], data['descriptors1']
         kpts0, kpts1 = data['keypoints0'], data['keypoints1']
-
+        scores0, scores1 = data['scores0'], data['scores1']
+        
         if kpts0.shape[1] == 0 or kpts1.shape[1] == 0:  # no keypoints
             shape0, shape1 = kpts0.shape[:-1], kpts1.shape[:-1]
             return {
@@ -353,16 +304,17 @@ class SuperGlue(nn.Module):
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
 
-        if pointnet:
+        # switch between different types of encoding keypoints
+        if self.config['use_pointnet']:
             desc0 = self.kenc(kpts0.transpose(1, 0).transpose(1,2))[0]
             desc1 = self.kenc(kpts1.transpose(1, 0).transpose(1,2))[0]
             desc0.squeeze()
             desc1.squeeze()
             desc0.transpose(0,1)
             desc1.transpose(0,1)
-        elif mlp_encoding:
-            encoded_kpt0 = self.kenc(kpts0)
-            encoded_kpt1 = self.kenc(kpts1)
+        elif self.config['use_mlp']:
+            encoded_kpt0 = self.kenc(kpts0, scores0)
+            encoded_kpt1 = self.kenc(kpts1, scores1)
             encoded_kpt0 = encoded_kpt0.squeeze()
             encoded_kpt1 = encoded_kpt1.squeeze()
             desc0 = desc0.transpose(1, 2) + encoded_kpt0
@@ -410,8 +362,6 @@ class SuperGlue(nn.Module):
             'matching_scores0': mscores0,
             'matching_scores1': mscores1,
         }
-
-    # Copied from superglue_v1.py
 
     def loss(self, pred, data):
         losses = {'total': 0}
@@ -514,9 +464,10 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset
-    def __init__(self, root):
+    def __init__(self, root, normalize = True):
         self.root = root
         self.dataset = []
+        self.normalize = normalize
 
         # load the dataset
         for folder in os.listdir(self.root):
@@ -550,7 +501,6 @@ class FragmentsDataset(td.Dataset):
         return len(self.dataset)
 
     # get a row at an index
-    # TODO train and test modus (could be just different indizes saved somewhere else)
     def __getitem__(self, idx):
 
         # i is the keypoint index in the 0 cloud, item is the corresponding
@@ -567,20 +517,21 @@ class FragmentsDataset(td.Dataset):
                     gt_matches0[i] = j
                     gt_matches1[j] = i
 
-        # center the pointclouds for relative coordinates
         kp0 = np.load(self.dataset[idx]['path_kpts_0'])
         kp1 = np.load(self.dataset[idx]['path_kpts_1'])
-        center0 = np.mean(kp0, axis=0)
-        center1 = np.mean(kp1, axis=0)
-        kp0 = kp0 - center0
-        kp1 = kp1 - center1
-        # normalize points (somehow I also now wrote 0.7....)
-        #kp0 = kp0 / (np.abs(kp0).max() * 0.7)
-        #kp1 = kp1 / (np.abs(kp1).max() * 0.7)
-
+        sc0 = kp0[:,-1]
+        sc1 = kp1[:,-1]
+        kp0 = kp0[:,:3]
+        kp1 = kp1[:,:3]
+        if self.normalize:
+            kp0 = pc_normalize(kp0[:,:3])
+            kp1 = pc_normalize(kp1[:,:3])
+        
         sample = {
             "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
             "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
+            "scores0": torch.from_numpy(sc0.astype(np.float32)),
+            "scores1": torch.from_numpy(sc1.astype(np.float32)),
             "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
             "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
@@ -630,13 +581,18 @@ def dummy_training(rank, dataroot, model, train_conf):
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
         train,
-        batch_size=train_conf['batch_size'],
+        batch_size=train_conf['batch_size_train'],
         shuffle=True,
         num_workers=4,
         pin_memory=True
         )
     test_dl = td.DataLoader(
-        test, batch_size=train_conf['batch_size'], shuffle=True)
+        test,
+        batch_size=train_conf['batch_size_test'],
+        shuffle=True,
+        num_workers=4,
+        pin_memory=True
+        )
 
     if rank == 0:
         logging.info(f'Training loader has {len(train_dl)} batches')
