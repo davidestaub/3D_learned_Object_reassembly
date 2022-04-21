@@ -294,7 +294,7 @@ class SuperGlue(nn.Module):
         desc0, desc1 = data['descriptors0'], data['descriptors1']
         kpts0, kpts1 = data['keypoints0'], data['keypoints1']
         scores0, scores1 = data['scores0'], data['scores1']
-        
+
         if kpts0.shape[1] == 0 or kpts1.shape[1] == 0:  # no keypoints
             shape0, shape1 = kpts0.shape[:-1], kpts1.shape[:-1]
             return {
@@ -306,8 +306,10 @@ class SuperGlue(nn.Module):
 
         # switch between different types of encoding keypoints
         if self.config['use_pointnet']:
-            desc0 = self.kenc(kpts0.transpose(1, 0).transpose(1,2))[0]
-            desc1 = self.kenc(kpts1.transpose(1, 0).transpose(1,2))[0]
+            comb0 = torch.cat((kpts0, scores0), dim=1)
+            comb1 = torch.cat((kpts1, scores1), dim=1)
+            desc0 = self.kenc(comb0.transpose(1, 0).transpose(1,2))[0]
+            desc1 = self.kenc(comb1.transpose(1, 0).transpose(1,2))[0]
             desc0.squeeze()
             desc1.squeeze()
             desc0.transpose(0,1)
