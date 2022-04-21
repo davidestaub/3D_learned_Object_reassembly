@@ -58,7 +58,8 @@ def compute_SD_point(neighbourhood, points, normals, p_idx):
     return SD
 
 
-def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=128):
+def get_SD_keypoints(vertices, normals, r=0.09, nkeypoints=256):
+    """ returns the SD keypoints with a score value normalized"""
     n_points = len(vertices)
     tree = KDTree(vertices)
     # Compute SD
@@ -70,8 +71,11 @@ def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=128):
         SD[i] = compute_SD_point(neighbourhood, vertices, normals, i)
 
     indices_to_keep = np.argsort(np.abs(SD))[-nkeypoints:]
-    keypoints = vertices[indices_to_keep]
-    return keypoints, indices_to_keep
+    keypoints = np.array(vertices[indices_to_keep])
+    scores = np.array(np.abs(SD)[indices_to_keep])
+    scores = scores / np.max(scores)
+    scores = scores[:, None]
+    return np.append(keypoints, scores, axis=1), indices_to_keep
 
 
 def get_harris_keypoints(vertices):
@@ -252,7 +256,7 @@ def process_folder(folder_path, args):
         for j in range(i):
             if matching_matrix[i, j]:
                 keypoint_assignment = get_keypoint_assignment(
-                    keypoints[i], keypoints[j]).astype(int)
+                    keypoints[i][:,:3], keypoints[j][:,:3]).astype(int)
                 # save the matching matrix as sparse scipy file
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
                 path = os.path.join(folder_path, 'processed', 'matching', name)
@@ -271,13 +275,9 @@ def main():
     parser = argparse.ArgumentParser(
         "generate_iss_keypoints_and_shot_descriptors")
 
-    parser.add_argument("--keypoint_method", type=str,
-                        default='SD', choices=['iss', 'SD', 'harris'])
-    parser.add_argument("--descriptor_method", type=str,
-                        default='shot', choices=['shot'])
-
+    parser.add_argument("--keypoint_method", type=str,default='SD', choices=['iss', 'SD', 'harris'])
+    parser.add_argument("--descriptor_method", type=str,default='shot', choices=['shot'])
     parser.add_argument("--data_dir", type=str, default='')
-
     # Args for SHOT descriptors.
     parser.add_argument("--radius", type=float, default=42),
     parser.add_argument("--local_rf_radius", default=42, type=float)
@@ -289,8 +289,7 @@ def main():
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
-    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing',
-                                 'data_full', 'data') if not args.data_dir else args.data_dir
+    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
     for f in object_folders:
