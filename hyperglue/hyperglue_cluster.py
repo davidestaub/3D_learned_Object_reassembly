@@ -113,7 +113,7 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
     layers = []
     for i in range(1, n):
         conv_layer =  nn.Conv1d(channels[i - 1], channels[i], kernel_size=1, bias=True)
-        torch.nn.init.xavier_uniform_(conv_layer.weight)
+        torch.nn.init.xavier_uniform_(conv_layer.weight, gain=nn.init.calculate_gain('relu'))
         layers.append(conv_layer)
         if i < (n-1):
             if do_bn:
