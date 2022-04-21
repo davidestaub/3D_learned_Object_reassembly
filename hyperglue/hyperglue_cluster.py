@@ -113,6 +113,7 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
     layers = []
     for i in range(1, n):
         conv_layer =  nn.Conv1d(channels[i - 1], channels[i], kernel_size=1, bias=True)
+        torch.nn.init.xavier_uniform(conv_layer.weight)
         layers.append(conv_layer)
         if i < (n-1):
             if do_bn:
@@ -142,7 +143,7 @@ class KeypointEncoder(nn.Module):
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
         self.encoder = MLP(channels = [4] + layers + [feature_dim],
-                           dropout = False,
+                           dropout = True,
                            activation = 'relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
@@ -277,7 +278,7 @@ class SuperGlue(nn.Module):
             self.config['descriptor_dim'], self.config['descriptor_dim'],
             kernel_size=1, bias=True)
 
-        bin_score = torch.nn.Parameter(torch.tensor(0.))
+        bin_score = torch.nn.Parameter(torch.tensor(1.))
         self.register_parameter('bin_score', bin_score)
 
         if train_conf["load_weights"]:
