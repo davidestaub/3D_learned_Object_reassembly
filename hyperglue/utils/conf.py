@@ -2,6 +2,7 @@ model_conf = {
     'normalize_data': True, # normalizing the pointcloud
     'use_pointnet': False, # if true, using the pointnet as encoder and ignores the mlp one
     'use_mlp': True, # using the mlp encoder, only works if pointnet is false
+    'use_desc': True,
     'descriptor_dim': 336, # the descriptor dimension, this is what SHOT gives us
     'weights': 'weights_01',
     'keypoint_encoder': [64, 128, 512, 1024], # intermediate mlp dimensions. The first is automatically set to 3, last to 336

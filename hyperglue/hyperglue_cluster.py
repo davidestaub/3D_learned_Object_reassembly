@@ -319,13 +319,18 @@ class SuperGlue(nn.Module):
             desc1.squeeze()
             desc0.transpose(0,1)
             desc1.transpose(0,1)
-        elif self.config['use_mlp']:
+        elif self.config['use_mlp'] and self.config['use_desc']:
             encoded_kpt0 = self.kenc(kpts0, scores0)
             encoded_kpt1 = self.kenc(kpts1, scores1)
             encoded_kpt0 = encoded_kpt0.squeeze()
             encoded_kpt1 = encoded_kpt1.squeeze()
             desc0 = desc0.transpose(1, 2) + encoded_kpt0
             desc1 = desc1.transpose(1, 2) + encoded_kpt1
+        elif self.config['use_mlp'] and not self.config['use_desc']:
+            encoded_kpt0 = self.kenc(kpts0, scores0)
+            encoded_kpt1 = self.kenc(kpts1, scores1)
+            desc0 = encoded_kpt0.squeeze()
+            desc1 = encoded_kpt1.squeeze()
         else:
             desc0 = desc0.transpose(1, 2)
             desc1 = desc1.transpose(1, 2)
