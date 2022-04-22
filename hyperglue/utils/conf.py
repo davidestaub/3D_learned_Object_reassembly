@@ -4,7 +4,7 @@ model_conf = {
     'use_mlp': True, # using the mlp encoder, only works if pointnet is false
     'descriptor_dim': 336, # the descriptor dimension, this is what SHOT gives us
     'weights': 'weights_01',
-    'keypoint_encoder': [64, 128, 256, 512, 1024], # intermediate mlp dimensions. The first is automatically set to 3, last to 336
+    'keypoint_encoder': [64, 128, 512, 1024], # intermediate mlp dimensions. The first is automatically set to 3, last to 336
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 200,
     'match_threshold': 0.2,

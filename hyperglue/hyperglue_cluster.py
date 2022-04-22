@@ -68,7 +68,7 @@ import wandb
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-match_cmap = ListedColormap(['red','white', 'cyan','green'])
+match_cmap = ListedColormap(['red', 'cyan','green'])
 
 def set_seed(seed):
     random.seed(seed)
@@ -453,7 +453,7 @@ def construct_match_matrix(gt, pred):
             elif g == p and g != -1:
                 mat[i][j] = 2
             else:
-                mat[i][j] = -1
+                mat[i][j] = 0
     return mat
 
 def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
@@ -791,7 +791,7 @@ if __name__ == '__main__':
     myGlue = SuperGlue(model_conf)
 
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
-    wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
+    wandb.init(project="hyperglue", entity="lessgoo", config={**model_conf, **train_conf})
     wandb.watch(myGlue)
 
     if args.distributed:
@@ -804,7 +804,7 @@ if __name__ == '__main__':
         dummy_training(0, root, myGlue, train_conf)
 
     #dummy_training(root, myGlue,train_conf)
-    torch.save(myGlue.state_dict(), "weights_01.pth")
+    torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
 
     evaluation = False
     if evaluation:
