@@ -68,8 +68,8 @@ import wandb
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-colors = 'red green blue'.split()
-cmap = ListedColormap(colors, name='colors', N=3)
+colors = 'red blue green'.split()
+cmap = ListedColormap(colors, name='colors')
 
 def set_seed(seed):
     random.seed(seed)
@@ -148,7 +148,7 @@ class KeypointEncoder(nn.Module):
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
         self.encoder = MLP(channels = [4] + layers + [feature_dim],
-                           dropout = True,
+                           dropout = False,
                            activation = 'relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
@@ -462,6 +462,8 @@ def construct_match_matrix(gt, pred):
             mat[:, i] = 2 # green
         else:
             mat[:, i] = 0 #red
+    # add additional green row to show right colors
+    mat[:,i+1] = 2
     
     return mat.tolist()
 
@@ -512,7 +514,7 @@ class FragmentsDataset(td.Dataset):
                 for j in range(i, match_mat.shape[0]):
                     # if the matching matrix is 1, two fragments should match
                     # extract all the keypoint information necessary
-                    if match_mat[i][j] == 1:
+                    if match_mat[i, j] == 1:
                         item = {}
                         item['path_kpts_0'] = glob(os.path.join(
                             processed, 'keypoints', f'*.{i}.npy'))[0]
@@ -553,9 +555,10 @@ class FragmentsDataset(td.Dataset):
         sc1 = kp1_full[:,-1]
         kp0 = kp0_full[:,:3]
         kp1 = kp1_full[:,:3]
+
         if self.normalize:
-            kp0 = pc_normalize(kp0[:,:3])
-            kp1 = pc_normalize(kp1[:,:3])
+            kp0 = pc_normalize(kp0)
+            kp1 = pc_normalize(kp1)
         
         # TODO, make pointnet in afterwards in forward pass from kpts and scores
         sample = {
