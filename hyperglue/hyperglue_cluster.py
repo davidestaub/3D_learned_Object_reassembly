@@ -730,7 +730,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                     matches = construct_match_matrix(gt, pred)
                     match_plt = plt.matshow(matches, cmap = match_cmap)
                     wandb.log({"matchings" : match_plt})
-
+                    plt.close('all')
                     logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                     for k, v in results.items():
                         writer.add_scalar('val/' + k, v, tot_it)
