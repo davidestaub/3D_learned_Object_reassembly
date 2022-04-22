@@ -12,6 +12,8 @@ from joblib import Parallel, delayed, cpu_count
 import shutil
 import numpy as np
 import pyshot
+import time
+from datetime import datetime
 from compas.datastructures import Mesh
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
@@ -279,8 +281,8 @@ def main():
     parser.add_argument("--descriptor_method", type=str,default='shot', choices=['shot'])
     parser.add_argument("--data_dir", type=str, default='')
     # Args for SHOT descriptors.
-    parser.add_argument("--radius", type=float, default=42),
-    parser.add_argument("--local_rf_radius", default=42, type=float)
+    parser.add_argument("--radius", type=float, default=0.1),
+    parser.add_argument("--local_rf_radius", default=0.1, type=float)
     parser.add_argument("--min_neighbors", type=int, default=4)
     parser.add_argument("--n_bins", type=int, default=20)
     parser.add_argument("--double_volumes_sectors", action='store_true')
@@ -289,12 +291,19 @@ def main():
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
-    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
+    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data_full', 'data') if not args.data_dir else args.data_dir
+    logfile = 'data_gen_log.txt'
+    if not os.path.exists(logfile):
+        with open(logfile, 'w') as f:
+            f.write(f'LOG AT {datetime.fromtimestamp(time.time())}\n\n\n')
 
     object_folders = glob(os.path.join(args.data_dir, '*'))
     for f in object_folders:
         if os.path.isdir(f):
             process_folder(f, args)
+            with open(logfile, 'a') as f:
+                f.write(f'Processed folder: {f}\n')
+
 
 
 if __name__ == '__main__':
