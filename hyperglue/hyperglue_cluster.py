@@ -738,7 +738,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             
             del pred, data, loss, losses
 
-        if rank == 0:
+        if rank == 0 and epoch % 100 == 0:
             state = (model.module if args.distributed else model).state_dict()
             checkpoint = {
                 'model': state,
@@ -762,7 +762,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                 logging.info(f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
                 shutil.copy(cp_path, str(train_conf["output_dir"] + "/" + 'checkpoint_best.tar'))
             
-            delete_old_checkpoints(train_conf["output_dir"], train_conf["keep_last_checkpoints"])
+            #delete_old_checkpoints(train_conf["output_dir"], train_conf["keep_last_checkpoints"])
             del checkpoint
 
         epoch += 1
