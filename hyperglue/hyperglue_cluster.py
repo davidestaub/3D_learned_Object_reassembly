@@ -591,8 +591,7 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     else:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        device = 'cpu'
-    logging.info(f'Using device {device}')
+        logging.info(f'Using device {device}')
 
     # Loading the fragment data
     dataset = FragmentsDataset(root=dataroot)
