@@ -576,6 +576,7 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     else:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cpu'
     logging.info(f'Using device {device}')
 
     # Loading the fragment data
@@ -768,7 +769,7 @@ if __name__ == '__main__':
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
     wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
     wandb.watch(myGlue)
-
+    train_conf['output_dir'] ='_'.join([train_conf['output_dir'], wandb.run.name])
     if args.distributed:
         print("distributed")
         args.n_gpus = torch.cuda.device_count()
