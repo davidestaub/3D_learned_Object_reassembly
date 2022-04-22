@@ -723,7 +723,6 @@ def dummy_training(rank, dataroot, model, train_conf):
                     wandb.log({'match_recall': results['match_recall']})
                     wandb.log({'match_precision': results['match_precision']})
                     wandb.log({'loss/total': results['loss/total']})
-                    wandb.log({'lr_scheduler: lr': lr_scheduler.get_lr()})
                     # log matching matrix
                     gt = data['gt_matches0'].cpu().detach().numpy()[0]
                     pred = pred['matches0'].cpu().detach().numpy()[0]
