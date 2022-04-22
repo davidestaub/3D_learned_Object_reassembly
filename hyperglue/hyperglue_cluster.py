@@ -69,7 +69,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 colors = 'red green blue'.split()
-cmap = ListedColormap(colors, name='colors', N=None)
+cmap = ListedColormap(colors, name='colors', N=3)
 
 def set_seed(seed):
     random.seed(seed)
