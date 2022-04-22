@@ -4,7 +4,7 @@ model_conf = {
     'use_mlp': True, # using the mlp encoder, only works if pointnet is false
     'descriptor_dim': 336, # the descriptor dimension, this is what SHOT gives us
     'weights': 'weights_01',
-    'keypoint_encoder': [64, 128, 256, 512], # intermediate mlp dimensions. The first is automatically set to 3, last to 336
+    'keypoint_encoder': [64, 128, 256, 512, 1024], # intermediate mlp dimensions. The first is automatically set to 3, last to 336
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 200,
     'match_threshold': 0.2,
@@ -20,13 +20,13 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 5000,  # number of epochs
-    'batch_size_train': 1,  # training batch size
-    'batch_size_test': 1, #test batch size
+    'epochs': 100000,  # number of epochs
+    'batch_size_train': 24,  # training batch size
+    'batch_size_test': 24, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr': 1e-3,  # learning rate
+    'lr': 0.001,  # learning rate
     'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 50e3},
     'eval_every_iter': 500,  # interval for evaluation on the validation set
     'log_every_iter': 100,  # interval for logging the loss to the console
