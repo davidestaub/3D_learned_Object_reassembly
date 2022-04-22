@@ -68,7 +68,8 @@ import wandb
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
-match_cmap = ListedColormap(['red', 'cyan','green'])
+colors = 'red green blue'.split()
+cmap = ListedColormap(colors, name='colors', N=None)
 
 def set_seed(seed):
     random.seed(seed)
@@ -450,16 +451,19 @@ def batch_to_device(batch, device, non_blocking=True):
 
 
 def construct_match_matrix(gt, pred):
-    mat = np.zeros((len(gt), len(gt)))
-    for i, g in enumerate(gt):
-        for j, p in enumerate(pred):
-            if g == p and g == -1:
-                mat[i][j] = 1
-            elif g == p and g != -1:
-                mat[i][j] = 2
-            else:
-                mat[i][j] = 0
-    return mat
+
+    mat = np.zeros((10, len(gt)))
+    for i in range(len(gt)):
+        g = gt[i]
+        p = pred[i]
+        if g == p and g == -1:
+            mat[:, i] = 1 #cyan
+        elif g == p and g != -1:
+            mat[:, i] = 2 # green
+        else:
+            mat[:, i] = 0 #red
+    
+    return mat.tolist()
 
 def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
     model.eval()
@@ -718,7 +722,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                         writer.add_scalar('training/'+k, v, tot_it)
                     writer.add_scalar(
                         'training/lr', optimizer.param_groups[0]['lr'], tot_it)
-
+            
             
 
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
@@ -730,12 +734,29 @@ def dummy_training(rank, dataroot, model, train_conf):
                     wandb.log({'match_precision': results['match_precision']})
                     wandb.log({'loss/total': results['loss/total']})
                     # log matching matrix
-                    gt = data['gt_matches0'].cpu().detach().numpy()[0]
-                    pred = pred['matches0'].cpu().detach().numpy()[0]
-                    matches = construct_match_matrix(gt, pred)
-                    match_plt = plt.matshow(matches, cmap = match_cmap)
-                    wandb.log({"matchings" : match_plt})
+                    print(pred['matches0'].cpu().detach().numpy()[0])
+                    print(data['gt_matches0'].cpu().detach().numpy()[0])
+
+                    fig, axs = plt.subplots(2, 1, figsize=(10, 2))
+                    gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
+                    pred0= pred['matches0'].cpu().detach().numpy()[0]
+                    matches0 = construct_match_matrix(gt0, pred0)
+
+                    gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
+                    pred1= pred['matches1'].cpu().detach().numpy()[0]
+                    matches1 = construct_match_matrix(gt1, pred1)
+                    axs[0].imshow(matches0, cmap = cmap)
+                    axs[1].imshow(matches1, cmap = cmap)
+                    axs[0].set_title('matches 0')
+                    axs[1].set_title('matches 1')
+                    axs[0].set_xticks([i for i in range(len(gt0))])
+                    axs[1].set_xticks([i for i in range(len(gt1))])
+                    axs[0].get_yaxis().set_ticks([])
+                    axs[1].get_yaxis().set_ticks([])
+                    plt.tight_layout()
+                    wandb.log({"matching" : fig})
                     plt.close('all')
+
                     logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                     for k, v in results.items():
                         writer.add_scalar('val/' + k, v, tot_it)
