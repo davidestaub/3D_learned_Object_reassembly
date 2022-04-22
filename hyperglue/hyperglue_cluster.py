@@ -66,7 +66,9 @@ import sys
 from scipy.sparse import load_npz
 import wandb
 import torch.nn.functional as F
-
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+match_cmap = ListedColormap(['red','white', 'cyan','green'])
 
 def set_seed(seed):
     random.seed(seed)
@@ -442,6 +444,18 @@ def batch_to_device(batch, device, non_blocking=True):
     return map_tensor(batch, _func)
 
 
+def construct_match_matrix(gt, pred):
+    mat = np.zeros((len(gt), len(gt)))
+    for i, g in enumerate(gt):
+        for j, p in enumerate(pred):
+            if g == p and g == -1:
+                mat[i][j] = 1
+            elif g == p and g != -1:
+                mat[i][j] = 2
+            else:
+                mat[i][j] = -1
+    return mat
+
 def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
     model.eval()
     results = {}
@@ -452,6 +466,7 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
             losses = loss_fn(pred, data)
             metrics = metrics_fn(pred, data)
             del pred, data
+
         numbers = {**metrics, **{'loss/'+k: v for k, v in losses.items()}}
         for k, v in numbers.items():
             if k not in results:
@@ -698,21 +713,30 @@ def dummy_training(rank, dataroot, model, train_conf):
                     writer.add_scalar(
                         'training/lr', optimizer.param_groups[0]['lr'], tot_it)
 
-            del pred, data, loss, losses
+            
 
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
-                results = do_evaluation(
-                    model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
+                results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
 
                 if rank == 0:
                     str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
                     wandb.log({'match_recall': results['match_recall']})
                     wandb.log({'match_precision': results['match_precision']})
                     wandb.log({'loss/total': results['loss/total']})
+                    wandb.log({'lr_scheduler: lr': lr_scheduler.get_lr()})
+                    # log matching matrix
+                    gt = data['gt_matches0'].cpu().detach().numpy()[0]
+                    pred = pred['matches0'].cpu().detach().numpy()[0]
+                    matches = construct_match_matrix(gt, pred)
+                    match_plt = plt.matshow(matches, cmap = match_cmap)
+                    wandb.log({"matchings" : match_plt})
+
                     logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                     for k, v in results.items():
                         writer.add_scalar('val/' + k, v, tot_it)
                 torch.cuda.empty_cache()  # should be cleared at the first iter
+            
+            del pred, data, loss, losses
 
         if rank == 0:
             state = (model.module if args.distributed else model).state_dict()
