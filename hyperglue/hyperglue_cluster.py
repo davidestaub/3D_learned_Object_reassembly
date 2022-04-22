@@ -567,7 +567,9 @@ class FragmentsDataset(td.Dataset):
 
 
 def dummy_training(rank, dataroot, model, train_conf):
-    print("started training")
+    print("Started training...")
+    train_conf['output_dir'] = '_'.join([train_conf['output_dir'], wandb.run.name])
+    print(f'Output folder: ', train_conf['output_dir'])
 
     init_cp = None
     set_seed(train_conf["seed"])
@@ -791,7 +793,7 @@ if __name__ == '__main__':
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
     wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
     wandb.watch(myGlue)
-    train_conf['output_dir'] ='_'.join([train_conf['output_dir'], wandb.run.name])
+
     if args.distributed:
         print("distributed")
         args.n_gpus = torch.cuda.device_count()
