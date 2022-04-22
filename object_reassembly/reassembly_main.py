@@ -66,44 +66,17 @@ class FracturedObject:
 
                     t = -R @ centroid0 + centroid1
 
-                    self.transformations[(fragment0, fragment1)] = (R, t)
+                    row = np.array([[0, 0, 0, 1]])
+                    tmp = np.concatenate((R, t), axis=1)
+
+                    T = np.concatenate((tmp, row))
+
+                    self.transformations[(fragment0, fragment1)] = T
 
 
-
-# def load_keypoints():
-#     kpts0 = np.load(path + "keypoints/bottle_10_seed_1_kpts_0.npy")
-#     kpts1 = np.load(path + "keypoints/bottle_10_seed_1_kpts_2.npy")
-#     return kpts0, kpts1
-
-
-# def get_transformation(kpts0, kpts1, matches0, matches1) -> np.array:
-#     pts0 = np.array([kpts0[idx] for idx in matches0[0:3]])
-#     pts1 = np.array([kpts1[idx] for idx in matches1[0:3]])
-#
-#     centroid0 = np.mean(pts0, axis=1)
-#     centroid1 = np.mean(pts1, axis=1)
-#
-#     centroid0 = centroid0.reshape(-1, 1)
-#     centroid1 = centroid1.reshape(-1, 1)
-#
-#     m0 = pts0 - centroid0
-#     m1 = pts1 - centroid1
-#
-#     H = m0 @ np.transpose(m1)
-#     U, S, Vt = np.linalg.svd(H)
-#     R = Vt.T @ U.T
-#
-#     t = -R @ centroid0 + centroid1
-#
-#     return R, t
-
-
-if __name__ == "__main__":
-
+def main():
     viewer = App()
 
-    # kpts0, kpts1, matches0, matches1 = load_data()
-    # kpts0, kpts1 = load_keypoints()
     dummy_matches0 = [0, 1, 2]
     dummy_matches1 = [0, 1, 2]
 
@@ -111,24 +84,29 @@ if __name__ == "__main__":
 
     bottle.load_object(path)
     for i in range(10):
-        for j in range(10):
-            if bottle.fragment_matches[i][j]:
-                bottle.load_kpt_matches(dummy_matches0, dummy_matches1, i, j)
+        for ii in range(10):
+            if bottle.fragment_matches[i][ii]:
+                bottle.load_kpt_matches(dummy_matches0, dummy_matches1, i, ii)
     bottle.find_transformations_first3kpts()
 
-
-    # r, t = get_transformation(kpts0, kpts1, matches0, matches1)
-
-    # pc_1 = load_example_data()
-    # viewer.add(pc_1)
+    matched = bool(0)
+    for i in range(10):
+        matched = 0
+        ii = i
+        while not matched:
+            if bottle.fragment_matches[i][ii]:
+                T = bottle.transformations[(i, ii)]
+                Mesh.transform(bottle.fragments[i], T)
+                viewer.add(bottle.fragments[i])
+                matched = 1
+            ii += 1
+            if ii >= len(bottle.fragments):
+                break
 
     viewer.run()
 
 
-    # Mesh.transform(pc_1, R)
-    # Mesh.transform(pc_1, T)
-    #
-    # viewer.add(pc_1)
+if __name__ == "__main__":
+    main()
 
-    viewer.run()
 
