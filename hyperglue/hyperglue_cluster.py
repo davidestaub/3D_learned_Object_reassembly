@@ -452,7 +452,7 @@ def batch_to_device(batch, device, non_blocking=True):
 
 def construct_match_matrix(gt, pred):
 
-    mat = np.zeros((10, len(gt)))
+    mat = np.zeros((10, len(gt+1)))
     for i in range(len(gt)):
         g = gt[i]
         p = pred[i]
