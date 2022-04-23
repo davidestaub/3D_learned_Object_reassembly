@@ -452,7 +452,7 @@ def batch_to_device(batch, device, non_blocking=True):
 
 def construct_match_matrix(gt, pred):
 
-    mat = np.zeros((10, len(gt+1)))
+    mat = np.zeros((10, len(gt)+1))
     for i in range(len(gt)):
         g = gt[i]
         p = pred[i]
@@ -737,9 +737,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                     wandb.log({'match_precision': results['match_precision']})
                     wandb.log({'loss/total': results['loss/total']})
                     # log matching matrix
-                    print(pred['matches0'].cpu().detach().numpy()[0])
-                    print(data['gt_matches0'].cpu().detach().numpy()[0])
-
+                    
                     fig, axs = plt.subplots(2, 1, figsize=(10, 2))
                     gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
                     pred0= pred['matches0'].cpu().detach().numpy()[0]
