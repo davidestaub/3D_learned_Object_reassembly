@@ -12,21 +12,15 @@ here = os.path.dirname(os.path.abspath(__file__))
 path = "../data/bottle_10_seed_1/"
 
 
-class FracturedObject:
-    fragments = []
-    fragment_matches = []
-    kpts = {}
-    kpt_matches = {}
-    transformations = {}
+class FracturedObject(object):
 
-    def __int__(self):
-        self.fragments = None
-        self.fragment_matches = None
-        self.kpts = None
-        self.kpt_matches = None
-        self.transformations = None
+    def __init__(self):
+        self.fragments = []
+        self.fragment_matches = []
+        self.kpts = {}
+        self.kpt_matches = {}
+        self.transformations = {}
 
-    @classmethod
     def load_object(self, path):
         for object in os.listdir(path):
             if object.endswith('.obj'):
@@ -38,12 +32,10 @@ class FracturedObject:
         for idx, points in enumerate(os.listdir(path+"keypoints/")):
             self.kpts[idx] = np.load(path+"keypoints/"+points)
 
-    @classmethod
     def load_kpt_matches(self, matches0, matches1, idx0, idx1):
         self.kpt_matches[(idx0, idx1)] = matches0
         self.kpt_matches[(idx1, idx0)] = matches1
 
-    @classmethod
     def find_transformations_first3kpts(self):
         for fragment0 in range(len(self.fragments)-1):
             for fragment1 in range(len(self.fragments)-1):
@@ -66,16 +58,25 @@ class FracturedObject:
 
                     t = -R @ centroid0 + centroid1
 
-                    row = np.array([[0, 0, 0, 1]])
-                    tmp = np.concatenate((R, t), axis=1)
+                    pad_row = np.array([[0, 0, 0, 1]])
+                    pad_col = np.array([[0], [0], [0]])
+                    tmp = np.concatenate((R, pad_col), axis=1)
 
-                    T = np.concatenate((tmp, row))
+                    R_pad = np.concatenate((tmp, pad_row))
 
-                    self.transformations[(fragment0, fragment1)] = T
+                    # insert random rotations for now:
+                    theta_x = np.random.uniform(0, 2*np.pi)
+                    theta_y = np.random.uniform(0, 2*np.pi)
+                    theta_z = np.random.uniform(0, 2*np.pi)
+
+                    r = Rotation.from_euler_angles([theta_x, theta_y, theta_z])
+
+                    R = r.data["matrix"]
+
+                    self.transformations[(fragment0, fragment1)] = (R, t)
 
 
 def main():
-    viewer = App()
 
     dummy_matches0 = [0, 1, 2]
     dummy_matches1 = [0, 1, 2]
@@ -89,21 +90,33 @@ def main():
                 bottle.load_kpt_matches(dummy_matches0, dummy_matches1, i, ii)
     bottle.find_transformations_first3kpts()
 
-    matched = bool(0)
-    for i in range(10):
-        matched = 0
-        ii = i
-        while not matched:
-            if bottle.fragment_matches[i][ii]:
-                T = bottle.transformations[(i, ii)]
-                Mesh.transform(bottle.fragments[i], T)
-                viewer.add(bottle.fragments[i])
-                matched = 1
-            ii += 1
-            if ii >= len(bottle.fragments):
-                break
+    viewer = App()
+    viewer.add(bottle.fragments[0])
+    viewer.show()
 
-    viewer.run()
+    # matched = bool(0)
+    # for i in range(10):
+    #     matched = 0
+    #     ii = i
+    #     while not matched:
+    #         if bottle.fragment_matches[i][ii]:
+    #             obj = viewer.add(bottle.fragments[i])
+    #             R,t,T = bottle.transformations[(i, ii)]
+    #             m = 0
+    #             @viewer.on(interval=1000, frames=2)
+    #             def move(f=100):
+    #                 # obj.rotation = R
+    #                 obj.translation = [f, 0, 0]
+    #                 obj.update()
+    #                 viewer.show()
+    #             # Mesh.transform(bottle.fragments[i], T)
+    #             # obj = viewer.add(bottle.fragments[i])
+    #             matched = 1
+    #         ii += 1
+    #         if ii >= len(bottle.fragments):
+    #             break
+
+    # viewer.run()
 
 
 if __name__ == "__main__":
