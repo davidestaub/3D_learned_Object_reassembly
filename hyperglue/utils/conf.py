@@ -38,5 +38,6 @@ train_conf = {
     'best_key': 'loss/total',  # key to use to select the best checkpoint
     'dataset_callback_fn': None,  # data func called at the start of each epoch
     'output_dir': "output",
-    'load_weights': False
+    'load_weights': False,
+    'overfit': True,
 }

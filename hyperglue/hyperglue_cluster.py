@@ -521,7 +521,7 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset
-    def __init__(self, root, normalize = True):
+    def __init__(self, root, normalize = True, overfit = False):
         self.root = root
         self.dataset = []
         self.normalize = normalize
@@ -542,19 +542,18 @@ class FragmentsDataset(td.Dataset):
                     if match_mat[i, j] == 1:
                         item = {}
                         # original
-                        '''                            
-                        item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                        item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{j}.npy'))[0]
-                        item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                        item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
-                        item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
-                        '''
-                        # test overfit
-                        item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                        item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                        item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                        item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                        item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                        if not overfit:                      
+                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
+                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{j}.npy'))[0]
+                            item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                            item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
+                            item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                        else:
+                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
+                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
+                            item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                            item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                            item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
 
                         self.dataset.append(item)
 
@@ -638,7 +637,7 @@ def dummy_training(rank, dataroot, model, train_conf):
         logging.info(f'Using device {device}')
 
     # Loading the fragment data
-    dataset = FragmentsDataset(root=dataroot)
+    dataset = FragmentsDataset(root=dataroot, overfit=train_conf['overfit'])
 
     # Splitting into train test
     train_size = int(0.8 * len(dataset))
