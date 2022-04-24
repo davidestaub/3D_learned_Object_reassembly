@@ -525,6 +525,7 @@ class FragmentsDataset(td.Dataset):
         self.root = root
         self.dataset = []
         self.normalize = normalize
+        self.overfit = overfit
 
         # load the dataset
         for folder in os.listdir(self.root):
@@ -542,7 +543,7 @@ class FragmentsDataset(td.Dataset):
                     if match_mat[i, j] == 1:
                         item = {}
                         # original
-                        if not overfit:                      
+                        if not self.overfit:                      
                             item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
                             item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{j}.npy'))[0]
                             item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
@@ -566,18 +567,21 @@ class FragmentsDataset(td.Dataset):
 
         # i is the keypoint index in the 0 cloud, item is the corresponding
         # cloud of potential matchings in the other fragment
-        gtasg = np.array(
-            load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)
-        gt_matches0 = np.zeros(gtasg.shape[0], dtype=np.float32) - 1
-        gt_matches1 = np.zeros(gtasg.shape[1], dtype=np.float32) - 1
-        for i, kpts_j in enumerate(gtasg):
-            for j, match in enumerate(kpts_j):
-                # if there is a match (1) then the keypoint in index i
-                # matches to the keypoint in index j of the other fragment
-                if match:
-                    gt_matches0[i] = j
-                    gt_matches1[j] = i
-
+        gtasg = np.array(load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)
+        if not self.overfit:
+            gt_matches0 = np.zeros(gtasg.shape[0]) - 1
+            gt_matches1 = np.zeros(gtasg.shape[1]) - 1
+            for i, kpts_j in enumerate(gtasg):
+                for j, match in enumerate(kpts_j):
+                    # if there is a match (1) then the keypoint in index i
+                    # matches to the keypoint in index j of the other fragment
+                    if match:
+                        gt_matches0[i] = j
+                        gt_matches1[j] = i
+        else:
+            gt_matches0 = [i for i in range(gtasg.shape[0])]
+            gt_matches1 = gt_matches0
+        
         kp0_full = np.load(self.dataset[idx]['path_kpts_0'])
         kp1_full = np.load(self.dataset[idx]['path_kpts_1'])
         sc0 = kp0_full[:,-1]

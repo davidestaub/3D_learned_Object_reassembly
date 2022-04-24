@@ -1,5 +1,6 @@
 model_conf = {
     'normalize_data': True, # normalizing the pointcloud
+    'init_uniform_weights': False,
     'use_pointnet': False, # if true, using the pointnet as encoder and ignores the mlp one
     'use_mlp': True, # using the mlp encoder, only works if pointnet is false
     'use_desc': True,
