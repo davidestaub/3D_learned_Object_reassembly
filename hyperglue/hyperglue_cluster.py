@@ -579,7 +579,7 @@ class FragmentsDataset(td.Dataset):
                         gt_matches0[i] = j
                         gt_matches1[j] = i
         else:
-            gt_matches0 = [i for i in range(gtasg.shape[0])]
+            gt_matches0 = np.array([i for i in range(gtasg.shape[0])])
             gt_matches1 = gt_matches0
         
         kp0_full = np.load(self.dataset[idx]['path_kpts_0'])
