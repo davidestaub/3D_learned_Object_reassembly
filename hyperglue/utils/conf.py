@@ -9,21 +9,22 @@ model_conf = {
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 50,
     'match_threshold': 0.2,
+    'use_ce': False,
     # 'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
-        'nll_balancing': 0.9,
+        'nll_balancing': 0.999,
         #'reward_weight': 0.,
         #'bottleneck_l2_weight': 0.,
     },
 }
-   
+
 
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 50000,  # number of epochs
-    'batch_size_train': 24,  # training batch size
-    'batch_size_test': 24, #test batch size
+    'batch_size_train': 2,  # training batch size
+    'batch_size_test': 2, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer

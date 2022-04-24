@@ -383,7 +383,7 @@ class SuperGlue(nn.Module):
         positive = data['gt_assignment'].float()
 
         num_pos = torch.max(positive.sum((1, 2)), positive.new_tensor(1))
-
+        
         # data[gt_matches_0] is an array of dimension n were each entry cooresponds to the indice of the corresponding match in the other image or a -1 if there is no match
         # the same holds for gt_matches_1 just that it is dimension m and has indices of the 0-image array
         neg0 = (data['gt_matches0'] == -1).float()
@@ -402,9 +402,15 @@ class SuperGlue(nn.Module):
                + (1 - model_conf["loss"]["nll_balancing"]) * nll_neg)
         losses['assignment_nll'] = nll
 
-        if model_conf["loss"]["nll_weight"] > 0:
+        if model_conf["loss"]["nll_weight"] > 0 and not model_conf['use_ce']:
             losses['total'] = nll*model_conf["loss"]["nll_weight"]
-    
+        elif model_conf['use_ce']:
+            gt = construct_match_matrix(data['gt_matches0'],data['gt_matches1'])
+            pd = construct_match_matrix(pred["matches0"],pred["matches1"])
+            crossentrop = nn.CrossEntropyLoss()
+            losses['total'] = torch.autograd.Variable(crossentrop(pd, gt), requires_grad = True)
+            
+
         # Some statistics
         losses['num_matchable'] = num_pos
         losses['num_unmatchable'] = num_neg
@@ -450,7 +456,7 @@ def batch_to_device(batch, device, non_blocking=True):
     return map_tensor(batch, _func)
 
 
-def construct_match_matrix(gt, pred):
+def construct_match_vector(gt, pred):
 
     mat = np.zeros((10, len(gt)+1))
     for i in range(len(gt)):
@@ -466,6 +472,25 @@ def construct_match_matrix(gt, pred):
     mat[:,i+1] = 2
     
     return mat.tolist()
+
+def construct_match_matrix(x0, x1):
+    matrices = []
+    # do for every batch
+    for batch in range(x0.shape[0]):
+        assg_0 = x0[batch]
+        assg_1 = x1[batch]
+        mat = torch.zeros((len(assg_0), len(assg_1)))
+        # scan matches of x0
+        for idx, match in enumerate(assg_0):
+            if match != 0:
+                mat[idx, match.long()] = 1
+        # scan matches of x1
+        for idx, match in enumerate(assg_1):
+            if match != 0:
+                mat[match.long(), idx] = 1
+        matrices.append(mat)
+    return(torch.cat(matrices, dim=1))
+
 
 def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
     model.eval()
@@ -516,16 +541,21 @@ class FragmentsDataset(td.Dataset):
                     # extract all the keypoint information necessary
                     if match_mat[i, j] == 1:
                         item = {}
-                        item['path_kpts_0'] = glob(os.path.join(
-                            processed, 'keypoints', f'*.{i}.npy'))[0]
-                        item['path_kpts_1'] = glob(os.path.join(
-                            processed, 'keypoints', f'*.{j}.npy'))[0]
-                        item['path_kpts_desc_0'] = glob(os.path.join(
-                            processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                        item['path_kpts_desc_1'] = glob(os.path.join(
-                            processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
-                        item['path_match_mat'] = glob(
-                            os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                        # original
+                        '''                            
+                        item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
+                        item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{j}.npy'))[0]
+                        item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                        item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
+                        item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                        '''
+                        # test overfit
+                        item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
+                        item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
+                        item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                        item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                        item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+
                         self.dataset.append(item)
 
     # number of rows in the dataset
@@ -741,11 +771,11 @@ def dummy_training(rank, dataroot, model, train_conf):
                     fig, axs = plt.subplots(2, 1, figsize=(10, 2))
                     gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
                     pred0= pred['matches0'].cpu().detach().numpy()[0]
-                    matches0 = construct_match_matrix(gt0, pred0)
+                    matches0 = construct_match_vector(gt0, pred0)
 
                     gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
                     pred1= pred['matches1'].cpu().detach().numpy()[0]
-                    matches1 = construct_match_matrix(gt1, pred1)
+                    matches1 = construct_match_vector(gt1, pred1)
                     axs[0].imshow(matches0, cmap = cmap)
                     axs[1].imshow(matches1, cmap = cmap)
                     axs[0].set_title('matches 0')
