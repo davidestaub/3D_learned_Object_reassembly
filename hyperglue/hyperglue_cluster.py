@@ -516,6 +516,30 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
     results = {k: results[k].compute() for k in results}
     return results
 
+def do_evaluation_overfit(model, data, device, loss_fn, metrics_fn):
+    model.eval()
+    results = {}
+
+    data = batch_to_device(data, device, non_blocking=True)
+    with torch.no_grad():
+        pred = model(data)
+        losses = loss_fn(pred, data)
+        metrics = metrics_fn(pred, data)
+        del pred, data
+
+    numbers = {**metrics, **{'loss/'+k: v for k, v in losses.items()}}
+    for k, v in numbers.items():
+        if k not in results:
+            results[k] = AverageMetric()
+            if k in train_conf["median_metrics"]:
+                results[k+'_median'] = MedianMetric()
+
+        results[k].update(v)
+        if k in train_conf["median_metrics"]:
+            results[k+'_median'].update(v)
+    
+    results = {k: results[k].compute() for k in results}
+    return results 
 
 # Creating a own dataset type for our input, move this to a separate file later!
 # dataset definition
@@ -730,6 +754,34 @@ def dummy_training(rank, dataroot, model, train_conf):
             getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(
                 train_conf["seed"] + epoch)
 
+        # do overfitting on first batch in train_dl
+        if train_conf['overfit']:
+            data = [i for i in train_dl][0]
+            # train, evaluate, backprop, update lr
+            model.train()
+            optimizer.zero_grad()
+            data = batch_to_device(data, device, non_blocking=True)
+            pred = model(data)
+            losses = loss_fn(pred, data)
+            loss = torch.mean(losses['total'])
+            loss.backward()
+            optimizer.step()
+            lr_scheduler.step()
+            # evaluate on test set
+            results = do_evaluation_overfit(model, data, device, loss_fn, metrics_fn)
+            str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
+            # log to wandb
+            wandb.log({'match_recall': results['match_recall']})
+            wandb.log({'match_precision': results['match_precision']})
+            wandb.log({'loss/total': results['loss/total']})
+            wandb.log({'lr':  optimizer.param_groups[0]['lr']})
+            plot_matching_vector(data, pred)
+            torch.cuda.empty_cache()
+            logging.info(f"Overfitting Epoch: {epoch}")
+            epoch += 1
+            del pred, data, loss, losses
+            continue
+
         for it, data in enumerate(train_dl):
             tot_it = len(train_dl) * epoch + it
 
@@ -742,7 +794,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             loss.backward()
             optimizer.step()
             lr_scheduler.step()
-
+            
             if it % train_conf["log_every_iter"] == 0:
                 for k in sorted(losses.keys()):
                     if args.distributed:
@@ -752,12 +804,10 @@ def dummy_training(rank, dataroot, model, train_conf):
                     losses[k] = torch.mean(losses[k]).item()
                 if rank == 0:
                     str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
-                    logging.info('[E {} | it {}] loss {{{}}}'.format(
-                        epoch, it, ', '.join(str_losses)))
+                    logging.info('[E {} | it {}] loss {{{}}}'.format(epoch, it, ', '.join(str_losses)))
                     for k, v in losses.items():
                         writer.add_scalar('training/'+k, v, tot_it)
-                    writer.add_scalar(
-                        'training/lr', optimizer.param_groups[0]['lr'], tot_it)
+                    writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
             
             
 
@@ -769,27 +819,9 @@ def dummy_training(rank, dataroot, model, train_conf):
                     wandb.log({'match_recall': results['match_recall']})
                     wandb.log({'match_precision': results['match_precision']})
                     wandb.log({'loss/total': results['loss/total']})
+                    wandb.log({'lr':  optimizer.param_groups[0]['lr']})
                     # log matching matrix
-                    
-                    fig, axs = plt.subplots(2, 1, figsize=(10, 2))
-                    gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
-                    pred0= pred['matches0'].cpu().detach().numpy()[0]
-                    matches0 = construct_match_vector(gt0, pred0)
-
-                    gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
-                    pred1= pred['matches1'].cpu().detach().numpy()[0]
-                    matches1 = construct_match_vector(gt1, pred1)
-                    axs[0].imshow(matches0, cmap = cmap)
-                    axs[1].imshow(matches1, cmap = cmap)
-                    axs[0].set_title('matches 0')
-                    axs[1].set_title('matches 1')
-                    axs[0].set_xticks([i for i in range(len(gt0))])
-                    axs[1].set_xticks([i for i in range(len(gt1))])
-                    axs[0].get_yaxis().set_ticks([])
-                    axs[1].get_yaxis().set_ticks([])
-                    plt.tight_layout()
-                    wandb.log({"matching" : fig})
-                    plt.close('all')
+                    plot_matching_vector(data, pred)
 
                     logging.info(f'[Validation] {{{", ".join(str_results)}}}')
                     for k, v in results.items():
@@ -836,6 +868,33 @@ def main_worker(rank, dataroot, model, train_conf):
     print("Spawned worker")
     dummy_training(rank, dataroot, model, train_conf)
 
+def plot_matching_vector(data, pred):
+    """Generates a matching vector for the matches 0 1 and their respective ground truth"""
+    # extract the necessary data
+    fig, axs = plt.subplots(2, 1, figsize=(10, 2))
+    gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
+    pred0= pred['matches0'].cpu().detach().numpy()[0]
+    gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
+    pred1= pred['matches1'].cpu().detach().numpy()[0]
+    # construct the matching matrix
+    # by converting from index correspondence to a vector with three values
+    # 0:Red   -> There is a match but prediction wrong
+    # 1:Blue  -> There is no match and it predicted no match
+    # 2:Green -> There is a match and prediction is true
+    matches0 = construct_match_vector(gt0, pred0)
+    matches1 = construct_match_vector(gt1, pred1)
+    # detach to cpu and generate plots
+    axs[0].imshow(matches0, cmap = cmap)
+    axs[1].imshow(matches1, cmap = cmap)
+    axs[0].set_title('matches 0')
+    axs[1].set_title('matches 1')
+    axs[0].set_xticks([i for i in range(len(gt0))])
+    axs[1].set_xticks([i for i in range(len(gt1))])
+    axs[0].get_yaxis().set_ticks([])
+    axs[1].get_yaxis().set_ticks([])
+    plt.tight_layout()
+    wandb.log({"matching" : fig})
+    plt.close('all')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -863,7 +922,6 @@ if __name__ == '__main__':
     else:
         dummy_training(0, root, myGlue, train_conf)
 
-    #dummy_training(root, myGlue,train_conf)
     torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
 
     evaluation = False
