@@ -623,8 +623,6 @@ class FragmentsDataset(td.Dataset):
             "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
             "scores0": torch.from_numpy(sc0.astype(np.float32)),
             "scores1": torch.from_numpy(sc1.astype(np.float32)),
-            "pointnet_in0": torch.from_numpy(kp0_full.astype(np.float32)),
-            "pointnet_in1": torch.from_numpy(kp1_full.astype(np.float32)),
             "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
             "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
@@ -775,7 +773,6 @@ def dummy_training(rank, dataroot, model, train_conf):
             wandb.log({'match_precision': results['match_precision']})
             wandb.log({'loss/total': results['loss/total']})
             wandb.log({'lr':  optimizer.param_groups[0]['lr']})
-            plot_matching_vector(data, pred)
             torch.cuda.empty_cache()
             logging.info(f"Overfitting Epoch: {epoch}")
             epoch += 1
