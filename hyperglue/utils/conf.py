@@ -40,5 +40,5 @@ train_conf = {
     'dataset_callback_fn': None,  # data func called at the start of each epoch
     'output_dir': "output",
     'load_weights': False,
-    'overfit': True,
+    'overfit': False,
 }
