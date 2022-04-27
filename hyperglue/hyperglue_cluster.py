@@ -573,13 +573,7 @@ def dummy_training(rank, dataroot, model, train_conf):
         logger.info(f'Using device {device}')
 
     # Loading the fragment data
-    dataset = FragmentsDataset(root=dataroot, overfit=train_conf['overfit'])
-
-    # Splitting into train test
-    train_size = int(0.8 * len(dataset))
-    test_size = len(dataset) - train_size
-
-    train, test = td.random_split(dataset, [train_size, test_size])
+    train, test = create_datasets(dataroot, train_fraction=0.8, overfit=train_conf['overfit'])
 
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
@@ -819,9 +813,9 @@ if __name__ == '__main__':
     np.set_printoptions(threshold=sys.maxsize)
     myGlue = SuperGlue(model_conf)
 
-    # wandb.login(key='fb88544dfb8128619cdbd372098028a7a3f39e6c')
-    # wandb.init(project="hyperglue", entity="lessgoo", config={**model_conf, **train_conf})
-    # wandb.watch(myGlue)
+    wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
+    wandb.init(project="hyperglue", entity="lessgoo", config={**model_conf, **train_conf})
+    wandb.watch(myGlue)
 
     if args.distributed:
         print("distributed")
