@@ -120,8 +120,8 @@ def handle_folder(object_folder, dataroot):
                 normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
                 # create a pointcloud and save as pcd file with o3d 
                 pcd = o3d.geometry.PointCloud()
-                pcd.normals = normals
-                pcd.points= vertices
+                pcd.normals = o3d.utility.Vector3dVector(normals)
+                pcd.points= o3d.utility.Vector3dVector(vertices)
                 o3d.io.write_point_cloud(FILE_PCD, pcd)
 
 
