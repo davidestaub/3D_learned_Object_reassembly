@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import shutil
-from joblib import Parallel, delayed
+from multiprocessing import Pool
 from compas.datastructures import Mesh
 from compas.datastructures import mesh_explode
 import open3d as o3d
@@ -9,15 +9,7 @@ here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 dataroot = os.path.join(here, 'data_full', 'data')
 dashed_line = "----------------------------------------------------------------\n"
 
-
-# total folders (-1 for keypoint folder)
-total_folders = len([i for i in os.listdir(dataroot)])
-subdivide = False 
-
-
-def handle_folder(object_folder, dataroot):
-    log = []
-
+def handle_folder(object_folder):
     folder_path = os.path.join(dataroot, object_folder)
 
     # delete the premade cleaned and subdv folder
@@ -91,11 +83,9 @@ def handle_folder(object_folder, dataroot):
 
             shard_counter += 1
 
-    log_path = os.path.join(folder_path, 'log.txt')
-
-    with open(log_path, "w+") as text_file:
-        text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
 
-folders = os.listdir(dataroot)
-Parallel(n_jobs=4)(delayed(handle_folder)(folder, dataroot) for folder in folders)
+if __name__ == '__main__':
+    folders = os.listdir(dataroot)
+    with Pool(10) as p:
+        p.map(handle_folder, folders)
