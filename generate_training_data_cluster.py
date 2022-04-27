@@ -179,43 +179,45 @@ def get_descriptors(i, vertices, faces, args, folder_path):
     if method == 'fpfh':
         method = args.descriptor_method
         in_path = os.path.join(mount_path, folder_path, 'cleaned', filename)
-        out_path = os.path.join(mount_path, folder_path, 'processed', 'descriptors_all_points', f'descriptors_all_points_{method}.{i}.txt')
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        out_path_prefix = os.path.join(mount_path, folder_path, 'processed', 'descriptors_all_points', f'descriptors_all_points_{method}.{i}')
+        out_path_normal = '_'.join([out_path_prefix, 'normal.txt'])
+        out_path_inverted = '_'.join([out_path_prefix, 'inverted.txt'])
+        os.makedirs(os.path.dirname(out_path_prefix), exist_ok=True)
 
-        fpfh_args = ['/home/mathi/PCL/Release/fpfh', in_path, out_path, args.invert_normals]
+        fpfh_args = ['/home/mathi/PCL/Release/fpfh', in_path, out_path_normal, "False"]
         subprocess.check_call(fpfh_args)
-        descriptors = np.loadtxt(out_path)
+        fpfh_args = ['/home/mathi/PCL/Release/fpfh', in_path, out_path_inverted, "True"]
+        subprocess.check_call(fpfh_args)
+        descriptors = [np.loadtxt(out_path_normal), np.loadtxt(out_path_inverted)]
         return descriptors
 
 
 
 def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
     method = args.keypoint_method
+    desc_normal, desc_inv = descriptors
+    
+    keypoint_path = os.path.join(folder_path, 'processed', 'keypoints',f'keypoints_{method}.{i}.npy')
+    kpts_desc_path_normal = os.path.join(folder_path, 'processed', 'keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
+    kpts_desc_path_inverted = os.path.join(folder_path, 'processed', 'keypoint_descriptors_inverted',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
 
-    keypoint_path = os.path.join(folder_path, 'processed', 'keypoints',
-                                 f'keypoints_{method}.{i}.npy')
-    keypoint_descriptors_path = os.path.join(folder_path, 'processed', 'keypoint_descriptors',
-                                             f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
     os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
-    os.makedirs(os.path.dirname(keypoint_descriptors_path), exist_ok=True)
-    if os.path.exists(keypoint_path) and os.path.exists(keypoint_descriptors_path):
+    os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
+    os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)
+
+    if os.path.exists(kpts_desc_path_normal) and os.path.exists(kpts_desc_path_inverted):
         keypoints = np.load(keypoint_path)
-        keypoint_descriptors = np.load(keypoint_descriptors_path)
-        return keypoints, keypoint_descriptors
+        return keypoints
 
     if args.keypoint_method == 'SD':
         keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.05)
-        keypoint_descriptors = descriptors[keypoint_idxs]
+        kpt_desc_normal = desc_normal[keypoint_idxs]
+        kpt_desc_invert = desc_inv[keypoint_idxs]
+
         np.save(keypoint_path, keypoints)
-        np.save(keypoint_descriptors_path, keypoint_descriptors)
-        return keypoints, keypoint_descriptors
-    if args.keypoint_method == 'harris':
-        keypoint_idxs = get_harris_keypoints(vertices)
-        keypoints = vertices[keypoint_idxs]
-        keypoint_descriptors = descriptors[keypoint_idxs]
-        np.save(keypoint_path, keypoints)
-        np.save(keypoint_descriptors_path, keypoint_descriptors)
-        return keypoints, keypoint_descriptors
+        np.save(kpts_desc_path_normal, kpt_desc_normal)
+        np.save(kpts_desc_path_inverted, kpt_desc_invert)
+        return keypoints
     else:
         raise NotImplementedError
 
@@ -238,8 +240,7 @@ def process_folder(folder_path, args):
         return
 
     for i in range(num_fragments):
-        mesh = Mesh.from_obj(os.path.join(
-            folder_path, 'cleaned', f'{object_name}_cleaned.{i}.obj'))
+        mesh = Mesh.from_obj(os.path.join(folder_path, 'cleaned', f'{object_name}_cleaned.{i}.obj'))
         # Some faces are still polygons other than triangles :(
         mesh_faces_to_triangles(mesh)
         vertices, faces = mesh.to_vertices_and_faces()
@@ -252,12 +253,10 @@ def process_folder(folder_path, args):
         fragments_normals.append(np.array(normals))
 
     keypoints = []
-    descriptors = []
     for i in range(num_fragments):
         fragment_descriptors = get_descriptors(i, fragments_vertices[i], fragments_faces[i], args, folder_path)
-        fragment_keypoints, fragment_keypoint_descriptors = get_keypoints(i, fragments_vertices[i], fragments_normals[i], fragment_descriptors, args, folder_path)
-        keypoints.append(fragment_keypoints)
-        descriptors.append(fragment_keypoint_descriptors)
+        frag_kpts = get_keypoints(i, fragments_vertices[i], fragments_normals[i], fragment_descriptors, args, folder_path)
+        keypoints.append(frag_kpts)
 
     matching_matrix = get_fragment_matchings(fragments_vertices, folder_path)
 
@@ -274,7 +273,7 @@ def process_folder(folder_path, args):
     # delete unecessary files again
     shutil.rmtree(os.path.join(folder_path, 'processed', 'descriptors_all_points'))
 
-    del keypoints, descriptors, matching_matrix, fragment_descriptors
+    del keypoints, matching_matrix, fragment_descriptors
     gc.collect()
     print(f'Processed folder {folder_path}')
 
