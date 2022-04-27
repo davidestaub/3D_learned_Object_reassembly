@@ -10,6 +10,8 @@ dataroot = os.path.join(here, 'data_full', 'data')
 dashed_line = "----------------------------------------------------------------\n"
 
 def handle_folder(object_folder):
+    log = []
+
     folder_path = os.path.join(dataroot, object_folder)
 
     # delete the premade cleaned and subdv folder
@@ -83,6 +85,10 @@ def handle_folder(object_folder):
 
             shard_counter += 1
 
+    log_path = os.path.join(folder_path, 'log.txt')
+
+    with open(log_path, "w+") as text_file:
+        text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
 
 if __name__ == '__main__':
