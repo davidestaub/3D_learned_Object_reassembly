@@ -1,16 +1,12 @@
 import os
 import numpy as np
 import shutil
-import sys
 from joblib import Parallel, delayed
 from compas.datastructures import Mesh
-from compas.geometry import Pointcloud
 from compas.datastructures import mesh_explode
 import open3d as o3d
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 dataroot = os.path.join(here, 'data_full', 'data')
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 dashed_line = "----------------------------------------------------------------\n"
 
 
