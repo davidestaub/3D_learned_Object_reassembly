@@ -46,32 +46,6 @@ def handle_folder(object_folder, dataroot):
         # delete material list files
         if filename.endswith('.mtl'):
             os.remove(file_path)
-        # if it's a shard, rename them uniformly
-        elif 'shard' in filename:
-            # now rename the shards
-            if filename.endswith('.obj'):
-                point_split = filename.split('.')
-                # old format
-                shard_number = 0
-                if len(point_split) > 2:
-                    shard_split = filename.split('.')[-2]
-                    if '_' in shard_split:
-                        shard_number = 0
-                    else:
-                        shard_number = int(shard_split)
-                new_name = object_folder + "_shard_" + str(shard_number) + ".obj"
-            try:
-                os.rename(file_path, new_name, )
-            except:
-                pass
-        else:
-            new_name = os.path.join(folder_path, object_folder)
-            if filename.endswith('.obj'):
-                new_name = new_name + ".obj"
-            try:
-                os.rename(file_path, new_name)
-            except:
-                pass
 
     # now that the folder is cleaned, one can create the cleaned data and subdidive the meshes
     # check if the cleaned folder exists yet
