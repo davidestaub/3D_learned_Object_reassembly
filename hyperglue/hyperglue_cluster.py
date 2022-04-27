@@ -57,6 +57,8 @@ from torch._six import string_classes
 import collections.abc as collections
 import re
 import shutil
+
+from dataset import FragmentsDataset, create_datasets
 from utils import conf
 from utils.utils import PointNetEncoder
 
@@ -70,6 +72,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 colors = 'red blue green'.split()
 cmap = ListedColormap(colors, name='colors')
+
+logger = logging.getLogger(__name__)
+
 
 def set_seed(seed):
     random.seed(seed)
@@ -130,15 +135,6 @@ def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu
             if dropout:
                 layers.append(nn.Dropout(0.1))
     return nn.Sequential(*layers)
-
-
-def pc_normalize(pc):
-    """normalizes a pointcloud by centering and unit scaling"""
-    centroid = np.mean(pc, axis=0)
-    pc = pc - centroid
-    m = np.max(np.sqrt(np.sum(pc ** 2, axis=1)))
-    pc = pc / m
-    return pc
 
 
 class KeypointEncoder(nn.Module):
@@ -350,6 +346,12 @@ class SuperGlue(nn.Module):
             scores, self.bin_score,
             iters=self.config['sinkhorn_iterations'])
 
+        # new_scores = torch.ones(scores.shape[0], scores.shape[1] + 1, scores.shape[2] + 1)
+        # new_scores[:, :-1, :-1] = scores
+        # scores = new_scores
+        #
+        # print("after ", scores.shape)
+        # print(scores)
         # Get the matches with score above "match_threshold".
         max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
 
@@ -382,7 +384,7 @@ class SuperGlue(nn.Module):
         positive = data['gt_assignment'].float()
 
         num_pos = torch.max(positive.sum((1, 2)), positive.new_tensor(1))
-        
+
         # data[gt_matches_0] is an array of dimension n were each entry cooresponds to the indice of the corresponding match in the other image or a -1 if there is no match
         # the same holds for gt_matches_1 just that it is dimension m and has indices of the 0-image array
         neg0 = (data['gt_matches0'] == -1).float()
@@ -408,7 +410,7 @@ class SuperGlue(nn.Module):
             pd = construct_match_matrix(pred["matches0"],pred["matches1"])
             crossentrop = nn.CrossEntropyLoss()
             losses['total'] = torch.autograd.Variable(crossentrop(pd, gt), requires_grad = True)
-            
+
 
         # Some statistics
         losses['num_matchable'] = num_pos
@@ -469,7 +471,7 @@ def construct_match_vector(gt, pred):
             mat[:, i] = 0 #red
     # add additional green row to show right colors
     mat[:,i+1] = 2
-    
+
     return mat.tolist()
 
 def construct_match_matrix(x0, x1):
@@ -536,100 +538,9 @@ def do_evaluation_overfit(model, data, device, loss_fn, metrics_fn):
         results[k].update(v)
         if k in train_conf["median_metrics"]:
             results[k+'_median'].update(v)
-    
+
     results = {k: results[k].compute() for k in results}
-    return results 
-
-# Creating a own dataset type for our input, move this to a separate file later!
-# dataset definition
-class FragmentsDataset(td.Dataset):
-    # load the dataset
-    def __init__(self, root, normalize = True, overfit = False):
-        self.root = root
-        self.dataset = []
-        self.normalize = normalize
-        self.overfit = overfit
-
-        # load the dataset
-        for folder in os.listdir(self.root):
-            processed = os.path.join(self.root, folder, 'processed', '')
-            matching = os.path.join(processed, 'matching', '')
-            match_path = ''.join([matching, folder, '_matching_matrix.npy'])
-            match_mat = np.load(match_path)
-
-            # for each match pair load the keypoints, descripors and matches
-            # also construct the gt assignment
-            for i in range(match_mat.shape[0]):
-                for j in range(i, match_mat.shape[0]):
-                    # if the matching matrix is 1, two fragments should match
-                    # extract all the keypoint information necessary
-                    if match_mat[i, j] == 1:
-                        item = {}
-                        # original
-                        if not self.overfit:                      
-                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{j}.npy'))[0]
-                            item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
-                            item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
-                        else:
-                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_0'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                            item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
-
-                        self.dataset.append(item)
-
-    # number of rows in the dataset
-    def __len__(self):
-        return len(self.dataset)
-
-    # get a row at an index
-    def __getitem__(self, idx):
-
-        # i is the keypoint index in the 0 cloud, item is the corresponding
-        # cloud of potential matchings in the other fragment
-        gtasg = np.array(load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)
-        if not self.overfit:
-            gt_matches0 = np.zeros(gtasg.shape[0]) - 1
-            gt_matches1 = np.zeros(gtasg.shape[1]) - 1
-            for i, kpts_j in enumerate(gtasg):
-                for j, match in enumerate(kpts_j):
-                    # if there is a match (1) then the keypoint in index i
-                    # matches to the keypoint in index j of the other fragment
-                    if match:
-                        gt_matches0[i] = j
-                        gt_matches1[j] = i
-        else:
-            gt_matches0 = np.array([i for i in range(gtasg.shape[0])])
-            gt_matches1 = gt_matches0
-        
-        kp0_full = np.load(self.dataset[idx]['path_kpts_0'])
-        kp1_full = np.load(self.dataset[idx]['path_kpts_1'])
-        sc0 = kp0_full[:,-1]
-        sc1 = kp1_full[:,-1]
-        kp0 = kp0_full[:,:3]
-        kp1 = kp1_full[:,:3]
-
-        if self.normalize:
-            kp0 = pc_normalize(kp0)
-            kp1 = pc_normalize(kp1)
-        
-        # TODO, make pointnet in afterwards in forward pass from kpts and scores
-        sample = {
-            "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
-            "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
-            "scores0": torch.from_numpy(sc0.astype(np.float32)),
-            "scores1": torch.from_numpy(sc1.astype(np.float32)),
-            "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
-            "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
-            "gt_assignment": torch.from_numpy(gtasg),
-            "gt_matches0": torch.from_numpy(gt_matches0),
-            "gt_matches1": torch.from_numpy(gt_matches1)
-        }
-
-        return sample
+    return results
 
 
 def dummy_training(rank, dataroot, model, train_conf):
@@ -642,7 +553,7 @@ def dummy_training(rank, dataroot, model, train_conf):
     if rank == 0:
         writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
     if args.distributed:
-        logging.info(f'Training in distributed mode with {args.n_gpus} GPUs')
+        logger.info(f'Training in distributed mode with {args.n_gpus} GPUs')
         assert torch.cuda.is_available()
         device = rank
         lock = Path(os.getcwd(), f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
@@ -659,16 +570,10 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     else:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        logging.info(f'Using device {device}')
+        logger.info(f'Using device {device}')
 
     # Loading the fragment data
-    dataset = FragmentsDataset(root=dataroot, overfit=train_conf['overfit'])
-
-    # Splitting into train test
-    train_size = int(0.8 * len(dataset))
-    test_size = len(dataset) - train_size
-
-    train, test = td.random_split(dataset, [train_size, test_size])
+    train, test = create_datasets(dataroot, train_fraction=0.8, overfit=train_conf['overfit'])
 
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
@@ -687,8 +592,8 @@ def dummy_training(rank, dataroot, model, train_conf):
         )
 
     if rank == 0:
-        logging.info(f'Training loader has {len(train_dl)} batches')
-        logging.info(f'Validation loader has {len(test_dl)} batches')
+        logger.info(f'Training loader has {len(train_dl)} batches')
+        logger.info(f'Validation loader has {len(test_dl)} batches')
 
     loss_fn, metrics_fn = model.loss, model.metrics
     model = model.to(device)
@@ -700,7 +605,7 @@ def dummy_training(rank, dataroot, model, train_conf):
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[device])
     if rank == 0:
-        logging.info(f'Model: \n{model}')
+        logger.info(f'Model: \n{model}')
     torch.backends.cudnn.benchmark = True
 
     optimizer_fn = {'sgd': torch.optim.SGD,
@@ -718,7 +623,7 @@ def dummy_training(rank, dataroot, model, train_conf):
 
         params = list(filter(filter_fn, params))
         assert len(params) > 0, train_conf["opt_regexp"]
-        logging.info('Selected parameters:\n' +
+        logger.info('Selected parameters:\n' +
                      '\n'.join(n for n, p in params))
     optimizer = optimizer_fn(
         [p for n, p in params], lr=train_conf["lr"],
@@ -735,7 +640,7 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
     if rank == 0:
-        logging.info(f'Starting training with configuration:\n{train_conf}')
+        logger.info(f'Starting training with configuration:\n{train_conf}')
 
     losses_ = None
 
@@ -743,7 +648,7 @@ def dummy_training(rank, dataroot, model, train_conf):
     best_eval = 10000
     while epoch < train_conf["epochs"]:
 
-        logging.info(f'Starting epoch {epoch}')
+        logger.info(f'Starting epoch {epoch}')
         set_seed(train_conf["seed"] + epoch)
         if args.distributed:
             train_dl.sampler.set_epoch(epoch)
@@ -790,7 +695,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             loss.backward()
             optimizer.step()
             lr_scheduler.step()
-            
+
             if it % train_conf["log_every_iter"] == 0:
                 for k in sorted(losses.keys()):
                     if args.distributed:
@@ -800,12 +705,13 @@ def dummy_training(rank, dataroot, model, train_conf):
                     losses[k] = torch.mean(losses[k]).item()
                 if rank == 0:
                     str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
-                    logging.info('[E {} | it {}] loss {{{}}}'.format(epoch, it, ', '.join(str_losses)))
+                    logger.info('[E {} | it {}] loss {{{}}}'.format(
+                        epoch, it, ', '.join(str_losses)))
                     for k, v in losses.items():
                         writer.add_scalar('training/'+k, v, tot_it)
                     writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
-            
-            
+
+
 
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
@@ -823,7 +729,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                     for k, v in results.items():
                         writer.add_scalar('val/' + k, v, tot_it)
                 torch.cuda.empty_cache()  # should be cleared at the first iter
-            
+
             del pred, data, loss, losses
 
         if rank == 0 and epoch % 100 == 0:
@@ -840,14 +746,14 @@ def dummy_training(rank, dataroot, model, train_conf):
             }
             # changed string formatting
             cp_name = 'checkpoint_{}'.format(epoch)
-            logging.info('Saving checkpoint {}'.format(cp_name))
+            logger.info('Saving checkpoint {}'.format(cp_name))
             # changed string formatting
             cp_path = str(train_conf["output_dir"] + "/" + (cp_name + '.tar'))
             torch.save(checkpoint, cp_path)
 
             if results[train_conf["best_key"]] < best_eval:
                 best_eval = results[train_conf["best_key"]]
-                logging.info(f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
+                logger.info(f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
                 shutil.copy(cp_path, str(train_conf["output_dir"] + "/" + 'checkpoint_best.tar'))
             
             #delete_old_checkpoints(train_conf["output_dir"], train_conf["keep_last_checkpoints"])
@@ -855,7 +761,7 @@ def dummy_training(rank, dataroot, model, train_conf):
 
         epoch += 1
 
-    logging.info(f'Finished training.')
+    logger.info(f'Finished training.')
 
     writer.close()
 
@@ -893,6 +799,7 @@ def plot_matching_vector(data, pred):
     plt.close('all')
 
 if __name__ == '__main__':
+    logger.setLevel(logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--distributed', action='store_true')
     args = parser.parse_intermixed_args()
@@ -901,6 +808,7 @@ if __name__ == '__main__':
 
     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
     root = os.path.join(here, '..', 'object_fracturing', 'data')
+    # root = os.path.join(here, '..', 'object_fracturing', 'single_sample_data')
 
     np.set_printoptions(threshold=sys.maxsize)
     myGlue = SuperGlue(model_conf)
