@@ -58,7 +58,7 @@ import collections.abc as collections
 import re
 import shutil
 
-from hyperglue.dataset import FragmentsDataset
+from dataset import FragmentsDataset, create_datasets
 from utils import conf
 from utils.utils import PointNetEncoder
 
@@ -813,8 +813,8 @@ if __name__ == '__main__':
     train_conf = conf.train_conf
 
     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-    # root = os.path.join(here, '..', 'object_fracturing', 'data')
-    root = os.path.join(here, '..', 'object_fracturing', 'single_sample_data')
+    root = os.path.join(here, '..', 'object_fracturing', 'data')
+    # root = os.path.join(here, '..', 'object_fracturing', 'single_sample_data')
 
     np.set_printoptions(threshold=sys.maxsize)
     myGlue = SuperGlue(model_conf)

@@ -2,9 +2,10 @@ import os
 from glob import glob
 
 import numpy as np
-import torch.utils.data as td
 import torch
+import torch.utils.data as td
 from scipy.sparse import load_npz
+from sklearn.model_selection import train_test_split
 
 
 def pc_normalize(pc):
@@ -16,21 +17,34 @@ def pc_normalize(pc):
     return pc
 
 
-# Creating a own dataset type for our input, move this to a separate file later!
+def create_datasets(root, train_fraction, **dataset_kwargs):
+    object_folders = [os.path.join(root, folder) for folder in os.listdir(root)]
+    train_folders, test_folders, = train_test_split(
+        object_folders,
+        train_size=train_fraction,
+        random_state=42
+    )
+    train_dataset = FragmentsDataset(train_folders, **dataset_kwargs)
+    test_dataset = FragmentsDataset(test_folders, **dataset_kwargs)
+    return train_dataset, test_dataset
+
+
+# Creating a own dataset type for our input.
 # dataset definition
 class FragmentsDataset(td.Dataset):
-    # load the dataset
-    def __init__(self, root, normalize=True, overfit=False):
-        self.root = root
+    # load the dataset(
+    def __init__(self, object_folders, normalize=True, overfit=False, match_with_inverted=False):
         self.dataset = []
         self.normalize = normalize
         self.overfit = overfit
+        self.match_with_inverted = match_with_inverted
 
         # load the dataset
-        for folder in os.listdir(self.root):
-            processed = os.path.join(self.root, folder, 'processed', '')
+        for folder in object_folders:
+            object_name = os.path.basename(folder)
+            processed = os.path.join(folder, 'processed', '')
             matching = os.path.join(processed, 'matching', '')
-            match_path = ''.join([matching, folder, '_matching_matrix.npy'])
+            match_path = f'{matching}{object_name}_matching_matrix.npy'
             match_mat = np.load(match_path)
 
             # for each match pair load the keypoints, descripors and matches
@@ -49,6 +63,11 @@ class FragmentsDataset(td.Dataset):
                                 glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
                             item['path_kpts_desc_1'] = \
                                 glob(os.path.join(processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
+                            if self.match_with_inverted:
+                                item['path_kpts_desc_inverted_0'] = \
+                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{i}.npy'))[0]
+                                item['path_kpts_desc_inverted_1'] = \
+                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{j}.npy'))[0]
                             item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
                         else:
                             item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
@@ -57,17 +76,29 @@ class FragmentsDataset(td.Dataset):
                                 glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
                             item['path_kpts_desc_1'] = \
                                 glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                            if self.match_with_inverted:
+                                item['path_kpts_desc_inverted_0'] = \
+                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{i}.npy'))[0]
+                                item['path_kpts_desc_inverted_1'] = \
+                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{i}.npy'))[0]
                             item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
 
                         self.dataset.append(item)
 
     # number of rows in the dataset
     def __len__(self):
-        return len(self.dataset)
+        if self.match_with_inverted:
+            return 2 * len(self.dataset)
+        else:
+            return len(self.dataset)
 
     # get a row at an index
     def __getitem__(self, idx):
 
+        if self.match_with_inverted:
+            # Every pair of fragments is fed to the network twice, once frag_0 and inverted frag_1 and once vice versa.
+            inverted_0 = idx % 2 == 0
+            idx = idx // 2
         # i is the keypoint index in the 0 cloud, item is the corresponding
         # cloud of potential matchings in the other fragment
         gtasg = np.array(load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)
@@ -97,13 +128,23 @@ class FragmentsDataset(td.Dataset):
             kp1 = pc_normalize(kp1)
 
         # TODO, make pointnet in afterwards in forward pass from kpts and scores
+        if self.match_with_inverted:
+            if inverted_0:
+                desc_path_0 = self.dataset[idx]['path_kpts_desc_inverted_0']
+                desc_path_1 = self.dataset[idx]['path_kpts_desc_1']
+            else:
+                desc_path_0 = self.dataset[idx]['path_kpts_desc_0']
+                desc_path_1 = self.dataset[idx]['path_kpts_desc_inverted_1']
+        else:
+            desc_path_0 = self.dataset[idx]['path_kpts_desc_0']
+            desc_path_1 = self.dataset[idx]['path_kpts_desc_1']
         sample = {
             "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
             "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
             "scores0": torch.from_numpy(sc0.astype(np.float32)),
             "scores1": torch.from_numpy(sc1.astype(np.float32)),
-            "descriptors0": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_0']).astype(np.float32)),
-            "descriptors1": torch.from_numpy(np.load(self.dataset[idx]['path_kpts_desc_1']).astype(np.float32)),
+            "descriptors0": torch.from_numpy(np.load(desc_path_0).astype(np.float32)),
+            "descriptors1": torch.from_numpy(np.load(desc_path_1).astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
             "gt_matches0": torch.from_numpy(gt_matches0),
             "gt_matches1": torch.from_numpy(gt_matches1)
