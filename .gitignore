@@ -2,12 +2,15 @@
 *.DS_Store
 *.swp
 object_fracturing/blender_fracture_modifier
+object_fracturing/real_objects
+object_fracturing/data
+object_fracturing/data_zip
+__pycache__
 .idea
 output*
-object_fracturing/
 pcl/build/
 pcl/Release/
 *.zip
-object_fracturing/real_objects
+
 wandb/
 .vscode/
