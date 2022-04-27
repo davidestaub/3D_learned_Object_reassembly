@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
-project(PCL)
+project(pcl)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 find_package(PCL 1.3 REQUIRED COMPONENTS common io features kdtree visualization)
 include_directories(${PCL_INCLUDE_DIRS})
