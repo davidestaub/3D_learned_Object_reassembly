@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
 project(pcl)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(EIGEN_DIR "/cluster/project/infk/courses/252-0579-00L/group19/eigen-3.4.0")
+set(EIGEN_DIR "/cluster/project/infk/courses/252-0579-00L/group19/eigen-3.4.0/Eigen")
 set(PCL_DIR "/cluster/project/infk/courses/252-0579-00L/group19/pcl/Release")
 find_package(PCL 1.3 REQUIRED COMPONENTS common io features kdtree visualization)
 include_directories(${PCL_INCLUDE_DIRS})
