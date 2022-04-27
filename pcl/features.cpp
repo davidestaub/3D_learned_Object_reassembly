@@ -109,7 +109,8 @@ int main(int argc, char **argv)
   fpfh_estimation.compute(*pfh_features);
   size_t height = pfh_features->size();
   size_t width = 33;
-  size_t additional = 3;
+  // zero pad for attention heads
+  size_t additional = 4 - width % 4;
 
   float hist[height][width + additional];
 
