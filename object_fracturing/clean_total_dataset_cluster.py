@@ -40,12 +40,6 @@ def handle_folder(object_folder, dataroot):
     
     # clean the folder
     for filename in os.listdir(folder_path):
-        if filename in ['keypoints', 'keypoints_harris']:
-            try:
-                shutil.rmtree(os.path.join(folder_path, filename))
-            except:
-                pass
-            continue
         if filename in ['cleaned', 'processed']:
             continue
         file_path = os.path.join(folder_path, filename)
