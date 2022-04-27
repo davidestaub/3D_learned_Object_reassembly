@@ -4,7 +4,7 @@ model_conf = {
     'use_pointnet': False, # if true, using the pointnet as encoder and ignores the mlp one
     'use_mlp': True, # using the mlp encoder, only works if pointnet is false
     'use_desc': True,
-    'descriptor_dim': 33, # the descriptor dimension, this is what SHOT gives us
+    'descriptor_dim': 36, # the descriptor dimension, must be dividable by 4!!
     'weights': 'weights_01',
     'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 4, last to 33
     'GNN_layers': ['self', 'cross'] * 9,
@@ -24,8 +24,8 @@ model_conf = {
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 1000,  # number of epochs
-    'batch_size_train': 24,  # training batch size
-    'batch_size_test': 24, #test batch size
+    'batch_size_train': 1,  # training batch size
+    'batch_size_test': 1, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
@@ -40,5 +40,5 @@ train_conf = {
     'dataset_callback_fn': None,  # data func called at the start of each epoch
     'output_dir': "output",
     'load_weights': False,
-    'overfit': False,
+    'overfit': True,
 }
