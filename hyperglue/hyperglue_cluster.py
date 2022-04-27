@@ -710,7 +710,8 @@ def dummy_training(rank, dataroot, model, train_conf):
                     for k, v in losses.items():
                         writer.add_scalar('training/'+k, v, tot_it)
                     writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
-
+                    wandb.log({'lr':  optimizer.param_groups[0]['lr']})
+                    wandb.log({'loss_train': str_losses[0]})
 
 
             if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
@@ -720,8 +721,8 @@ def dummy_training(rank, dataroot, model, train_conf):
                     str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
                     wandb.log({'match_recall': results['match_recall']})
                     wandb.log({'match_precision': results['match_precision']})
-                    wandb.log({'loss/total': results['loss/total']})
-                    wandb.log({'lr':  optimizer.param_groups[0]['lr']})
+                    wandb.log({'loss_test': results['loss/total']})
+                    
                     # log matching matrix
                     plot_matching_vector(data, pred)
 
