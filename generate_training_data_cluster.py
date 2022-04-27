@@ -1,3 +1,4 @@
+from asyncio import subprocess
 from tools.transformation import centering_centroid
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.tools import polyfit3d, mesh_faces_to_triangles
@@ -8,10 +9,11 @@ from glob import glob
 from typing import List
 from sklearn.decomposition import PCA
 import sys
+import pyshot
+import subprocess
 from joblib import Parallel, delayed, cpu_count
 import shutil
 import numpy as np
-import pyshot
 import time
 from datetime import datetime
 from compas.datastructures import Mesh
@@ -19,7 +21,7 @@ from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from scipy.sparse import save_npz, csr_matrix
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-
+import gc
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
@@ -40,11 +42,10 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     for i in range(num_parts):
         for j in range(i):
             # Search for corresponding points in two parts (distance below a treshold).
-            matches = np.sum(
-                cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
+            matches = np.sum(cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
 
             # If there are more than 100 matches, the parts are considered neighbours.
-            if matches > 100:
+            if matches > 300:
                 matching_matrix[i, j] = matching_matrix[j, i] = 1
 
     np.save(matching_matrix_path, matching_matrix)
@@ -143,7 +144,7 @@ def get_harris_keypoints(vertices):
     return keypoint_indexes
 
 
-def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
+def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.001):
     dists = cdist(keypoints1, keypoints2)
     close_enough_mask = np.min(dists, axis=0) < threshold
     closest = np.argmin(dists, axis=0)
@@ -155,29 +156,37 @@ def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.05):
 
 
 def get_descriptors(i, vertices, faces, args, folder_path):
+    # shesh
     method = args.descriptor_method
+    mount_path = '/mnt/c/Users/mathi/OneDrive/Studium/ETH/MA2/3D Vision/Project/Old Project/3D_learned_Object_reassembly'
+    primitive = folder_path.split('/')[-1]
+    filename = ''.join([primitive, f'_cleaned.{i}.pcd'])
 
-    descriptor_path = os.path.join(folder_path, 'processed', 'descriptors_all_points',
-                                   f'descriptors_all_points_{method}.{i}.npy')
-    os.makedirs(os.path.dirname(descriptor_path), exist_ok=True)
-
-    if os.path.exists(descriptor_path):
-        descriptors = np.load(descriptor_path)
-        return descriptors
     if method == 'shot':
         descriptors = pyshot.get_descriptors(vertices, faces,
-                                             radius=args.radius,
-                                             local_rf_radius=args.local_rf_radius,
-                                             min_neighbors=args.min_neighbors,
-                                             n_bins=args.n_bins,
-                                             double_volumes_sectors=args.double_volumes_sectors,
-                                             use_interpolation=args.use_interpolation,
-                                             use_normalization=args.use_normalization,
-                                             )
+                                                radius=args.radius,
+                                                local_rf_radius=args.local_rf_radius,
+                                                min_neighbors=args.min_neighbors,
+                                                n_bins=args.n_bins,
+                                                double_volumes_sectors=args.double_volumes_sectors,
+                                                use_interpolation=args.use_interpolation,
+                                                use_normalization=args.use_normalization,
+                                                )      
+        descriptor_path = os.path.join(folder_path, 'processed', 'descriptors_all_points', f'descriptors_all_points_{method}.{i}.npy')              
         np.save(descriptor_path, descriptors)
         return descriptors
-    else:
-        raise NotImplementedError
+
+    if method == 'fpfh':
+        method = args.descriptor_method
+        in_path = os.path.join(mount_path, folder_path, 'cleaned', filename)
+        out_path = os.path.join(mount_path, folder_path, 'processed', 'descriptors_all_points', f'descriptors_all_points_{method}.{i}.txt')
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+        fpfh_args = ['/home/mathi/PCL/Release/fpfh', in_path, out_path, args.invert_normals]
+        subprocess.check_call(fpfh_args)
+        descriptors = np.loadtxt(out_path)
+        return descriptors
+
 
 
 def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
@@ -195,7 +204,7 @@ def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
         return keypoints, keypoint_descriptors
 
     if args.keypoint_method == 'SD':
-        keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.01)
+        keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.05)
         keypoint_descriptors = descriptors[keypoint_idxs]
         np.save(keypoint_path, keypoints)
         np.save(keypoint_descriptors_path, keypoint_descriptors)
@@ -245,10 +254,8 @@ def process_folder(folder_path, args):
     keypoints = []
     descriptors = []
     for i in range(num_fragments):
-        fragment_descriptors = get_descriptors(
-            i, fragments_vertices[i], fragments_faces[i], args, folder_path)
-        fragment_keypoints, fragment_keypoint_descriptors = get_keypoints(i, fragments_vertices[i], fragments_normals[i],
-                                                                          fragment_descriptors, args, folder_path)
+        fragment_descriptors = get_descriptors(i, fragments_vertices[i], fragments_faces[i], args, folder_path)
+        fragment_keypoints, fragment_keypoint_descriptors = get_keypoints(i, fragments_vertices[i], fragments_normals[i], fragment_descriptors, args, folder_path)
         keypoints.append(fragment_keypoints)
         descriptors.append(fragment_keypoint_descriptors)
 
@@ -257,28 +264,26 @@ def process_folder(folder_path, args):
     for i in range(num_fragments):
         for j in range(i):
             if matching_matrix[i, j]:
-                keypoint_assignment = get_keypoint_assignment(
-                    keypoints[i][:,:3], keypoints[j][:,:3]).astype(int)
+                keypoint_assignment = get_keypoint_assignment( keypoints[i][:,:3], keypoints[j][:,:3]).astype(int)
+                print(f"Found {np.sum(keypoint_assignment)} matches!")
                 # save the matching matrix as sparse scipy file
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
                 path = os.path.join(folder_path, 'processed', 'matching', name)
                 save_npz(path, csr_matrix(keypoint_assignment))
 
     # delete unecessary files again
-    shutil.rmtree(os.path.join(
-        folder_path, 'processed', 'descriptors_all_points'))
+    shutil.rmtree(os.path.join(folder_path, 'processed', 'descriptors_all_points'))
 
     del keypoints, descriptors, matching_matrix, fragment_descriptors
-
+    gc.collect()
     print(f'Processed folder {folder_path}')
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        "generate_iss_keypoints_and_shot_descriptors")
+    parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
 
     parser.add_argument("--keypoint_method", type=str,default='SD', choices=['iss', 'SD', 'harris'])
-    parser.add_argument("--descriptor_method", type=str,default='shot', choices=['shot'])
+    parser.add_argument("--descriptor_method", type=str,default='fpfh', choices = ['shot', 'fpfh'])
     parser.add_argument("--data_dir", type=str, default='')
     # Args for SHOT descriptors.
     parser.add_argument("--radius", type=float, default=0.1),
@@ -288,22 +293,17 @@ def main():
     parser.add_argument("--double_volumes_sectors", action='store_true')
     parser.add_argument("--use_interpolation", action='store_true')
     parser.add_argument("--use_normalization", action='store_true')
+    parser.add_argument("--invert_normals", default="True")
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
-    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data_full', 'data') if not args.data_dir else args.data_dir
-    logfile = 'data_gen_log.txt'
-    if not os.path.exists(logfile):
-        with open(logfile, 'w') as f:
-            f.write(f'LOG AT {datetime.fromtimestamp(time.time())}\n\n\n')
+    args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
 
+    print(f'Data dir: {args.data_dir}')
     object_folders = glob(os.path.join(args.data_dir, '*'))
     for f in object_folders:
         if os.path.isdir(f):
             process_folder(f, args)
-            with open(logfile, 'a') as f:
-                f.write(f'Processed folder: {f}\n')
-
 
 
 if __name__ == '__main__':
