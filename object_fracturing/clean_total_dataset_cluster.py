@@ -6,7 +6,7 @@ from compas.datastructures import Mesh
 from compas.datastructures import mesh_explode
 import open3d as o3d
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-dataroot = os.path.join(here, 'data_full', 'data')
+dataroot = os.path.join(here, 'data_full')
 dashed_line = "----------------------------------------------------------------\n"
 
 def handle_folder(object_folder):
