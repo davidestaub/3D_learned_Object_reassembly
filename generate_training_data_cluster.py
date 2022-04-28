@@ -11,17 +11,18 @@ from sklearn.decomposition import PCA
 import sys
 import pyshot
 import subprocess
-from joblib import Parallel, delayed, cpu_count
+from multiprocessing import Pool
+from functools import partial
 import shutil
 import numpy as np
-import time
-from datetime import datetime
 from compas.datastructures import Mesh
 from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from scipy.sparse import save_npz, csr_matrix
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 import gc
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
@@ -300,10 +301,9 @@ def main():
 
     print(f'Data dir: {args.data_dir}')
     object_folders = glob(os.path.join(args.data_dir, '*'))
-    for f in object_folders:
-        if os.path.isdir(f):
-            process_folder(f, args)
-
+    
+    with Pool(4) as p:
+        p.map(partial(process_folder, args=args), object_folders)
 
 if __name__ == '__main__':
     main()

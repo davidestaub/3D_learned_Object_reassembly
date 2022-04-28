@@ -5,6 +5,9 @@ from multiprocessing import Pool
 from compas.datastructures import Mesh
 from compas.datastructures import mesh_explode
 import open3d as o3d
+import gc
+
+
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 dataroot = os.path.join(here, 'data_full')
 dashed_line = "----------------------------------------------------------------\n"
@@ -90,6 +93,7 @@ def handle_folder(object_folder):
     with open(log_path, "w+") as text_file:
         text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
+    gc.collect()
 
 if __name__ == '__main__':
     folders = os.listdir(dataroot)
