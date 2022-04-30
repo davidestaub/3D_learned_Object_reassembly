@@ -3,10 +3,10 @@ import numpy as np
 import shutil
 import sys
 from joblib import Parallel, delayed
-from compas.datastructures import Mesh, mesh_transform_numpy
+from compas.datastructures import Mesh
+from compas.geometry import Pointcloud
 from compas.datastructures import mesh_explode
-from compas.datastructures import mesh_subdivide_corner
-import compas.geometry as cg
+import open3d as o3d
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 dataroot = os.path.join(here, 'data')
 
@@ -16,9 +16,6 @@ dashed_line = "----------------------------------------------------------------\
 # ==============================================================================
 # File
 # ==============================================================================
-
-
-
 
 # total folders (-1 for keypoint folder)
 total_folders = len([i for i in os.listdir(dataroot)]) - 1
@@ -73,7 +70,7 @@ def handle_folder(object_folder, dataroot):
                         shard_number = int(shard_split)
                 new_name = object_folder + "_shard_" + str(shard_number) + ".obj"
             try:
-                os.rename(file_path, new_name)
+                os.rename(file_path, new_name, )
             except:
                 pass
         else:
@@ -101,8 +98,9 @@ def handle_folder(object_folder, dataroot):
             if filename.endswith('.obj'):
                 mesh = Mesh.from_obj(file_path)
                 if not mesh.is_manifold():
-                    print(f'Mesh {filename} not manifold!')
-                    return 
+                    print(f'Mesh {filename} not manifold! Deleting it!')
+                    shutil.rmtree(os.path.join(folder_path))
+                    return
             # explode them to sepparate loose parts
             exploded_meshes = mesh_explode(mesh)
             if len(exploded_meshes) > 1:
@@ -116,21 +114,20 @@ def handle_folder(object_folder, dataroot):
                     log.append(f'Deleted a small fragment of shard: {shard_counter}\n')
                     continue
 
-                # center to origin (this destroys matching!!)
-                #center = ex_mesh.centroid()
-                #vec =  cg.Vector(-center[0], -center[1], -center[2])
-                #mesh_transform_numpy(ex_mesh, cg.Translation.from_vector(vec))
                 # save to new file
                 name = object_folder + "_cleaned." + str(piece_counter)
-                FILE_NPY = os.path.join(folder_path, 'cleaned', name + ".npy")
+                FILE_PCD = os.path.join(folder_path, 'cleaned', name + ".pcd")
                 FILE_OBJ = os.path.join(folder_path, 'cleaned', name + ".obj")
-                
                 ex_mesh.to_obj(FILE_OBJ)
                 piece_counter += 1
-                vertices = np.array([ex_mesh.vertex_coordinates(vkey)for vkey in ex_mesh.vertices()])
-                normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()])
-                data = np.concatenate((vertices, normals), axis=1)
-                np.save(FILE_NPY, data)
+                vertices = np.array([ex_mesh.vertex_coordinates(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
+                normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
+                # create a pointcloud and save as pcd file with o3d 
+                pcd = o3d.t.geometry.PointCloud()
+                pcd.point['positions'] = o3d.core.Tensor(vertices)
+                pcd.point['normals'] = o3d.core.Tensor(normals)
+                o3d.t.io.write_point_cloud(FILE_PCD, pcd)
+
 
             shard_counter += 1
 
@@ -140,4 +137,5 @@ def handle_folder(object_folder, dataroot):
         text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
 
-Parallel(n_jobs=6)(delayed(handle_folder)(folder, dataroot) for folder in os.listdir(dataroot))
+folders = os.listdir(dataroot)
+Parallel(n_jobs=4)(delayed(handle_folder)(folder, dataroot) for folder in folders)

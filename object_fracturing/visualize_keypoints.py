@@ -50,7 +50,7 @@ kpts_file_path = os.path.join(KPTS_IN, kpts_file)
 
 mesh = Mesh().from_obj(file_path)
 kpts = np.load(kpts_file_path)
-kpts = Pointcloud(kpts)
+kpts = Pointcloud(kpts[:,:3])
 
 # initialize viewer
 viewer = App()
