@@ -427,11 +427,12 @@ class SuperGlue(nn.Module):
     # Copied from superglue_v1.py
     def metrics(self, pred, data):
         def recall(m, gt_m):
-            #added this
-            #m=m.squeeze()
-            #gt_m = gt_m.unsqueeze(dim=1)
-
             mask = (gt_m > -1).float()
+            print(mask)
+            print("mask sum",mask.sum(1))
+            print("m= ",m)
+            print("gt_m= ", gt_m)
+
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
         def precision(m, gt_m):
