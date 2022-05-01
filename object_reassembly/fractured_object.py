@@ -1,8 +1,9 @@
 import os
 import numpy as np
-# from compas.datastructures import Mesh
-# from compas.geometry import Rotation
+from compas.datastructures import Mesh
+from compas.geometry import Rotation as Rot, Translation, Pointcloud
 from scipy.spatial.transform import Rotation
+import blender_vis
 
 np.random.seed(42)
 
@@ -11,37 +12,41 @@ class FracturedObject(object):
 
     def __init__(self, name):
         self.name = name
-        self.fragments = {}
+        self.fragments_meshes = {}
         self.fragment_matches_gt = []
         self.fragment_matches = []
         self.kpts = {}
         self.kpt_matches_gt = {}
-        self.kp_matches = {}
+        self.kpt_matches = {}
         self.random_transf = {}
         self.transformations = {}
 
     # load fragment pointclouds and keypoints
     def load_object(self, path):
 
-        print("Loading fragments of object " + self.name + "...")
-
         new_path = path + self.name + "/cleaned/"
 
+        print("Loading fragment meshes of object " + self.name + "...")
+
         for fragment in os.listdir(new_path):
-            if fragment.endswith('.npy'):
-                frag_no = fragment.rsplit(sep=".")[1]
-                self.fragments[frag_no]=np.load(new_path+fragment)
+            if fragment.endswith('.obj'):
+                frag_no = int(fragment.rsplit(sep=".")[1])
+                self.fragments_meshes[frag_no]=Mesh.from_obj(filepath=new_path+fragment)
 
         print("Loading keypoints of object " + self.name + "...")
 
         new_path = path + self.name + "/processed/keypoints/"
 
         for kpts in os.listdir(new_path):
-            frag_no = kpts.rsplit(sep=".")[1]
-            self.kpts[frag_no] = np.load(new_path + kpts)
+            frag_no = int(kpts.rsplit(sep=".")[1])
+            self.kpts[frag_no] = Pointcloud(np.load(new_path + kpts))
 
+    def save_object(self, path):
+        # TODO: implement
+        pass
+
+    # load ground truth matches
     def load_gt(self, path):
-
         print("Loading ground truth matches of object " + self.name + "...")
 
         new_path = path + self.name + "/processed/matching/" + self.name + "_matching_matrix.npy"
@@ -59,8 +64,10 @@ class FracturedObject(object):
         self.kpt_matches[(idx0, idx1)] = matches0
         self.kpt_matches[(idx1, idx0)] = matches1
 
+    # construct random transformation
     def create_random_pose(self):
-        for fragment in self.fragments.keys():
+        print("Creating random pose for object " + self.name + "...")
+        for fragment in self.fragments_meshes.keys():
 
             # insert random rotations
             theta_x = np.random.uniform(0, 2*np.pi)
@@ -70,9 +77,26 @@ class FracturedObject(object):
             r = Rotation.from_euler(seq='xyz', angles=[theta_x, theta_y, theta_z])
 
             # insert random translation
-            t = [np.random.uniform(), np.random.uniform(), np.random.uniform()]
+            t = [np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)]
 
-            self.random_transf[fragment] = (r.as_matrix(), t)
+            self.random_transf[int(fragment)] = (r, t)
+
+    def apply_random_transf(self):
+
+        print("Applying random transformation to fragments...")
+
+        for key, fragment in self.fragments_meshes.items():
+            r_qut = self.random_transf[key][0].as_quat()
+            Mesh.transform(fragment, Rot.from_quaternion(r_qut))
+            Mesh.transform(fragment, Translation.from_vector(self.random_transf[key][1]+[0]))
+
+        print("Applying random transformation to keypoints...")
+
+        for key, points in self.kpts.items():
+            r_qut = self.random_transf[key][0].as_quat()
+            points.transform(Rot.from_quaternion(r_qut))
+            points.transform(Translation.from_vector(self.random_transf[key][1]+[0]))
+
 
     def plot_kpts_ptclouds(self):
         # TODO: implement

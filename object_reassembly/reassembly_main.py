@@ -3,96 +3,54 @@ import open3d
 import compas
 from tools import *
 import numpy as np
-from compas.datastructures import Mesh
-from compas.geometry import Pointcloud
-from compas.geometry import Translation, Rotation
-from compas_view2.app import App
+
+from scipy.spatial.distance import cdist
+from scipy.spatial.transform import Rotation
+from fractured_object import FracturedObject
+from compas_vis import show
 
 here = os.path.dirname(os.path.abspath(__file__))
-path = "../data/bottle_10_seed_1/"
+path = "../data/"
 
 
-class FracturedObject(object):
+def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.001):
+    dists = cdist(keypoints1, keypoints2)
+    close_enough_mask = np.min(dists, axis=0) < threshold
+    closest = np.argmin(dists, axis=0)
 
-    def __init__(self):
-        self.fragments = []
-        self.fragment_matches = []
-        self.kpts = {}
-        self.kpt_matches = {}
-        self.transformations = {}
+    keypoint_assignment = np.zeros((keypoints1.shape[0], keypoints2.shape[0]))
+    keypoint_assignment[closest[close_enough_mask], close_enough_mask] = 1
 
-    def load_object(self, path):
-        for object in os.listdir(path):
-            if object.endswith('.obj'):
-                self.fragments.append(Mesh.from_obj(path+object))
+    return keypoint_assignment
 
-        matches_path = os.listdir(path+"matching/")[1]
-        self.fragment_matches = np.load(path+"matching/"+matches_path)
+def get_viewer_data(fragments = None, keypoints = None):
+    data = {}
+    if fragments:
+        data["fragments"] = fragments
 
-        for idx, points in enumerate(os.listdir(path+"keypoints/")):
-            self.kpts[idx] = np.load(path+"keypoints/"+points)
-
-    def load_kpt_matches(self, matches0, matches1, idx0, idx1):
-        self.kpt_matches[(idx0, idx1)] = matches0
-        self.kpt_matches[(idx1, idx0)] = matches1
-
-    def find_transformations_first3kpts(self):
-        for fragment0 in range(len(self.fragments)-1):
-            for fragment1 in range(len(self.fragments)-1):
-                if self.fragment_matches[fragment0][fragment1]:
-                    pts0 = np.array([self.kpts[fragment0][idx] for idx in self.kpt_matches[(fragment0, fragment1)][0:3]])
-                    pts1 = np.array([self.kpts[fragment1][idx] for idx in self.kpt_matches[(fragment1, fragment0)][0:3]])
-
-                    centroid0 = np.mean(pts0, axis=1)
-                    centroid1 = np.mean(pts1, axis=1)
-
-                    centroid0 = centroid0.reshape(-1, 1)
-                    centroid1 = centroid1.reshape(-1, 1)
-
-                    m0 = pts0 - centroid0
-                    m1 = pts1 - centroid1
-
-                    H = m0 @ np.transpose(m1)
-                    U, S, Vt = np.linalg.svd(H)
-                    R = Vt.T @ U.T
-
-                    t = -R @ centroid0 + centroid1
-
-                    pad_row = np.array([[0, 0, 0, 1]])
-                    pad_col = np.array([[0], [0], [0]])
-                    tmp = np.concatenate((R, pad_col), axis=1)
-
-                    R_pad = np.concatenate((tmp, pad_row))
-
-                    # insert random rotations for now:
-                    theta_x = np.random.uniform(0, 2*np.pi)
-                    theta_y = np.random.uniform(0, 2*np.pi)
-                    theta_z = np.random.uniform(0, 2*np.pi)
-
-                    r = Rotation.from_euler_angles([theta_x, theta_y, theta_z])
-
-                    R = r.data["matrix"]
-
-                    self.transformations[(fragment0, fragment1)] = (R, t)
+    if keypoints:
+        data["keypoints"] = keypoints
+    return data
 
 
 def main():
-
-    dummy_matches0 = [0, 1, 2]
-    dummy_matches1 = [0, 1, 2]
-
-    bottle = FracturedObject()
-
+    bottle = FracturedObject(name="bottle_10_seed_1")
     bottle.load_object(path)
-    for i in range(10):
-        for ii in range(10):
-            if bottle.fragment_matches[i][ii]:
-                bottle.load_kpt_matches(dummy_matches0, dummy_matches1, i, ii)
-    bottle.find_transformations_first3kpts()
+    bottle.load_gt(path)
 
-    viewer = App()
-    viewer.add(bottle.fragments[0])
-    viewer.show()
+    bottle.create_random_pose()
+    bottle.apply_random_transf()
+
+    data = get_viewer_data(keypoints=list(bottle.kpts.values()), fragments=list(bottle.fragments_meshes.values()))
+    show(data)
+
+    matches = get_keypoint_assignment(bottle.keypoints[0], bottle.keypoints[5])
+
+    dummy_matches0 = np.where(matches == 1)[0]
+    dummy_matches1 = np.where(matches == 1)[1]
+
+    bottle.load_kpt_matches(dummy_matches0, dummy_matches1, 0, 5)
+    bottle.find_transformations_first3kpts()
 
     # matched = bool(0)
     # for i in range(10):
@@ -121,5 +79,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
