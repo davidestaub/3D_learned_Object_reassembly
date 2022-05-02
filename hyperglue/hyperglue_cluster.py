@@ -500,7 +500,8 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     # Loading the fragment data
     train, test = create_datasets(dataroot, conf = train_conf)
-
+    print(f"Train size: {train.__len__()}\nTest size:{test.__len__()}")
+    
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
         train,
