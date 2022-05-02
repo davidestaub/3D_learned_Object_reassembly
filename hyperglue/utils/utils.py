@@ -5,7 +5,57 @@ import torch.nn.parallel
 import torch.utils.data
 from torch.autograd import Variable
 import numpy as np
+import wandb
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+colors = 'red blue green'.split()
+cmap = ListedColormap(colors, name='colors')
+
+def construct_match_vector(gt, pred):
+
+    mat = np.zeros((10, len(gt)+1))
+    for i in range(len(gt)):
+        g = gt[i]
+        p = pred[i]
+        if g == p and g == -1:
+            mat[:, i] = 1 #cyan
+        elif g == p and g != -1:
+            mat[:, i] = 2 # green
+        else:
+            mat[:, i] = 0 #red
+    # add additional green row to show right colors
+    mat[:,i+1] = 2
+
+    return mat.tolist()
+
+def plot_matching_vector(data, pred):
+    """Generates a matching vector for the matches 0 1 and their respective ground truth"""
+    # extract the necessary data
+    fig, axs = plt.subplots(2, 1, figsize=(10, 2))
+    gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
+    pred0= pred['matches0'].cpu().detach().numpy()[0]
+    gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
+    pred1= pred['matches1'].cpu().detach().numpy()[0]
+    # construct the matching matrix
+    # by converting from index correspondence to a vector with three values
+    # 0:Red   -> There is a match but prediction wrong
+    # 1:Blue  -> There is no match and it predicted no match
+    # 2:Green -> There is a match and prediction is true
+    matches0 = construct_match_vector(gt0, pred0)
+    matches1 = construct_match_vector(gt1, pred1)
+    # detach to cpu and generate plots
+    axs[0].imshow(matches0, cmap = cmap)
+    axs[1].imshow(matches1, cmap = cmap)
+    axs[0].set_title('matches 0')
+    axs[1].set_title('matches 1')
+    axs[0].set_xticks([i for i in range(len(gt0))])
+    axs[1].set_xticks([i for i in range(len(gt1))])
+    axs[0].get_yaxis().set_ticks([])
+    axs[1].get_yaxis().set_ticks([])
+    plt.tight_layout()
+    wandb.log({"matching" : fig})
+    plt.close('all')
 
 class STN3d(nn.Module):
     def __init__(self, channel):

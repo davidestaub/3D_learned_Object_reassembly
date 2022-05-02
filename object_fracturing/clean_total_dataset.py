@@ -2,27 +2,24 @@ import os
 import numpy as np
 import shutil
 import sys
-from joblib import Parallel, delayed
+from multiprocessing import Pool
 from compas.datastructures import Mesh
 from compas.geometry import Pointcloud
 from compas.datastructures import mesh_explode
 import open3d as o3d
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 dataroot = os.path.join(here, 'data')
+#dataroot = os.path.abspath('D:\\Studium Daten\\MA2\\3D Vision\\data_full')
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from tools.tools import mesh_faces_to_triangles
 dashed_line = "----------------------------------------------------------------\n"
-# ==============================================================================
-# File
-# ==============================================================================
+
 
 # total folders (-1 for keypoint folder)
-total_folders = len([i for i in os.listdir(dataroot)]) - 1
+total_folders = len([i for i in os.listdir(dataroot)])
 subdivide = False 
 
 
-def handle_folder(object_folder, dataroot):
+def handle_folder(object_folder):
     log = []
 
     folder_path = os.path.join(dataroot, object_folder)
@@ -98,8 +95,7 @@ def handle_folder(object_folder, dataroot):
             if filename.endswith('.obj'):
                 mesh = Mesh.from_obj(file_path)
                 if not mesh.is_manifold():
-                    print(f'Mesh {filename} not manifold! Deleting it!')
-                    shutil.rmtree(os.path.join(folder_path))
+                    print(f'Mesh {filename} not manifold!')
                     return
             # explode them to sepparate loose parts
             exploded_meshes = mesh_explode(mesh)
@@ -137,5 +133,7 @@ def handle_folder(object_folder, dataroot):
         text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
 
-folders = os.listdir(dataroot)
-Parallel(n_jobs=4)(delayed(handle_folder)(folder, dataroot) for folder in folders)
+if __name__ == '__main__':
+    folders = os.listdir(dataroot)
+    with Pool(4) as p:
+        p.map(handle_folder, folders)
