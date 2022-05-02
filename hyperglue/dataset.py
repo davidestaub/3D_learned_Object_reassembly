@@ -17,15 +17,15 @@ def pc_normalize(pc):
     return pc
 
 
-def create_datasets(root, train_fraction, **dataset_kwargs):
+def create_datasets(root, conf):
     object_folders = [os.path.join(root, folder) for folder in os.listdir(root)]
     train_folders, test_folders, = train_test_split(
         object_folders,
-        train_size=train_fraction,
-        random_state=42
+        train_size = conf['train_fraction'],
+        random_state = conf['seed']
     )
-    train_dataset = FragmentsDataset(train_folders, **dataset_kwargs)
-    test_dataset = FragmentsDataset(test_folders, **dataset_kwargs)
+    train_dataset = FragmentsDataset(train_folders, conf)
+    test_dataset = FragmentsDataset(test_folders, conf)
     return train_dataset, test_dataset
 
 
@@ -33,11 +33,11 @@ def create_datasets(root, train_fraction, **dataset_kwargs):
 # dataset definition
 class FragmentsDataset(td.Dataset):
     # load the dataset(
-    def __init__(self, object_folders, normalize=True, overfit=False, match_with_inverted=False):
+    def __init__(self, object_folders, conf):
         self.dataset = []
-        self.normalize = normalize
-        self.overfit = overfit
-        self.match_with_inverted = match_with_inverted
+        self.normalize = conf['normalize_data']
+        self.overfit = conf['overfit']
+        self.match_with_inverted = conf['match_inverted']
 
         # load the dataset
         for folder in object_folders:

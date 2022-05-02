@@ -9,17 +9,23 @@ import gc
 
 
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-dataroot = os.path.join(here, 'data_full')
+dataroot = os.path.abspath('/cluster/project/infk/courses/252-0579-00L/group19/blender_fracture_modifier/script-output')
+
 dashed_line = "----------------------------------------------------------------\n"
 
 def handle_folder(object_folder):
     log = []
-
     folder_path = os.path.join(dataroot, object_folder)
+    cleaned_path = os.path.join(folder_path, 'cleaned')
+
+
+    # go back if already processed
+    if os.path.exists(os.path.join(folder_path, 'log.txt')):
+        return
 
     # delete the premade cleaned and subdv folder
     try:
-        shutil.rmtree(os.path.join(folder_path, 'cleaned'))
+        shutil.rmtree(cleaned_path)
     except:
         pass
 
@@ -97,5 +103,5 @@ def handle_folder(object_folder):
 
 if __name__ == '__main__':
     folders = os.listdir(dataroot)
-    with Pool(10) as p:
+    with Pool(64) as p:
         p.map(handle_folder, folders)

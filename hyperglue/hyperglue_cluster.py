@@ -1,49 +1,12 @@
-# %BANNER_BEGIN%
-# ---------------------------------------------------------------------
-# %COPYRIGHT_BEGIN%
-#
-#  Magic Leap, Inc. ("COMPANY") CONFIDENTIAL
-#
-#  Unpublished Copyright (c) 2020
-#  Magic Leap, Inc., All Rights Reserved.
-#
-# NOTICE:  All information contained herein is, and remains the property
-# of COMPANY. The intellectual and technical concepts contained herein
-# are proprietary to COMPANY and may be covered by U.S. and Foreign
-# Patents, patents in process, and are protected by trade secret or
-# copyright law.  Dissemination of this information or reproduction of
-# this material is strictly forbidden unless prior written permission is
-# obtained from COMPANY.  Access to the source code contained herein is
-# hereby forbidden to anyone except current COMPANY employees, managers
-# or contractors who have executed Confidentiality and Non-disclosure
-# agreements explicitly covering such access.
-#
-# The copyright notice above does not evidence any actual or intended
-# publication or disclosure  of  this source code, which includes
-# information that is confidential and/or proprietary, and is a trade
-# secret, of  COMPANY.   ANY REPRODUCTION, MODIFICATION, DISTRIBUTION,
-# PUBLIC  PERFORMANCE, OR PUBLIC DISPLAY OF OR THROUGH USE  OF THIS
-# SOURCE CODE  WITHOUT THE EXPRESS WRITTEN CONSENT OF COMPANY IS
-# STRICTLY PROHIBITED, AND IN VIOLATION OF APPLICABLE LAWS AND
-# INTERNATIONAL TREATIES.  THE RECEIPT OR POSSESSION OF  THIS SOURCE
-# CODE AND/OR RELATED INFORMATION DOES NOT CONVEY OR IMPLY ANY RIGHTS
-# TO REPRODUCE, DISCLOSE OR DISTRIBUTE ITS CONTENTS, OR TO MANUFACTURE,
-# USE, OR SELL ANYTHING THAT IT  MAY DESCRIBE, IN WHOLE OR IN PART.
-#
-# %COPYRIGHT_END%
-# ----------------------------------------------------------------------
-# %AUTHORS_BEGIN%
-#
-#  Originating Authors: Paul-Edouard Sarlin
-#
-# %AUTHORS_END%
-# --------------------------------------------------------------------*/
-# %BANNER_END%
 import argparse
 from copy import deepcopy
 from distutils.command.config import config
 from pathlib import Path
 from typing import List, Tuple
+# import and compile gpu options
+from utils.options_detector import Options
+opt = Options().parse()
+
 import torch
 from torch import nn
 import torch.utils.data as td
@@ -51,13 +14,12 @@ import numpy as np
 import logging
 import os
 import random
-from glob import glob
 from tqdm import tqdm
 from torch._six import string_classes
 import collections.abc as collections
 import re
 import shutil
-
+from utils.utils import plot_matching_vector
 from dataset import FragmentsDataset, create_datasets
 from utils import conf
 from utils.utils import PointNetEncoder
@@ -65,13 +27,9 @@ from utils.utils import PointNetEncoder
 from torch.utils.tensorboard import SummaryWriter
 from experiments import delete_old_checkpoints
 import sys
-from scipy.sparse import load_npz
 import wandb
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-colors = 'red blue green'.split()
-cmap = ListedColormap(colors, name='colors')
+
 
 logger = logging.getLogger(__name__)
 
@@ -247,20 +205,6 @@ def arange_like(x, dim: int):
 
 
 class SuperGlue(nn.Module):
-    """SuperGlue feature matching middle-end
-    Given two sets of keypoints and locations, we determine the
-    correspondences by:
-      1. Keypoint Encoding (normalization + visual feature and location fusion)
-      2. Graph Neural Network with multiple self and cross-attention layers
-      3. Final projection layer
-      4. Optimal Transport Layer (a differentiable Hungarian matching algorithm)
-      5. Thresholding matrix based on mutual exclusivity and a match_threshold
-    The correspondence ids use -1 to indicate non-matching points.
-    Paul-Edouard Sarlin, Daniel DeTone, Tomasz Malisiewicz, and Andrew
-    Rabinovich. SuperGlue: Learning Feature Matching with Graph Neural
-    Networks. In CVPR, 2020. https://arxiv.org/abs/1911.11763
-    """
-
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -456,24 +400,6 @@ def batch_to_device(batch, device, non_blocking=True):
 
     return map_tensor(batch, _func)
 
-
-def construct_match_vector(gt, pred):
-
-    mat = np.zeros((10, len(gt)+1))
-    for i in range(len(gt)):
-        g = gt[i]
-        p = pred[i]
-        if g == p and g == -1:
-            mat[:, i] = 1 #cyan
-        elif g == p and g != -1:
-            mat[:, i] = 2 # green
-        else:
-            mat[:, i] = 0 #red
-    # add additional green row to show right colors
-    mat[:,i+1] = 2
-
-    return mat.tolist()
-
 def construct_match_matrix(x0, x1):
     matrices = []
     # do for every batch
@@ -573,7 +499,7 @@ def dummy_training(rank, dataroot, model, train_conf):
         logger.info(f'Using device {device}')
 
     # Loading the fragment data
-    train, test = create_datasets(dataroot, train_fraction=0.8, overfit=train_conf['overfit'])
+    train, test = create_datasets(dataroot, conf = train_conf)
 
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
@@ -696,7 +622,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             optimizer.step()
             lr_scheduler.step()
 
-            if it % train_conf["log_every_iter"] == 0:
+            if (it % train_conf["log_every_iter"] == 0) or (it == (len(train_dl) - 1)):
                 for k in sorted(losses.keys()):
                     if args.distributed:
                         losses[k] = losses[k].sum()
@@ -711,10 +637,10 @@ def dummy_training(rank, dataroot, model, train_conf):
                         writer.add_scalar('training/'+k, v, tot_it)
                     writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
                     wandb.log({'lr':  optimizer.param_groups[0]['lr']})
-                    wandb.log({'loss_train': str_losses[0]})
+                    wandb.log({'loss_train': float(str_losses[0].split(' '))})
 
 
-            if ((it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1)):
+            if (it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
 
                 if rank == 0:
@@ -771,33 +697,7 @@ def main_worker(rank, dataroot, model, train_conf):
     print("Spawned worker")
     dummy_training(rank, dataroot, model, train_conf)
 
-def plot_matching_vector(data, pred):
-    """Generates a matching vector for the matches 0 1 and their respective ground truth"""
-    # extract the necessary data
-    fig, axs = plt.subplots(2, 1, figsize=(10, 2))
-    gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
-    pred0= pred['matches0'].cpu().detach().numpy()[0]
-    gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
-    pred1= pred['matches1'].cpu().detach().numpy()[0]
-    # construct the matching matrix
-    # by converting from index correspondence to a vector with three values
-    # 0:Red   -> There is a match but prediction wrong
-    # 1:Blue  -> There is no match and it predicted no match
-    # 2:Green -> There is a match and prediction is true
-    matches0 = construct_match_vector(gt0, pred0)
-    matches1 = construct_match_vector(gt1, pred1)
-    # detach to cpu and generate plots
-    axs[0].imshow(matches0, cmap = cmap)
-    axs[1].imshow(matches1, cmap = cmap)
-    axs[0].set_title('matches 0')
-    axs[1].set_title('matches 1')
-    axs[0].set_xticks([i for i in range(len(gt0))])
-    axs[1].set_xticks([i for i in range(len(gt1))])
-    axs[0].get_yaxis().set_ticks([])
-    axs[1].get_yaxis().set_ticks([])
-    plt.tight_layout()
-    wandb.log({"matching" : fig})
-    plt.close('all')
+
 
 if __name__ == '__main__':
     logger.setLevel(logging.INFO)
