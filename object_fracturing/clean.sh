@@ -1,1 +1,0 @@
-bsub -n 48 -R "rusage[mem=2048]" python clean_total_dataset_cluster.py
