@@ -1,16 +1,7 @@
+from glob import glob
 import os
-import sys
-from secrets import choice
-from compas.datastructures import Mesh
-from compas.utilities import i_to_rgb
-from matplotlib.pyplot import show
-from sympy import primitive
-
-from compas.datastructures import mesh_transform_numpy
-import compas.geometry as cg
-from compas.geometry import Point, Pointcloud
+import open3d as o3d
 import numpy as np
-from compas_view2.app import App
 
 # chose a data folder
 here = os.path.dirname(os.path.abspath(__file__))
@@ -25,9 +16,6 @@ subfolder = data_list[idx]
 ROOT = os.path.join(here, 'data', subfolder)
 
 # get the other folders
-os.chdir(ROOT)
-os.chdir('..')
-DATAROOT = os.path.join(os.getcwd())
 CLEANED = os.path.join(ROOT, 'cleaned')
 KPTS_IN = os.path.join(ROOT,'processed','keypoints')
 
@@ -37,24 +25,39 @@ kpts_mode = 'SD'
 data_list = os.listdir(CLEANED)
 print("id  name")
 for idx, val in enumerate(data_list):
-    if val.endswith('.obj'):
+    if val.endswith('.pcd'):
         print(idx, " ", val)
 idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
 file = data_list[idx]
-file_path = os.path.join(CLEANED, file)
-
+idx = int(file.split('cleaned.')[1].split('.')[0])
+print(file, idx)
 # extract the corresponding filename
-kpts_file = ''.join(['keypoints_', kpts_mode, file.split('cleaned')[1]])
-kpts_file = kpts_file.replace('obj', 'npy')
-kpts_file_path = os.path.join(KPTS_IN, kpts_file)
+kpts_file_sticky = f'keypoints_sticky.{idx}.npy'
+kpts_sticky = np.load(os.path.join(KPTS_IN, kpts_file_sticky))[:,:3]
+pcd_sticky = o3d.geometry.PointCloud()
+pcd_sticky.points= o3d.utility.Vector3dVector(kpts_sticky)
+print(pcd_sticky)
+pcd_sticky.paint_uniform_color([1,0,0])
 
-mesh = Mesh().from_obj(file_path)
-kpts = np.load(kpts_file_path)
-kpts = Pointcloud(kpts[:,:3])
 
-# initialize viewer
-viewer = App()
-viewer.add(mesh)
-viewer.add(kpts, color = [100,0,0])
+kpts_file_sd = f'keypoints_SD.{idx}.npy'
+kpts_sd = np.load(os.path.join(KPTS_IN, kpts_file_sd))[:,:3]
+pcd_sd = o3d.geometry.PointCloud()
+pcd_sd.points= o3d.utility.Vector3dVector(kpts_sd)
+print(pcd_sd)
+pcd_sd.paint_uniform_color([0,0,1])
 
-viewer.run()
+
+fragment_pcd = o3d.io.read_point_cloud(os.path.join(CLEANED, file))
+print(fragment_pcd)
+fragment_pcd.paint_uniform_color([0.1, 0.1, 0.1])
+
+
+mesh, _ = fragment_pcd.compute_convex_hull()
+mesh.paint_uniform_color([0.1, 0.1, 0.1])
+
+print(np.asarray(pcd_sd.get_center()))
+print(np.asarray(pcd_sticky.get_center()))
+print(np.asarray(fragment_pcd.get_center()))
+
+o3d.visualization.draw_geometries([pcd_sd, pcd_sticky, fragment_pcd])

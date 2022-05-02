@@ -1,3 +1,4 @@
+from sklearn import neighbors
 from tools.transformation import centering_centroid
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.tools import polyfit3d
@@ -10,11 +11,12 @@ from sklearn.decomposition import PCA
 import shutil
 import numpy as np
 from scipy.spatial import KDTree
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist, norm
 from scipy.sparse import save_npz, csr_matrix
 import open3d as o3d
 import time
 
+o3dV = o3d.__version__
 
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
@@ -45,6 +47,38 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
+def get_pillar_keypoints(vertices, n_neighbors, nkeypoints=512, sharp_percentage = 0.5):
+    c = np.array(compute_smoothness(vertices, n_neighbors))
+    idx_sorted = np.argsort(c)
+    # get the first and last ones as best keypoints
+    n_sharp = int(nkeypoints*sharp_percentage)
+    n_plan = nkeypoints - n_sharp
+
+    planar_idx = idx_sorted[-n_plan:]
+    sharp_idx = idx_sorted[:n_sharp]
+    indices_to_keep = np.append(planar_idx, sharp_idx)
+
+    kpts_planar = np.array(vertices[planar_idx])
+    kpts_sharp = np.array(vertices[sharp_idx])
+    kpts = np.append(kpts_planar, kpts_sharp, axis=0)
+
+    scores_planar = np.array(c[planar_idx])
+    scores_sharp = np.array(c[sharp_idx])
+    scores = np.append(scores_planar, scores_sharp, axis=0)
+    return np.column_stack((kpts, scores)), indices_to_keep
+
+def compute_smoothness(vertices, n_neighbors):
+    n_p = len(vertices)
+    tree =  KDTree(vertices)
+    _, neighbors = tree.query(vertices,p=2, k=n_neighbors)
+
+    c = []
+    for hood in neighbors:
+        point = hood[0]
+        neigh = hood[1:]
+        diff = [[vertices[point]-vertices[n]] for n in neigh]
+        c.append(norm(np.sum(diff, axis=0),2) / (n_p*norm(vertices[point], 2)))
+    return c
 
 def compute_SD_point(neighbourhood, points, normals, p_idx):
     p_i = points[p_idx]
@@ -59,9 +93,10 @@ def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=256):
     """ returns the SD keypoints with a score value normalized"""
     n_points = len(vertices)
     tree = KDTree(vertices)
+    
     # Compute SD
     SD = np.zeros((n_points))
-    neighbourhoods = tree.query_ball_point(vertices, r, workers=-1)
+    neighbourhoods = tree.query_ball_point(vertices, r)
 
     for i in range(n_points):
         SD[i] = compute_SD_point(np.asarray(
@@ -170,12 +205,21 @@ def get_descriptors(i, vertices, normals, args, folder_path):
         pcd_invert.normals = o3d.utility.Vector3dVector(-1 * normals)
         pcd_invert.points = o3d.utility.Vector3dVector(vertices)
 
-        pcd_fpfh_norm = o3d.registration.compute_fpfh_feature(
-            pcd_normal,
-            o3d.geometry.KDTreeSearchParamHybrid(radius=25, max_nn=16))
-        pcd_fpfh_inv = o3d.registration.compute_fpfh_feature(
-            pcd_invert,
-            o3d.geometry.KDTreeSearchParamHybrid(radius=25, max_nn=16))
+        if o3dV == "0.9.0":
+            pcd_fpfh_norm = o3d.registration.compute_fpfh_feature(
+                pcd_normal,
+                o3d.geometry.KDTreeSearchParamHybrid(radius=25, max_nn=16))
+            pcd_fpfh_inv = o3d.registration.compute_fpfh_feature(
+                pcd_invert,
+                o3d.geometry.KDTreeSearchParamHybrid(radius=25, max_nn=16))
+        else:
+            pcd_fpfh_norm = o3d.pipelines.registration.compute_fpfh_feature(
+                pcd_normal,
+                o3d.geometry.KDTreeSearchParamHybrid(radius=25, max_nn=16))
+            pcd_fpfh_inv = o3d.pipelines.registration.compute_fpfh_feature(
+                pcd_invert,
+                o3d.geometry.KDTreeSearchParamHybrid(radius=25, max_nn=16)) 
+        
         desc_norm = np.array(pcd_fpfh_norm.data).T
         desc_inv = np.array(pcd_fpfh_inv.data).T
 
@@ -211,6 +255,16 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         np.save(kpts_desc_path_normal, kpt_desc_normal)
         np.save(kpts_desc_path_inverted, kpt_desc_invert)
         return keypoints
+    if args.keypoint_method == 'sticky':
+        keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 8)
+        kpt_desc_normal = desc_normal[keypoint_idxs]
+        kpt_desc_invert = desc_inv[keypoint_idxs]
+
+        np.save(keypoint_path, keypoints)
+        np.save(kpts_desc_path_normal, kpt_desc_normal)
+        np.save(kpts_desc_path_inverted, kpt_desc_invert)
+        return keypoints
+        
     else:
         raise NotImplementedError
 
@@ -218,10 +272,8 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
 def process_folder(folder_path, args):
     start_time = time.time()
     object_name = os.path.basename(folder_path)
-    shutil.rmtree(os.path.join(args.path, folder_path,
-                  'processed'), ignore_errors=True)
-    os.makedirs(os.path.join(args.path, folder_path,
-                'processed'), exist_ok=True)
+    #shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
+    #os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
 
     obj_files = glob(os.path.join(
         args.path, folder_path, 'cleaned', '*.pcd'))
@@ -280,7 +332,7 @@ if __name__ == "__main__":
         description="Spawn jobs for blender_auto_fracture_cluster.py"
     )
     parser.add_argument("--path", type=str)
-    parser.add_argument("--keypoint_method", type=str,default='SD', choices=['iss', 'SD', 'harris'])
+    parser.add_argument("--keypoint_method", type=str,default='sticky', choices=['SD', 'sticky'])
     parser.add_argument("--descriptor_method", type=str,default='fpfh', choices=['shot', 'fpfh'])
     args = parser.parse_args()
     process_folder(os.path.abspath(args.path), args)

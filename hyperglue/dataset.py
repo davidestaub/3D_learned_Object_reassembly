@@ -120,8 +120,8 @@ class FragmentsDataset(td.Dataset):
 
         kp0_full = np.load(self.dataset[idx]['path_kpts_0'])
         kp1_full = np.load(self.dataset[idx]['path_kpts_1'])
-        sc0 = kp0_full[:, -1]
-        sc1 = kp1_full[:, -1]
+        sc0 = kp0_full[:, 3]
+        sc1 = kp1_full[:, 3]
         kp0 = kp0_full[:, :3]
         kp1 = kp1_full[:, :3]
 
