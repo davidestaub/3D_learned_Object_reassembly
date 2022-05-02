@@ -8,14 +8,7 @@ def add_to_viewer(elements: list, viewer):
         viewer.add(element)
 
 
-def flatten_list(l_list:list):
-    flat_list = []
-    for _list in l_list:
-        flat_list += _list
-    return flat_list
-
-
-def show(data: dict):
+def compas_show(data: dict, dist=3):
     pointclouds = []
     pc_dict = {}
     meshes = []
@@ -31,5 +24,9 @@ def show(data: dict):
             meshes.append(fragment)
 
     add_to_viewer(pointclouds + meshes, viewer)
-    viewer.view.camera.distance = 3
+    viewer.view.camera.distance = dist
     viewer.show()
+
+def compas_show_matches():
+    #TODO: implement
+    pass
