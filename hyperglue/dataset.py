@@ -45,6 +45,8 @@ class FragmentsDataset(td.Dataset):
             processed = os.path.join(folder, 'processed', '')
             matching = os.path.join(processed, 'matching', '')
             match_path = f'{matching}{object_name}_matching_matrix.npy'
+            if not os.path.exists(match_path):
+                continue
             match_mat = np.load(match_path)
 
             # for each match pair load the keypoints, descripors and matches
@@ -138,13 +140,20 @@ class FragmentsDataset(td.Dataset):
         else:
             desc_path_0 = self.dataset[idx]['path_kpts_desc_0']
             desc_path_1 = self.dataset[idx]['path_kpts_desc_1']
+        # load descriptors
+        des0 = np.load(desc_path_0)
+        des1 = np.load(desc_path_1)
+        #zero pad
+        des0 = np.concatenate((des0, np.zeros((des0.shape[0], 3))), axis=1)
+        des1 = np.concatenate((des1, np.zeros((des1.shape[0], 3))), axis=1)
+
         sample = {
             "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
             "keypoints1": torch.from_numpy(kp1.astype(np.float32)),
             "scores0": torch.from_numpy(sc0.astype(np.float32)),
             "scores1": torch.from_numpy(sc1.astype(np.float32)),
-            "descriptors0": torch.from_numpy(np.load(desc_path_0).astype(np.float32)),
-            "descriptors1": torch.from_numpy(np.load(desc_path_1).astype(np.float32)),
+            "descriptors0": torch.from_numpy(des0.astype(np.float32)),
+            "descriptors1": torch.from_numpy(des1.astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
             "gt_matches0": torch.from_numpy(gt_matches0),
             "gt_matches1": torch.from_numpy(gt_matches1)

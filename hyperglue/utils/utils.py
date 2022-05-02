@@ -9,8 +9,34 @@ import wandb
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
+from torch._six import string_classes
+import collections.abc as collections
+
 colors = 'red blue green'.split()
 cmap = ListedColormap(colors, name='colors')
+
+def map_tensor(input_, func):
+    if isinstance(input_, torch.Tensor):
+        return func(input_)
+    elif isinstance(input_, string_classes):
+        return input_
+    elif isinstance(input_, collections.Mapping):
+        return {k: map_tensor(sample, func) for k, sample in input_.items()}
+    elif isinstance(input_, collections.Sequence):
+        return [map_tensor(sample, func) for sample in input_]
+    else:
+        raise TypeError(
+            f'input must be tensor, dict or list; found {type(input_)}')
+
+
+def batch_to_device(batch, device, non_blocking=True):
+    def _func(tensor):
+        return tensor.to(device=device, non_blocking=non_blocking)
+
+    return map_tensor(batch, _func)
+
+def arange_like(x, dim: int):
+    return x.new_ones(x.shape[dim]).cumsum(0) - 1  # traceable in 1.1
 
 def construct_match_vector(gt, pred):
 

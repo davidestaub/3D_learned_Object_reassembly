@@ -9,7 +9,6 @@ model_conf = {
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
-    'use_ce': False,
     # 'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
@@ -28,18 +27,16 @@ train_conf = {
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr': 0.0001,  # learning rate
+    'lr':1e-3,  # learning rate
     'lr_schedule': {'type': 'exp', 'start': 250e3, 'exp_div_10': 50e3},
-    'eval_every_iter': 1000,  # interval for evaluation on the validation set
+    'eval_every_iter': 100,  # interval for evaluation on the validation set
     'log_every_iter': 100,  # interval for logging the loss to the console
     'keep_last_checkpoints': 5,  # keep only the last X checkpoints
     'load_experiment': None,  # initialize the model from a previous experiment
-    'median_metrics': ['match_recall'],  # add the median of some metrics
     'best_key': 'loss/total',  # key to use to select the best checkpoint
-    'dataset_callback_fn': None,  # data func called at the start of each epoch
-    'output_dir': "output",
+    'output_dir': "output", # the 
     'load_weights': False,
-    'overfit': True,
+    'overfit': False,
     'use_sd_score': False,
     'match_inverted': True,
     'train_fraction': 0.8,

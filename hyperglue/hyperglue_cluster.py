@@ -1,33 +1,18 @@
 import argparse
 from copy import deepcopy
-from distutils.command.config import config
 from pathlib import Path
 from typing import List, Tuple
-# import and compile gpu options
-from utils.options_detector import Options
-opt = Options().parse()
-
 import torch
 from torch import nn
 import torch.utils.data as td
 import numpy as np
-import logging
-import os
-import random
+import logging, os, random, re, shutil, sys, wandb
 from tqdm import tqdm
-from torch._six import string_classes
-import collections.abc as collections
-import re
-import shutil
-from utils.utils import plot_matching_vector
+from utils.utils import *
 from dataset import FragmentsDataset, create_datasets
 from utils import conf
-from utils.utils import PointNetEncoder
 
 from torch.utils.tensorboard import SummaryWriter
-from experiments import delete_old_checkpoints
-import sys
-import wandb
 import torch.nn.functional as F
 
 
@@ -73,7 +58,7 @@ class MedianMetric:
             return np.nanmedian(self._elements)
 
 
-def MLP(channels: List[int], do_bn: bool = True, dropout=False, activation='relu') -> nn.Module:
+def MLP(channels: List[int], do_bn: bool = True, dropout: bool = False, activation='relu') -> nn.Module:
     """ Multi-layer perceptron """
     n = len(channels)
     layers = []
@@ -100,16 +85,21 @@ class KeypointEncoder(nn.Module):
 
     def __init__(self, feature_dim: int, layers: List[int]) -> None:
         super().__init__()
-        self.encoder = MLP(channels = [4] + layers + [feature_dim],
-                           dropout = False,
+        self.use_scores = conf.train_conf['use_sd_score']
+        self.input_size = 4 if self.use_scores else 3
+        self.encoder = MLP(channels = [self.input_size] + layers + [feature_dim],
+                           dropout = True,
                            activation = 'relu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
     # but if we happen to have confidence scores aswell we can reintroduce it -> We reintroduces it now
     def forward(self, kpts, scores):
-        inputs = [kpts.transpose(1, 2), scores.unsqueeze(1)]
-        return self.encoder(torch.cat(inputs, dim=1))
+        if self.use_scores:
+            inputs = [kpts.transpose(1, 2), scores.unsqueeze(1)]
+            return self.encoder(torch.cat(inputs, dim=1))
+        else:
+            return self.encoder(kpts.transpose(1,2))
 
 def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     dim = query.shape[1]
@@ -200,8 +190,7 @@ def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int)
     return Z
 
 
-def arange_like(x, dim: int):
-    return x.new_ones(x.shape[dim]).cumsum(0) - 1  # traceable in 1.1
+
 
 
 class SuperGlue(nn.Module):
@@ -222,7 +211,7 @@ class SuperGlue(nn.Module):
             self.config['descriptor_dim'], self.config['descriptor_dim'],
             kernel_size=1, bias=True)
 
-        bin_score = torch.nn.Parameter(torch.tensor(1.))
+        bin_score = torch.nn.Parameter(torch.tensor(0.))
         self.register_parameter('bin_score', bin_score)
 
         if train_conf["load_weights"]:
@@ -347,14 +336,8 @@ class SuperGlue(nn.Module):
                + (1 - model_conf["loss"]["nll_balancing"]) * nll_neg)
         losses['assignment_nll'] = nll
 
-        if model_conf["loss"]["nll_weight"] > 0 and not model_conf['use_ce']:
+        if model_conf["loss"]["nll_weight"] > 0:
             losses['total'] = nll*model_conf["loss"]["nll_weight"]
-        elif model_conf['use_ce']:
-            gt = construct_match_matrix(data['gt_matches0'],data['gt_matches1'])
-            pd = construct_match_matrix(pred["matches0"],pred["matches1"])
-            crossentrop = nn.CrossEntropyLoss()
-            losses['total'] = torch.autograd.Variable(crossentrop(pd, gt), requires_grad = True)
-
 
         # Some statistics
         losses['num_matchable'] = num_pos
@@ -379,26 +362,6 @@ class SuperGlue(nn.Module):
         prec = precision(pred['matches0'], data['gt_matches0'])
         return {'match_recall': rec, 'match_precision': prec}
 
-
-def map_tensor(input_, func):
-    if isinstance(input_, torch.Tensor):
-        return func(input_)
-    elif isinstance(input_, string_classes):
-        return input_
-    elif isinstance(input_, collections.Mapping):
-        return {k: map_tensor(sample, func) for k, sample in input_.items()}
-    elif isinstance(input_, collections.Sequence):
-        return [map_tensor(sample, func) for sample in input_]
-    else:
-        raise TypeError(
-            f'input must be tensor, dict or list; found {type(input_)}')
-
-
-def batch_to_device(batch, device, non_blocking=True):
-    def _func(tensor):
-        return tensor.to(device=device, non_blocking=non_blocking)
-
-    return map_tensor(batch, _func)
 
 def construct_match_matrix(x0, x1):
     matrices = []
@@ -434,12 +397,9 @@ def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
         for k, v in numbers.items():
             if k not in results:
                 results[k] = AverageMetric()
-                if k in train_conf["median_metrics"]:
-                    results[k+'_median'] = MedianMetric()
 
             results[k].update(v)
-            if k in train_conf["median_metrics"]:
-                results[k+'_median'].update(v)
+
     results = {k: results[k].compute() for k in results}
     return results
 
@@ -472,7 +432,6 @@ def do_evaluation_overfit(model, data, device, loss_fn, metrics_fn):
 def dummy_training(rank, dataroot, model, train_conf):
     print("Started training...")
     train_conf['output_dir'] = '_'.join([train_conf['output_dir'], wandb.run.name])
-    print(f'Output folder: ', train_conf['output_dir'])
 
     init_cp = None
     set_seed(train_conf["seed"])
@@ -579,9 +538,6 @@ def dummy_training(rank, dataroot, model, train_conf):
         set_seed(train_conf["seed"] + epoch)
         if args.distributed:
             train_dl.sampler.set_epoch(epoch)
-        if epoch > 0 and train_conf["dataset_callback_fn"]:
-            getattr(train_dl.dataset, train_conf["dataset_callback_fn"])(
-                train_conf["seed"] + epoch)
 
         # do overfitting on first batch in train_dl
         if train_conf['overfit']:
@@ -631,15 +587,17 @@ def dummy_training(rank, dataroot, model, train_conf):
                         losses[k] /= (train_dl.batch_size * args.n_gpus)
                     losses[k] = torch.mean(losses[k]).item()
                 if rank == 0:
-                    str_losses = [f'{k} {v:.3E}' for k, v in losses.items()]
+                    str_losses = []
+                    for k, v in losses.items():
+                        str_losses.append(f'{k} {v:.3E}')
+                        wandb.log({f'{k}': v})
+
                     logger.info('[E {} | it {}] loss {{{}}}'.format(
                         epoch, it, ', '.join(str_losses)))
                     for k, v in losses.items():
                         writer.add_scalar('training/'+k, v, tot_it)
                     writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
                     wandb.log({'lr':  optimizer.param_groups[0]['lr']})
-                    wandb.log({'loss_train': float(str_losses[0].split(' '))})
-
 
             if (it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1):
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
@@ -695,7 +653,6 @@ def dummy_training(rank, dataroot, model, train_conf):
 
 
 def main_worker(rank, dataroot, model, train_conf):
-    print("Spawned worker")
     dummy_training(rank, dataroot, model, train_conf)
 
 
@@ -704,13 +661,16 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--distributed', action='store_true')
+    parser.add_argument('--path', default = None)
     args = parser.parse_intermixed_args()
     model_conf = conf.model_conf
     train_conf = conf.train_conf
 
-    here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-    root = os.path.join(here, '..', 'object_fracturing', 'data')
-    # root = os.path.join(here, '..', 'object_fracturing', 'single_sample_data')
+    if args.path == None:
+        here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+        root = os.path.join(here, '..', 'object_fracturing', 'data')
+    else:
+        root = args.path
 
     np.set_printoptions(threshold=sys.maxsize)
     myGlue = SuperGlue(model_conf)
