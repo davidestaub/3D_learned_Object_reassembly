@@ -18,8 +18,10 @@ if __name__ == '__main__':
         subprocess.run(
             [
                 "bsub",
+                "-n",
+                "4"
                 "-R",
-                "rusage[mem=10000]",
+                "rusage[mem=8G]",
                 "python",
                 "process_folder_cluster.py",
                 "--path",
