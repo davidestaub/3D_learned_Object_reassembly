@@ -47,13 +47,73 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
+def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.2, mixture = 0.5):
+    c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
+    c = np.array(c)
+    sd = np.array(sd)
 
-def get_pillar_keypoints(vertices, n_neighbors, nkeypoints=512, sharp_percentage = 0.5):
+    idx_sorted_c = np.argsort(c)
+    idx_sorted_sd = np.argsort(np.abs(sd))
+
+    # get the first and last ones as best keypoints
+    n_kpts_c = int(n_keypoints*mixture)
+    n_kpts_sd = n_keypoints - n_kpts_c
+    n_sharp = int(n_kpts_c*sharp_percentage)
+    n_plan = n_kpts_c - n_sharp
+
+    planar_idx = idx_sorted_c[-n_plan:]
+    sharp_idx = idx_sorted_c[:n_sharp]
+    sd_idx = idx_sorted_sd[-n_kpts_sd:]
+    indices_to_keep = np.append(planar_idx, sharp_idx, axis = 0)
+    indices_to_keep = np.append(indices_to_keep, sd_idx, axis = 0)
+    
+    kpts_planar = np.array(vertices[planar_idx])
+    kpts_sharp = np.array(vertices[sharp_idx])
+    kpts_sd = np.array(vertices[sd_idx])
+
+    kpts = np.append(kpts_planar, kpts_sharp, axis = 0)
+    kpts = np.append(kpts, kpts_sd, axis = 0)
+
+    scores_planar = np.array(c[planar_idx])
+    scores_sharp = np.array(c[sharp_idx])
+    scores = np.append(scores_planar, scores_sharp, axis=0)
+    scores = scores / np.max(scores)
+
+    scores_sd = sd[sd_idx]
+    scores_sd = scores_sd / np.max(scores_sd)
+
+    scores = np.append(scores, scores_sd, axis = 0)
+    
+    return np.column_stack((kpts, scores)), indices_to_keep
+
+
+def compute_smoothness_sd(vertices, normals, n_neighbors):
+    n_p = len(vertices)
+    tree =  KDTree(vertices)
+    _, neighbors = tree.query(vertices, p=2, k=n_neighbors)
+
+    c = []
+    sd = []
+    for hood in neighbors:
+        #smoothness
+        point = hood[0]
+        neigh = hood[1:]
+        diff = [[vertices[point]-vertices[n]] for n in neigh]
+        c.append(norm(np.sum(diff, axis=0),2) / (n_p*norm(vertices[point], 2)))
+        # sd calculation
+        n_p_i = normals[hood[0]]
+        p_i_bar = np.mean(vertices[hood], axis=0)
+        v = point - p_i_bar
+        sd.append(np.dot(v, n_p_i))
+
+    return c, sd
+
+def get_pillar_keypoints(vertices, n_neighbors, n_keypoints=512, sharp_percentage = 0.5):
     c = np.array(compute_smoothness(vertices, n_neighbors))
     idx_sorted = np.argsort(c)
     # get the first and last ones as best keypoints
-    n_sharp = int(nkeypoints*sharp_percentage)
-    n_plan = nkeypoints - n_sharp
+    n_sharp = int(n_keypoints*sharp_percentage)
+    n_plan = n_keypoints - n_sharp
 
     planar_idx = idx_sorted[-n_plan:]
     sharp_idx = idx_sorted[:n_sharp]
@@ -66,6 +126,7 @@ def get_pillar_keypoints(vertices, n_neighbors, nkeypoints=512, sharp_percentage
     scores_planar = np.array(c[planar_idx])
     scores_sharp = np.array(c[sharp_idx])
     scores = np.append(scores_planar, scores_sharp, axis=0)
+    scores = scores / np.max(scores)
     return np.column_stack((kpts, scores)), indices_to_keep
 
 def compute_smoothness(vertices, n_neighbors):
@@ -98,7 +159,6 @@ def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=256):
     # Compute SD
     SD = np.zeros((n_points))
     neighbourhoods = tree.query_ball_point(vertices, r)
-
     for i in range(n_points):
         SD[i] = compute_SD_point(np.asarray(
             neighbourhoods[i]), vertices, normals, i)
@@ -266,7 +326,17 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         np.save(kpts_desc_path_normal, kpt_desc_normal)
         np.save(kpts_desc_path_inverted, kpt_desc_invert)
         return keypoints
-        
+    
+    if args.keypoint_method == 'hybrid':
+        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 8)
+        kpt_desc_normal = desc_normal[keypoint_idxs]
+        kpt_desc_invert = desc_inv[keypoint_idxs]
+
+        np.save(keypoint_path, keypoints)
+        np.save(kpts_desc_path_normal, kpt_desc_normal)
+        np.save(kpts_desc_path_inverted, kpt_desc_invert)
+        return keypoints
+    
     else:
         raise NotImplementedError
 
@@ -334,7 +404,7 @@ if __name__ == "__main__":
         description="Spawn jobs for blender_auto_fracture_cluster.py"
     )
     parser.add_argument("--path", type=str)
-    parser.add_argument("--keypoint_method", type=str,default='SD', choices=['SD', 'sticky'])
+    parser.add_argument("--keypoint_method", type=str,default='hybrid', choices=['SD', 'sticky'])
     parser.add_argument("--descriptor_method", type=str,default='fpfh', choices=['shot', 'fpfh'])
     args = parser.parse_args()
     process_folder(os.path.abspath(args.path), args)

@@ -32,20 +32,12 @@ file = data_list[idx]
 idx = int(file.split('cleaned.')[1].split('.')[0])
 print(file, idx)
 # extract the corresponding filename
-kpts_file_sticky = f'keypoints_sticky.{idx}.npy'
+kpts_file_sticky = f'keypoints_hybrid.{idx}.npy'
 kpts_sticky = np.load(os.path.join(KPTS_IN, kpts_file_sticky))[:,:3]
-pcd_sticky = o3d.geometry.PointCloud()
-pcd_sticky.points= o3d.utility.Vector3dVector(kpts_sticky)
-print(pcd_sticky)
-pcd_sticky.paint_uniform_color([1,0,0])
-
-
-kpts_file_sd = f'keypoints_SD.{idx}.npy'
-kpts_sd = np.load(os.path.join(KPTS_IN, kpts_file_sd))[:,:3]
-pcd_sd = o3d.geometry.PointCloud()
-pcd_sd.points= o3d.utility.Vector3dVector(kpts_sd)
-print(pcd_sd)
-pcd_sd.paint_uniform_color([0,0,1])
+pcd_kpts = o3d.geometry.PointCloud()
+pcd_kpts.points= o3d.utility.Vector3dVector(kpts_sticky)
+print(pcd_kpts)
+pcd_kpts.paint_uniform_color([1,0,0])
 
 
 fragment_pcd = o3d.io.read_point_cloud(os.path.join(CLEANED, file))
@@ -56,8 +48,4 @@ fragment_pcd.paint_uniform_color([0.1, 0.1, 0.1])
 mesh, _ = fragment_pcd.compute_convex_hull()
 mesh.paint_uniform_color([0.1, 0.1, 0.1])
 
-print(np.asarray(pcd_sd.get_center()))
-print(np.asarray(pcd_sticky.get_center()))
-print(np.asarray(fragment_pcd.get_center()))
-
-o3d.visualization.draw_geometries([pcd_sd, pcd_sticky, fragment_pcd])
+o3d.visualization.draw_geometries([pcd_kpts, fragment_pcd])
