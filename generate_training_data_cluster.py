@@ -18,7 +18,7 @@ if __name__ == '__main__':
 
     print(f'Data dir: {args.data_dir}')
     # set to the part which should be generatred
-    object_folders = os.listdir(args.data_dir)
+    object_folders = os.listdir(args.data_dir)[:1]
 
     for folder in object_folders:
         folder = os.path.join(args.data_dir, folder)
