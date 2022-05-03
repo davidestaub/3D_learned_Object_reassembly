@@ -20,7 +20,7 @@ if __name__ == '__main__':
             [
                 "bsub",
                 "-R",
-                "rusage[mem=2000]",
+                "rusage[mem=6000]",
                 "python",
                 "process_folder_cluster.py",
                 "--path",
