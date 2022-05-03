@@ -285,7 +285,7 @@ def get_descriptors(i, vertices, normals, args, folder_path):
         pcd_invert.normals = o3d.utility.Vector3dVector(-1 * normals)
         pcd_invert.points = o3d.utility.Vector3dVector(vertices)
 
-        if o3dV == "0.9.0":
+        if o3dV == "0.9.0.0":
             pcd_fpfh_norm = o3d.registration.compute_fpfh_feature(
                 pcd_normal,
                 o3d.geometry.KDTreeSearchParamHybrid(radius=25, max_nn=16))
