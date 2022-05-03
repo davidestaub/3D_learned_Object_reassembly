@@ -371,6 +371,11 @@ def process_folder(folder_path, args):
     object_name = os.path.basename(folder_path)
     shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
     os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
+    
+    try:
+        os.remove(os.path.join(folder_path,'log.txt'))
+    except:
+        pass
 
     obj_files = glob(os.path.join(
         args.path, folder_path, 'cleaned', '*.pcd'))
