@@ -454,5 +454,4 @@ if __name__ == "__main__":
     parser.add_argument("--keypoint_method", type=str,default='hybrid', choices=['SD', 'sticky'])
     parser.add_argument("--descriptor_method", type=str,default='fpfh', choices=['shot', 'fpfh', 'pillar'])
     args = parser.parse_args()
-    print(o3dV)
     process_folder(os.path.abspath(args.path), args)
