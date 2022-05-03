@@ -47,6 +47,7 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
+
 def get_pillar_keypoints(vertices, n_neighbors, nkeypoints=512, sharp_percentage = 0.5):
     c = np.array(compute_smoothness(vertices, n_neighbors))
     idx_sorted = np.argsort(c)
@@ -255,6 +256,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         np.save(kpts_desc_path_normal, kpt_desc_normal)
         np.save(kpts_desc_path_inverted, kpt_desc_invert)
         return keypoints
+    
     if args.keypoint_method == 'sticky':
         keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 8)
         kpt_desc_normal = desc_normal[keypoint_idxs]
@@ -332,7 +334,7 @@ if __name__ == "__main__":
         description="Spawn jobs for blender_auto_fracture_cluster.py"
     )
     parser.add_argument("--path", type=str)
-    parser.add_argument("--keypoint_method", type=str,default='sticky', choices=['SD', 'sticky'])
+    parser.add_argument("--keypoint_method", type=str,default='SD', choices=['SD', 'sticky'])
     parser.add_argument("--descriptor_method", type=str,default='fpfh', choices=['shot', 'fpfh'])
     args = parser.parse_args()
     process_folder(os.path.abspath(args.path), args)

@@ -7,6 +7,7 @@ from sklearn.decomposition import PCA
 from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.transformation import centering_centroid
+from tools import pfh
 import numpy as np
 import open3d as o3d
 import pyshot
@@ -151,7 +152,7 @@ def get_descriptors(i, vertices, faces, args, folder_path):
     method = args.descriptor_method
 
     descriptor_path = os.path.join(folder_path, 'processed', 'descriptors_all_points',
-                                   f'descriptors_all_points_{method}.{i}.npy')
+                                   f'descriptors_all_points_{method}.{i}.txt')
     os.makedirs(os.path.dirname(descriptor_path), exist_ok=True)
 
     if os.path.exists(descriptor_path):
@@ -167,7 +168,8 @@ def get_descriptors(i, vertices, faces, args, folder_path):
                                              use_interpolation=args.use_interpolation,
                                              use_normalization=args.use_normalization,
                                              )                       
-        np.save(descriptor_path, descriptors)
+        np.savetxt(descriptor_path, np.array(descriptors, dtype=np.float32))
+        print(descriptors.shape)
         return descriptors
     else:
         raise NotImplementedError
@@ -277,20 +279,22 @@ def main():
     parser.add_argument("--data_dir", type=str, default='')
 
     # Args for SHOT descriptors.
-    parser.add_argument("--radius", type=float, default=100)
-    parser.add_argument("--local_rf_radius", type=float, default=None)
-    parser.add_argument("--min_neighbors", type=int, default=4)
-    parser.add_argument("--n_bins", type=int, default=20)
+    parser.add_argument("--radius", type=float, default=500)
+    parser.add_argument("--local_rf_radius", type=float, default=100)
+    parser.add_argument("--min_neighbors", type=int, default=16)
+    parser.add_argument("--n_bins", type=int, default=16)
     parser.add_argument("--double_volumes_sectors", action='store_true')
-    parser.add_argument("--use_interpolation", action='store_true')
-    parser.add_argument("--use_normalization", action='store_true')
+    parser.add_argument("--use_interpolation",default=False, action='store_true')
+    parser.add_argument("--use_normalization", default=True, action='store_true')
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
     args.data_dir = os.path.join(os.path.curdir, 'object_fracturing', 'data') if not args.data_dir else args.data_dir
-    object_folders = glob(os.path.join(args.data_dir, '*'))
+    object_folders = os.listdir(args.data_dir)
 
     for f in object_folders:
+        f = os.path.join(args.data_dir, f)
+        print(f)
         if os.path.isdir(f):
             process_folder(f, args)
 
