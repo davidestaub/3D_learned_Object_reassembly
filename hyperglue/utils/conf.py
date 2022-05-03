@@ -4,12 +4,12 @@ model_conf = {
     'descriptor_dim': 36, # the descriptor dimension, must be dividable by 4!!
     'weights': 'weights_01',
     'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
-    'GNN_layers': ['self', 'cross'] * 9,
+    'GNN_layers': ['self', 'cross'] * 6,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
     'loss': {
         'nll_weight': 1.,
-        'nll_balancing': 0.9,
+        'nll_balancing': 0.999,
     },
 }
 
@@ -17,8 +17,8 @@ model_conf = {
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 1000,  # number of epochs
-    'batch_size_train': 16,  # training batch size
-    'batch_size_test': 16, #test batch size
+    'batch_size_train': 1,  # training batch size
+    'batch_size_test': 1, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
