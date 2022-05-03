@@ -622,7 +622,6 @@ def dummy_training(rank, dataroot, model, train_conf):
                 logger.info(f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
                 shutil.copy(cp_path, str(train_conf["output_dir"] + "/" + 'checkpoint_best.tar'))
             
-            #delete_old_checkpoints(train_conf["output_dir"], train_conf["keep_last_checkpoints"])
             del checkpoint
 
         epoch += 1
@@ -655,7 +654,7 @@ if __name__ == '__main__':
     np.set_printoptions(threshold=sys.maxsize)
     myGlue = SuperGlue(model_conf)
 
-    wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
+    wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
     wandb.init(project="hyperglue", entity="lessgoo", config={**model_conf, **train_conf})
     wandb.watch(myGlue)
 
