@@ -4,13 +4,7 @@ import subprocess
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        "generate_iss_keypoints_and_shot_descriptors")
-
-    parser.add_argument("--keypoint_method", type=str,
-                        default='SD', choices=['iss', 'SD', 'harris'])
-    parser.add_argument("--descriptor_method", type=str,
-                        default='fpfh', choices=['shot', 'fpfh'])
+    parser = argparse.ArgumentParser("Generates keypoints and descriptors")
     parser.add_argument("--data_dir", type=str, default=None)
     args = parser.parse_args()
 
@@ -26,7 +20,7 @@ if __name__ == '__main__':
             [
                 "bsub",
                 "-R",
-                "rusage[mem=8000]",
+                "rusage[mem=2000]",
                 "python",
                 "process_folder_cluster.py",
                 "--path",
