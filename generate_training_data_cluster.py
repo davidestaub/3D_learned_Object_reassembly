@@ -19,7 +19,7 @@ if __name__ == '__main__':
             [
                 "bsub",
                 "-n",
-                "4"
+                "4",
                 "-R",
                 "rusage[mem=8G]",
                 "python",
