@@ -2,6 +2,7 @@
 *.DS_Store
 *.swp
 object_fracturing/blender_fracture_modifier
+object_fracturing/blender_scripts
 object_fracturing/real_objects
 object_fracturing/data
 object_fracturing/data_zip
