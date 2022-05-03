@@ -60,8 +60,7 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     for i in range(num_parts):
         for j in range(i):
             # Search for corresponding points in two parts (distance below a treshold).
-            matches = np.sum(
-                cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
+            matches = np.sum(cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
 
             # If there are more than 100 matches, the parts are considered neighbours.
             if matches > 300:
@@ -70,7 +69,7 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
-def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 1024, sharp_percentage = 0.5, mixture = 0.5):
+def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 1024, sharp_percentage = 0.7, mixture = 0.5):
     c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
     c = np.array(c)
     sd = np.array(sd)
