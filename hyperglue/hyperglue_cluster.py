@@ -198,11 +198,7 @@ class SuperGlue(nn.Module):
         super().__init__()
         self.config = config
 
-        if self.config['use_pointnet']:
-            self.kenc = PointNetEncoder(global_feat = True, feature_transform = False, channel=4)
-            self.config['descriptor_dim'] = 1024
-        else:
-            self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
+        self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
         
         self.gnn = AttentionalGNN(
             feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
@@ -239,16 +235,7 @@ class SuperGlue(nn.Module):
             }
 
         # switch between different types of encoding keypoints
-        if self.config['use_pointnet']:
-            desc0 = data['pointnet_in0']
-            desc1 = data['pointnet_in1']
-            desc0 = self.kenc(desc0.transpose(1, 0).transpose(1,2))[0]
-            desc1 = self.kenc(desc1.transpose(1, 0).transpose(1,2))[0]
-            desc0.squeeze()
-            desc1.squeeze()
-            desc0.transpose(0,1)
-            desc1.transpose(0,1)
-        elif self.config['use_mlp'] and self.config['use_desc']:
+        if self.config['use_mlp'] and self.config['use_desc']:
             encoded_kpt0 = self.kenc(kpts0, scores0)
             encoded_kpt1 = self.kenc(kpts1, scores1)
             encoded_kpt0 = encoded_kpt0.squeeze()
@@ -279,13 +266,6 @@ class SuperGlue(nn.Module):
             scores, self.bin_score,
             iters=self.config['sinkhorn_iterations'])
 
-        # new_scores = torch.ones(scores.shape[0], scores.shape[1] + 1, scores.shape[2] + 1)
-        # new_scores[:, :-1, :-1] = scores
-        # scores = new_scores
-        #
-        # print("after ", scores.shape)
-        # print(scores)
-        # Get the matches with score above "match_threshold".
         max0, max1 = scores[:, :-1, :-1].max(2), scores[:, :-1, :-1].max(1)
 
         indices0, indices1 = max0.indices, max1.indices

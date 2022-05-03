@@ -18,6 +18,29 @@ import time
 
 o3dV = o3d.__version__
 
+def pillar_encoder(kpts, pcd, sample_size = 10):
+    pcd = np.array(pcd)
+    # downsample to x y coordinates
+    kpts_2d = kpts[:,:2]
+    pcd_2d = pcd[:,:2]
+    tree = KDTree(pcd_2d)
+    dist, neighbourhoods = tree.query(kpts_2d, sample_size)
+    pillars = []
+    for hood in neighbourhoods:
+        pillars.append(pcd[hood])
+    
+    # calculate features
+    features = []
+    for pillar in pillars:
+        feature = []
+        pillar_center = np.mean(pillar, axis=0)
+        pillar_kpt = pillar[0]
+        for point in pillar:
+            feature.append(np.concatenate((point,point-pillar_center,[norm(point)],point-pillar_kpt)))
+        features.append(feature)
+
+    return np.array(features)
+
 def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     object_name = os.path.basename(folder_path)
     match_path = os.path.join(folder_path, 'processed', 'matching')
@@ -47,7 +70,7 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
-def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.2, mixture = 0.5):
+def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.63, mixture = 0.7):
     c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
     c = np.array(c)
     sd = np.array(sd)
@@ -96,7 +119,7 @@ def compute_smoothness_sd(vertices, normals, n_neighbors):
     sd = []
     for hood in neighbors:
         #smoothness
-        point = hood[0]
+        point = hood[0] # closest point is always point itself
         neigh = hood[1:]
         diff = [[vertices[point]-vertices[n]] for n in neigh]
         c.append(norm(np.sum(diff, axis=0),2) / (n_p*norm(vertices[point], 2)))
@@ -234,7 +257,7 @@ def get_harris_keypoints(vertices):
     return keypoint_indexes
 
 
-def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.001):
+def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.003):
     dists = cdist(keypoints1, keypoints2)
     close_enough_mask = np.min(dists, axis=0) < threshold
     closest = np.argmin(dists, axis=0)
@@ -246,14 +269,10 @@ def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.001):
 
 
 def get_descriptors(i, vertices, normals, args, folder_path):
-    # shesh
-    method = args.descriptor_method
-    primitive = folder_path.split('/')[-1]
 
-    filename = ''.join([primitive, f'_cleaned.{i}.pcd'])
-    in_path = os.path.join(folder_path, 'cleaned', filename)
-    out_path_prefix = os.path.join(
-        folder_path, 'processed', 'descriptors_all_points', f'descriptors_all_points_{method}.{i}')
+    method = args.descriptor_method
+
+    out_path_prefix = os.path.join(folder_path, 'processed', 'descriptors_all_points', f'descriptors_all_points_{method}.{i}')
     out_path_normal = '_'.join([out_path_prefix, 'normal.txt'])
     out_path_inverted = '_'.join([out_path_prefix, 'inverted.txt'])
     os.makedirs(os.path.dirname(out_path_prefix), exist_ok=True)
@@ -283,11 +302,13 @@ def get_descriptors(i, vertices, normals, args, folder_path):
         
         desc_norm = np.array(pcd_fpfh_norm.data).T
         desc_inv = np.array(pcd_fpfh_inv.data).T
-
         np.savetxt(out_path_normal, desc_norm)
         np.savetxt(out_path_inverted, desc_inv)
         return desc_norm, desc_inv
-
+    
+    if method == "pillar":
+        desc = pillar_encoder(vertices, vertices)
+        return desc, None
 
 def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path):
     method = args.keypoint_method
@@ -319,15 +340,14 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
     
     if args.keypoint_method == 'sticky':
         keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 8)
+
         kpt_desc_normal = desc_normal[keypoint_idxs]
-        kpt_desc_invert = desc_inv[keypoint_idxs]
 
         np.save(keypoint_path, keypoints)
         np.save(kpts_desc_path_normal, kpt_desc_normal)
-        np.save(kpts_desc_path_inverted, kpt_desc_invert)
         return keypoints
     
-    if args.keypoint_method == 'hybrid':
+    if args.keypoint_method == 'hybrid' and args.descriptor_method != "pillar":
         keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 8)
         kpt_desc_normal = desc_normal[keypoint_idxs]
         kpt_desc_invert = desc_inv[keypoint_idxs]
@@ -336,7 +356,13 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         np.save(kpts_desc_path_normal, kpt_desc_normal)
         np.save(kpts_desc_path_inverted, kpt_desc_invert)
         return keypoints
-    
+    elif args.keypoint_method == 'hybrid':
+        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 8)
+        kpt_desc_normal = desc_normal[keypoint_idxs]
+
+        np.save(keypoint_path, keypoints)
+        np.save(kpts_desc_path_normal, kpt_desc_normal)
+        return keypoints
     else:
         raise NotImplementedError
 
@@ -349,39 +375,56 @@ def process_folder(folder_path, args):
 
     obj_files = glob(os.path.join(
         args.path, folder_path, 'cleaned', '*.pcd'))
-    fragments_vertices = []
-    fragments_normals = []
+    frag_vert = []
+    frag_norm = []
 
     num_fragments = len(obj_files)
     if num_fragments == 0:
         print(f"No fragments found in {folder_path}")
         return
-
+    fragment_pcds = []
     for i in range(num_fragments):
-        file_path = os.path.join(
-            args.path, folder_path, 'cleaned', f'{object_name}_cleaned.{i}.pcd')
-        pcd = o3d.io.read_point_cloud(file_path)
+        file_path = os.path.join(args.path, folder_path, 'cleaned', f'{object_name}_cleaned.{i}.pcd')
+        fragment_pcds.append(o3d.io.read_point_cloud(file_path))
+    
+    # extract vertices for gt mathing
+    for pcd in fragment_pcds:
+        vertices = np.array(pcd.points)
+        frag_vert.append(vertices)
+    
+    matching_matrix = get_fragment_matchings(frag_vert, os.path.join(args.path, folder_path))
+    
+    # clean up matrices
+    frag_vert = []
+    frag_norm = []
+    pcd_centers = []
+    # center the pointclouds and reextract
+    for pcd in fragment_pcds:
+        c = pcd.get_center()
+        pcd_centers.append(c)
+        pcd = pcd.translate(-1*c)
         vertices = np.array(pcd.points)
         normals = np.array(pcd.normals)
-        fragments_vertices.append(vertices)
-        fragments_normals.append(normals)
-
+        frag_vert.append(vertices)
+        frag_norm.append(normals)
+    
     keypoints = []
     for i in range(num_fragments):
-        desc_n, desc_inv = get_descriptors(
-            i, fragments_vertices[i], fragments_normals[i], args, folder_path)
-        frag_kpts = get_keypoints(
-            i, fragments_vertices[i], fragments_normals[i], desc_n, desc_inv, args, folder_path)
+        desc_n, desc_inv = get_descriptors(i, frag_vert[i], frag_norm[i], args, folder_path)
+        frag_kpts = get_keypoints(i, frag_vert[i], frag_norm[i], desc_n, desc_inv, args, folder_path)
         keypoints.append(frag_kpts)
 
-    matching_matrix = get_fragment_matchings(
-        fragments_vertices, os.path.join(args.path, folder_path))
-
+   
+    # create the groundtruth
     for i in range(num_fragments):
         for j in range(i):
             if matching_matrix[i, j]:
-                keypoint_assignment = get_keypoint_assignment(
-                    keypoints[i][:, :3], keypoints[j][:, :3]).astype(int)
+                kpts_i = keypoints[i][:, :3]
+                kpts_j = keypoints[j][:, :3]
+                # translate back
+                kpts_i = kpts_i + pcd_centers[i]
+                kpts_j = kpts_j + pcd_centers[j]
+                keypoint_assignment = get_keypoint_assignment(kpts_i, kpts_j).astype(int)
                 print(f"Found {np.sum(keypoint_assignment)} matches!")
                 # save the matching matrix as sparse scipy file
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
@@ -405,6 +448,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--path", type=str)
     parser.add_argument("--keypoint_method", type=str,default='hybrid', choices=['SD', 'sticky'])
-    parser.add_argument("--descriptor_method", type=str,default='fpfh', choices=['shot', 'fpfh'])
+    parser.add_argument("--descriptor_method", type=str,default='pillar', choices=['shot', 'fpfh'])
     args = parser.parse_args()
     process_folder(os.path.abspath(args.path), args)

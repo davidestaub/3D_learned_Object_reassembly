@@ -1,6 +1,4 @@
 model_conf = {
-    'init_uniform_weights': False,
-    'use_pointnet': False, # if true, using the pointnet as encoder and ignores the mlp one
     'use_mlp': True, # using the mlp encoder, only works if pointnet is false
     'use_desc': True,
     'descriptor_dim': 36, # the descriptor dimension, must be dividable by 4!!
@@ -9,12 +7,9 @@ model_conf = {
     'GNN_layers': ['self', 'cross'] * 9,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
-    # 'bottleneck_dim': None,
     'loss': {
         'nll_weight': 1.,
         'nll_balancing': 0.9,
-        #'reward_weight': 0.,
-        #'bottleneck_l2_weight': 0.,
     },
 }
 
@@ -22,12 +17,12 @@ model_conf = {
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 1000,  # number of epochs
-    'batch_size_train': 1,  # training batch size
-    'batch_size_test': 1, #test batch size
+    'batch_size_train': 16,  # training batch size
+    'batch_size_test': 16, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr':1e-3,  # learning rate
+    'lr':1e-4,  # learning rate
     'lr_schedule': {'type': 'exp', 'start': 250e3, 'exp_div_10': 50e3},
     'eval_every_iter': 100,  # interval for evaluation on the validation set
     'log_every_iter': 100,  # interval for logging the loss to the console
