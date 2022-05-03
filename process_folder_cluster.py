@@ -70,7 +70,7 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
-def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.63, mixture = 0.7):
+def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.5, mixture = 0.7):
     c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
     c = np.array(c)
     sd = np.array(sd)
@@ -370,8 +370,8 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
 def process_folder(folder_path, args):
     start_time = time.time()
     object_name = os.path.basename(folder_path)
-    #shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
-    #os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
+    shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
+    os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
 
     obj_files = glob(os.path.join(
         args.path, folder_path, 'cleaned', '*.pcd'))
@@ -414,7 +414,9 @@ def process_folder(folder_path, args):
         frag_kpts = get_keypoints(i, frag_vert[i], frag_norm[i], desc_n, desc_inv, args, folder_path)
         keypoints.append(frag_kpts)
 
-   
+    # log for matches
+    log = []
+
     # create the groundtruth
     for i in range(num_fragments):
         for j in range(i):
@@ -425,13 +427,15 @@ def process_folder(folder_path, args):
                 kpts_i = kpts_i + pcd_centers[i]
                 kpts_j = kpts_j + pcd_centers[j]
                 keypoint_assignment = get_keypoint_assignment(kpts_i, kpts_j).astype(int)
-                print(f"Found {np.sum(keypoint_assignment)} matches!")
+                log.append(f"Found {np.sum(keypoint_assignment)} matches for {i}-{j}!")
                 # save the matching matrix as sparse scipy file
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
                 path = os.path.join(args.path, folder_path,
                                     'processed', 'matching', name)
                 save_npz(path, csr_matrix(keypoint_assignment))
-
+    with open(os.path.join(folder_path,'log.txt'), 'w') as f:
+        f.write('\n'.join(log))
+    
     # delete unecessary files again
     try:
         shutil.rmtree(os.path.join(args.path, folder_path,
