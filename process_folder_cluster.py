@@ -256,7 +256,7 @@ def get_harris_keypoints(vertices):
     return keypoint_indexes
 
 
-def get_keypoint_assignment(keypoints1, keypoints2, threshold=0.003):
+def get_keypoint_assignment(keypoints1, keypoints2, threshold=1e-2):
     dists = cdist(keypoints1, keypoints2)
     close_enough_mask = np.min(dists, axis=0) < threshold
     closest = np.argmin(dists, axis=0)
@@ -371,7 +371,7 @@ def process_folder(folder_path, args):
     object_name = os.path.basename(folder_path)
     shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
     os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
-    
+
     try:
         os.remove(os.path.join(folder_path,'log.txt'))
     except:

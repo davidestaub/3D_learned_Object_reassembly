@@ -43,7 +43,8 @@ class FragmentsDataset(td.Dataset):
             processed = os.path.join(folder, 'processed', '')
             matching = os.path.join(processed, 'matching', '')
             match_path = f'{matching}{object_name}_matching_matrix.npy'
-            if not os.path.exists(match_path):
+            # if there is no log, the dataset wasn't processed yet
+            if not os.path.exists(os.path.join(folder, 'log.txt')):
                 continue
             match_mat = np.load(match_path)
 
