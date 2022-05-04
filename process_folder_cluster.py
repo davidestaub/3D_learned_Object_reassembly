@@ -326,7 +326,7 @@ def get_keypoint_assignment(keypoints1, keypoints2, threshold=1e-2):
     return keypoint_assignment
 
 
-def get_descriptors(i, vertices, normals, args):
+def get_descriptors(vertices, normals, args):
 
     method = args.descriptor_method
 
@@ -442,7 +442,7 @@ def process_folder(folder_path, args):
     
     keypoints = []
     for i in range(num_fragments):
-        desc_n, desc_inv = get_descriptors(i, frag_vert[i], frag_norm[i], args, folder_path)
+        desc_n, desc_inv = get_descriptors(frag_vert[i], frag_norm[i], args)
         frag_kpts = get_keypoints(i, frag_vert[i], frag_norm[i], desc_n, desc_inv, args, folder_path)
         keypoints.append(frag_kpts)
 
