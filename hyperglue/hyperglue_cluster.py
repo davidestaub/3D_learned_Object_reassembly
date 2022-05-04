@@ -143,7 +143,7 @@ class AttentionalGNN(nn.Module):
     def __init__(self, feature_dim: int, layer_names: List[str]) -> None:
         super().__init__()
         self.layers = nn.ModuleList([
-            AttentionalPropagation(feature_dim, 6)
+            AttentionalPropagation(feature_dim, conf.model_conf['num_heads'])
             for _ in range(len(layer_names))])
         self.names = layer_names
 
@@ -198,8 +198,9 @@ class SuperGlue(nn.Module):
         super().__init__()
         self.config = config
 
-        self.kenc = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
-        
+        self.kenc0 = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
+        self.kenc1 = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
+
         self.gnn = AttentionalGNN(
             feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
 
@@ -234,22 +235,10 @@ class SuperGlue(nn.Module):
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
 
-        # switch between different types of encoding keypoints
-        if self.config['use_mlp'] and self.config['use_desc']:
-            encoded_kpt0 = self.kenc(kpts0, scores0)
-            encoded_kpt1 = self.kenc(kpts1, scores1)
-            encoded_kpt0 = encoded_kpt0.squeeze()
-            encoded_kpt1 = encoded_kpt1.squeeze()
-            desc0 = desc0.transpose(1, 2) + encoded_kpt0
-            desc1 = desc1.transpose(1, 2) + encoded_kpt1
-        elif self.config['use_mlp'] and not self.config['use_desc']:
-            encoded_kpt0 = self.kenc(kpts0, scores0)
-            encoded_kpt1 = self.kenc(kpts1, scores1)
-            desc0 = encoded_kpt0.squeeze()
-            desc1 = encoded_kpt1.squeeze()
-        else:
-            desc0 = desc0.transpose(1, 2)
-            desc1 = desc1.transpose(1, 2)
+        encoded_kpt0 = self.kenc0(kpts0, scores0).squeeze()
+        encoded_kpt1 = self.kenc1(kpts1, scores1).squeeze()
+        desc0 = desc0.transpose(1, 2) + encoded_kpt0
+        desc1 = desc1.transpose(1, 2) + encoded_kpt1
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
