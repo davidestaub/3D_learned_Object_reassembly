@@ -1,6 +1,7 @@
 model_conf = {
     'descriptor_dim': 36, # the descriptor dimension, must be dividable by num heads!
     'num_heads': 4, # num of heads
+    'sep_encoder': False, #sepparate encoders
     'weights': 'weights_01',
     'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
     'GNN_layers': ['self', 'cross'] * 6,
@@ -12,22 +13,20 @@ model_conf = {
     },
 }
 
-hyperpillar = False
+hyperpillar = True
 
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 1000,  # number of epochs
-    'batch_size_train': 4,  # training batch size
-    'batch_size_test': 4, #test batch size
+    'batch_size_train': 1,  # training batch size
+    'batch_size_test': 1, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr':1e-4,  # learning rate
-    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 50e4},
+    'lr':1e-3,  # learning rate
+    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 1e3},
     'eval_every_iter': 500,  # interval for evaluation on the validation set
     'log_every_iter': 500,  # interval for logging the loss to the console
-    'keep_last_checkpoints': 5,  # keep only the last X checkpoints
-    'load_experiment': None,  # initialize the model from a previous experiment
     'best_key': 'loss/total',  # key to use to select the best checkpoint
     'output_dir': "output", # the 
     'load_weights': False,

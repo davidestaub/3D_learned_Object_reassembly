@@ -101,6 +101,26 @@ class KeypointEncoder(nn.Module):
         else:
             return self.encoder(kpts.transpose(1,2))
 
+
+class PillarEncoder(nn.Module):
+    """Pillar Encoder after the idea from StickyPillar"""
+    def __init__(self, dim_in:int = 100, dim_out: int = 36):
+        super().__init__()
+        self.indim = dim_in
+        self.batch_size = conf.train_conf['batch_size_train']
+        # linear projection bn and relu
+        self.lin = nn.Linear(dim_in, dim_out, bias=False)
+        self.bn = nn.BatchNorm1d(dim_out)
+        self.rl = nn.ReLU()
+
+    def forward(self, desc: torch.Tensor) -> torch.Tensor:
+        x = desc.reshape([self.batch_size, 1024, self.indim])
+        x = self.lin(x).transpose(1,2)
+        x = self.bn(x)
+        x = self.rl(x)
+        return x.transpose(1,2)
+
+
 def attention(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     dim = query.shape[1]
     scores = torch.einsum('bdhn,bdhm->bhnm', query, key) / dim**.5
@@ -189,23 +209,29 @@ def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int)
     Z = Z - norm  # multiply probabilities by M+N
     return Z
 
-
-
-
-
 class SuperGlue(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.f_dim = config['descriptor_dim']
 
-        self.kenc0 = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
-        self.kenc1 = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
+        if conf.hyperpillar:
+            self.penc0 = PillarEncoder(dim_in=10 *self.f_dim, dim_out=self.f_dim)
+            self.penc1 = PillarEncoder(dim_in=10 *self.f_dim, dim_out=self.f_dim)
+            self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
+            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
 
+        elif self.config['sep_encoder']:
+            self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
+            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
+        else:
+            self.kenc =  KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
+        
         self.gnn = AttentionalGNN(
-            feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
+            feature_dim=self.f_dim, layer_names=self.config['GNN_layers'])
 
         self.final_proj = nn.Conv1d(
-            self.config['descriptor_dim'], self.config['descriptor_dim'],
+            self.f_dim, self.f_dim,
             kernel_size=1, bias=True)
 
         bin_score = torch.nn.Parameter(torch.tensor(0.))
@@ -234,11 +260,22 @@ class SuperGlue(nn.Module):
                 'matching_scores0': kpts0.new_zeros(shape0),
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
+        if conf.hyperpillar:
+            encoded_kpt0 = self.kenc0(kpts0, scores0).squeeze()
+            encoded_kpt1 = self.kenc1(kpts1, scores1).squeeze()
+            desc0 = self.penc0(desc0)
+            desc1 = self.penc1(desc1)
+        elif self.config['sep_encoder']:
+            encoded_kpt0 = self.kenc0(kpts0, scores0).squeeze()
+            encoded_kpt1 = self.kenc1(kpts1, scores1).squeeze()
+        else:
+            encoded_kpt0 = self.kenc(kpts0, scores).squeeze()
+            encoded_kpt1 = self.kenc(kpts1, scores).squeeze()
 
-        encoded_kpt0 = self.kenc0(kpts0, scores0).squeeze()
-        encoded_kpt1 = self.kenc1(kpts1, scores1).squeeze()
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
+        
+        
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
@@ -248,7 +285,7 @@ class SuperGlue(nn.Module):
 
         # Compute matching descriptor distance.
         scores = torch.einsum('bdn,bdm->bnm', mdesc0, mdesc1)
-        scores = scores / self.config['descriptor_dim']**.5
+        scores = scores / self.f_dim**.5
 
         # Run the optimal transport.
         scores = log_optimal_transport(

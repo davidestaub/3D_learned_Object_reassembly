@@ -1,3 +1,4 @@
+from distutils.command.config import config
 import os
 from glob import glob
 
@@ -6,7 +7,7 @@ import torch
 import torch.utils.data as td
 from scipy.sparse import load_npz
 from sklearn.model_selection import train_test_split
-
+from utils.conf import *
 
 def pc_normalize(pc):
     """normalizes a pointcloud by centering and unit scaling"""
@@ -36,7 +37,9 @@ class FragmentsDataset(td.Dataset):
         self.normalize = conf['normalize_data']
         self.overfit = conf['overfit']
         self.match_with_inverted = conf['match_inverted']
-
+        # correct settings of hyperpillar
+        if hyperpillar:
+            self.match_with_inverted = True
         # load the dataset
         for folder in object_folders:
             object_name = os.path.basename(folder)
@@ -142,9 +145,14 @@ class FragmentsDataset(td.Dataset):
         # load descriptors
         des0 = np.load(desc_path_0)
         des1 = np.load(desc_path_1)
-        #zero pad
-        des0 = np.concatenate((des0, np.zeros((des0.shape[0], 3))), axis=1)
-        des1 = np.concatenate((des1, np.zeros((des1.shape[0], 3))), axis=1)
+        #zero pad if needed
+        if not hyperpillar:
+            diff =  model_conf['descriptor_dim'] - des0.shape[1]
+            if diff < 0:
+                exit("ERROR: FEATURES ARE BIGGER THAN STATED FEATURE DIMENSION!")
+            if diff > 0:
+                des0 = np.concatenate((des0, np.zeros((des0.shape[0], diff))), axis=1)
+                des1 = np.concatenate((des1, np.zeros((des1.shape[0], diff))), axis=1)
 
         sample = {
             "keypoints0": torch.from_numpy(kp0.astype(np.float32)),
