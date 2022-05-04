@@ -145,12 +145,19 @@ class Linear2D(nn.Module):
 
 class PillarEncoder(nn.Module):
     """Pillar Encoder after the idea from StickyPillar"""
-    def __init__(self):
+    def __init__(self, dim_in:int = 100, dim_out: int = 32):
         super().__init__()
-        self.enc = nn.Sequential(*[Linear2D(), nn.BatchNorm1d(32), nn.ReLU()])
+        self.batch_size = conf.train_conf['batch_size_train']
+        self.lin = nn.Linear(dim_in, dim_out, bias=False)
+        self.bn = nn.BatchNorm1d(dim_out)
+        self.rl = nn.ReLU()
 
     def forward(self, desc: torch.Tensor) -> torch.Tensor:
-        return self.enc(desc)
+        x = desc.reshape([self.batch_size,1024,100])
+        x = self.lin(x).transpose(1,2)
+        x = self.bn(x)
+        x = self.rl(x)
+        return x.transpose(1,2)
 
 class AttentionalPropagation(nn.Module):
     def __init__(self, feature_dim: int, num_heads: int):
@@ -220,9 +227,9 @@ class HyperPillar(nn.Module):
         self.config = config
 
         self.kenc0 = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
-        self.penc0 = PillarEncoder()
+        self.penc0 = PillarEncoder(dim_out=self.config['descriptor_dim'])
         self.kenc1 = KeypointEncoder(self.config['descriptor_dim'], self.config['keypoint_encoder'])
-        #self.penc1 = PillarEncoder()
+        self.penc1 = PillarEncoder(dim_out=self.config['descriptor_dim'])
 
         self.gnn = AttentionalGNN(feature_dim=self.config['descriptor_dim'], layer_names=self.config['GNN_layers'])
 
@@ -261,14 +268,15 @@ class HyperPillar(nn.Module):
         if self.config['use_mlp'] and self.config['use_desc']:
             encoded_kpt0 = self.kenc0(kpts0, scores0)
             encoded_kpt1 = self.kenc1(kpts1, scores1)
-            print(encoded_kpt0.shape)
+
             encoded_kpt0 = encoded_kpt0.squeeze()
             encoded_kpt1 = encoded_kpt1.squeeze()
-            print(encoded_kpt0.shape)
-            print(desc0.shape)
-            self.penc0(desc0)
-            desc0 = desc0.transpose(1, 2) + encoded_kpt0
-            desc1 = desc1.transpose(1, 2) + encoded_kpt1
+
+            desc0 = self.penc0(desc0).transpose(1,2)
+            desc1 = self.penc1(desc1).transpose(1,2)
+
+            desc0 = desc0 + encoded_kpt0
+            desc1 = desc1 + encoded_kpt1
 
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
@@ -465,13 +473,13 @@ def dummy_training(rank, dataroot, model, train_conf):
         train,
         batch_size=train_conf['batch_size_train'],
         shuffle=True,
-        num_workers=8
+        num_workers=4
         )
     test_dl = td.DataLoader(
         test,
         batch_size=train_conf['batch_size_test'],
         shuffle=True,
-        num_workers=8
+        num_workers=4
         )
 
     if rank == 0:

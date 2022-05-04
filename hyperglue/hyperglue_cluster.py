@@ -446,13 +446,13 @@ def dummy_training(rank, dataroot, model, train_conf):
         train,
         batch_size=train_conf['batch_size_train'],
         shuffle=True,
-        num_workers=8
+        num_workers=4
         )
     test_dl = td.DataLoader(
         test,
         batch_size=train_conf['batch_size_test'],
         shuffle=True,
-        num_workers=8
+        num_workers=4
         )
 
     if rank == 0:
