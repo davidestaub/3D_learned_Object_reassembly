@@ -546,7 +546,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             optimizer.step()
             lr_scheduler.step()
 
-            if (it % train_conf["log_every_iter"] == 0) or (it == (len(train_dl) - 1)):
+            if it == len(train_dl) - 1:
                 for k in sorted(losses.keys()):
                     if args.distributed:
                         losses[k] = losses[k].sum()
@@ -566,7 +566,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                     writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
                     wandb.log({'lr':  optimizer.param_groups[0]['lr']})
 
-            if (it % train_conf["eval_every_iter"] == 0) or it == (len(train_dl) - 1):
+            if it == len(train_dl) - 1:
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
 
                 if rank == 0:
