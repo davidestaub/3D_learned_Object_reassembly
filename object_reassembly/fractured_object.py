@@ -15,7 +15,9 @@ class FracturedObject(object):
 
     def __init__(self, name):
         self.name = name
+        #Orignal positions (meshes)
         self.fragments_orig = {}
+        #Current position (fragments)
         self.fragments = {}
         self.fragment_matches_gt = []
         self.fragment_matches = []
@@ -23,6 +25,7 @@ class FracturedObject(object):
         self.kpts = {}
         self.kpt_matches_gt = {}
         self.kpt_matches = {}
+        # stored random transformation
         self.transf_random = {}
         self.transf = {}
 
