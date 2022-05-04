@@ -346,7 +346,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
     method = args.keypoint_method
     processed_path = os.path.join(args.path, folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{method}.{i}.npy')
-    if "pillar" not in method:
+    if "pillar" in args.descriptor_method:
         kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
         kpts_desc_path_inverted = os.path.join(processed_path,'keypoint_descriptors_inverted', f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
     else:
@@ -403,8 +403,8 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
 def process_folder(folder_path, args):
     start_time = time.time()
     object_name = os.path.basename(folder_path)
-    #shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
-    #os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
+    shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
+    os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
 
     obj_files = glob(os.path.join(args.path, folder_path, 'cleaned', '*.pcd'))
     frag_vert = []
