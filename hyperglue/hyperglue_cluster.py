@@ -546,7 +546,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             optimizer.step()
             lr_scheduler.step()
 
-            if it == len(train_dl) - 1:
+            if it % 10 == 0 or it == len(train_dl) - 1:
                 for k in sorted(losses.keys()):
                     if args.distributed:
                         losses[k] = losses[k].sum()
