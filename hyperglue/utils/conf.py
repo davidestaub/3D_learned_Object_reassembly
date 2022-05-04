@@ -23,8 +23,8 @@ train_conf = {
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
-    'lr':1e-3,  # learning rate
-    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 1e3},
+    'lr':1e-4,  # learning rate
+    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 1e4},
     'eval_every_iter': 500,  # interval for evaluation on the validation set
     'log_every_iter': 500,  # interval for logging the loss to the console
     'best_key': 'loss/total',  # key to use to select the best checkpoint
