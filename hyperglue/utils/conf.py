@@ -17,13 +17,13 @@ hyperpillar = False
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 1000,  # number of epochs
-    'batch_size_train': 1,  # training batch size
-    'batch_size_test': 1, #test batch size
+    'batch_size_train': 4,  # training batch size
+    'batch_size_test': 4, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
     'lr':1e-4,  # learning rate
-    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 50e3},
+    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 50e4},
     'eval_every_iter': 500,  # interval for evaluation on the validation set
     'log_every_iter': 500,  # interval for logging the loss to the console
     'keep_last_checkpoints': 5,  # keep only the last X checkpoints
