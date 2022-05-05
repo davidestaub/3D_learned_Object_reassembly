@@ -217,8 +217,8 @@ class SuperGlue(nn.Module):
         self.sepenc = config['sep_encoder']
 
         if conf.hyperpillar:
-            self.penc0 = PillarEncoder(dim_in=10 * 10, dim_out=self.f_dim)
-            self.penc1 = PillarEncoder(dim_in=10 * 10, dim_out=self.f_dim) if self.sepenc else self.penc0
+            self.penc0 = PillarEncoder(dim_in= 10 * 10, dim_out=self.f_dim)
+            self.penc1 = PillarEncoder(dim_in= 10 * 10, dim_out=self.f_dim) if self.sepenc else self.penc0
             self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
             self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
         else:
@@ -609,7 +609,7 @@ def dummy_training(rank, dataroot, model, train_conf):
                     writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
                     wandb.log({'lr':  optimizer.param_groups[0]['lr']})
 
-            if it % 100 == 0 or it == len(train_dl) - 1:
+            if it % 1000 == 0 or it == len(train_dl) - 1:
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
 
                 if rank == 0:
