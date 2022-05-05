@@ -104,7 +104,7 @@ class KeypointEncoder(nn.Module):
 
 class PillarEncoder(nn.Module):
     """Pillar Encoder after the idea from StickyPillar"""
-    def __init__(self, dim_in:int = 100, dim_out: int = 36):
+    def __init__(self, dim_in:int, dim_out: int):
         super().__init__()
         self.indim = dim_in
         self.batch_size = conf.train_conf['batch_size_train']
