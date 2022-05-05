@@ -114,7 +114,7 @@ class PillarEncoder(nn.Module):
         self.rl = nn.ReLU()
 
     def forward(self, desc: torch.Tensor) -> torch.Tensor:
-        x = desc.reshape([self.batch_size, 1024, self.indim])
+        x = desc.reshape([desc.shape[0], desc.shape[1], self.indim])
         x = self.lin(x).transpose(1,2)
         x = self.bn(x)
         x = self.rl(x)
@@ -460,6 +460,7 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     else:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = 'cpu'
         logger.info(f'Using device {device}')
 
     # Loading the fragment data
