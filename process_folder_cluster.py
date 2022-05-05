@@ -53,10 +53,10 @@ def fpfh_pillar_encoder(pcd, normals, sample_size = 10):
 def pillar_encoder(kpts, pcd, sample_size = 10):
     pcd = np.array(pcd)
     # downsample to x y coordinates
-    kpts_2d = kpts[:,:2]
-    pcd_2d = pcd[:,:2]
-    tree = KDTree(pcd_2d)
-    dist, neighbourhoods = tree.query(kpts_2d, sample_size)
+    #kpts_2d = kpts[:,:2]
+    #pcd_2d = pcd[:,:2]
+    tree = KDTree(pcd)
+    dist, neighbourhoods = tree.query(kpts, sample_size)
     pillars = []
     for hood in neighbourhoods:
         pillars.append(pcd[hood])
@@ -346,7 +346,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
     method = args.keypoint_method
     processed_path = os.path.join(args.path, folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{method}.{i}.npy')
-    if "pillar" in args.descriptor_method:
+    if args.descriptor_method.find("pillar"):
         kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
         kpts_desc_path_inverted = os.path.join(processed_path,'keypoint_descriptors_inverted', f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
     else:
@@ -403,8 +403,8 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
 def process_folder(folder_path, args):
     start_time = time.time()
     object_name = os.path.basename(folder_path)
-    shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
-    os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
+    #shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
+    #os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
 
     obj_files = glob(os.path.join(args.path, folder_path, 'cleaned', '*.pcd'))
     frag_vert = []
@@ -468,7 +468,7 @@ def process_folder(folder_path, args):
                 save_npz(path, csr_matrix(keypoint_assignment))
 
     logpath = os.path.join(folder_path,'log.txt')
-    if not os.path.exists(logpath):
+    if log:
         with open(logpath, 'w') as f:
             f.write('\n'.join(log))
     
@@ -488,6 +488,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--path", type=str)
     parser.add_argument("--keypoint_method", type=str,default='hybrid', choices=['SD', 'sticky'])
-    parser.add_argument("--descriptor_method", type=str,default='fpfh_pillar', choices=['shot', 'fpfh', 'pillar'])
+    parser.add_argument("--descriptor_method", type=str,default='pillar', choices=['shot', 'fpfh', 'pillar', 'fpfh_pillar'])
     args = parser.parse_args()
     process_folder(os.path.abspath(args.path), args)
