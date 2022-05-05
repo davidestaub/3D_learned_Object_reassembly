@@ -597,8 +597,11 @@ def dummy_training(rank, dataroot, model, train_conf):
                         str_losses.append(f'{k} {v:.3E}')
                         wandb.log({f'{k}': v})
                     metr= metrics_fn(pred, data)
-                    wandb.log({'precision_train': metr['match_precision'].item()})
-                    wandb.log({'recall_train': metr['match_recall'].item()})
+                    prec = np.mean([p.item() for p in metr['match_precision']])
+                    rec = np.mean([p.item() for p in metr['match_recall']])
+
+                    wandb.log({'precision_train': prec})
+                    wandb.log({'recall_train': rec})
                     logger.info('[E {} | it {}] loss {{{}}}'.format(
                         epoch, it, ', '.join(str_losses)))
                     for k, v in losses.items():
