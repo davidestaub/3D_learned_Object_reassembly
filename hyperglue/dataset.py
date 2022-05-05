@@ -68,24 +68,28 @@ class FragmentsDataset(td.Dataset):
                     if match_mat[i, j] == 1:
                         item = {}
                         # original
-                        if not self.overfit:
-                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
-                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{j}.npy'))[0]
-                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{j}.npy'))[0]
-                            if self.match_with_inverted:
-                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
-                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{j}.npy'))[0]
-                            item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
-                        else:
-                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
-                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
-                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
-                            if self.match_with_inverted:
-                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
-                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
-                            item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
+                        try:
+                            if not self.overfit:
+                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{j}.npy'))[0]
+                                item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
+                                item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{j}.npy'))[0]
+                                if self.match_with_inverted:
+                                    item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
+                                    item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{j}.npy'))[0]
+                                item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
+                            else:
+                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
+                                item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
+                                if self.match_with_inverted:
+                                    item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
+                                    item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
+                                item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
+                        except:
+                            print(f"Error loading objects in folder {folder}")
+                            continue
 
                         self.dataset.append(item)
 
