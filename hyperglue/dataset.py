@@ -37,9 +37,14 @@ class FragmentsDataset(td.Dataset):
         self.normalize = conf['normalize_data']
         self.overfit = conf['overfit']
         self.match_with_inverted = conf['match_inverted']
+        # setuup for descriptor paths
+        kpt_desc = 'keypoint_descriptors'
+        kpt_desc_inv = 'keypoint_descriptors_inverted'
         # correct settings of hyperpillar
         if hyperpillar:
-            self.match_with_inverted = True
+            kpt_desc = '_'.join(['pillar', kpt_desc])
+            kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
+            
         # load the dataset
         for folder in object_folders:
             object_name = os.path.basename(folder)
@@ -63,28 +68,20 @@ class FragmentsDataset(td.Dataset):
                         if not self.overfit:
                             item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
                             item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{j}.npy'))[0]
-                            item['path_kpts_desc_0'] = \
-                                glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = \
-                                glob(os.path.join(processed, 'keypoint_descriptors', f'*.{j}.npy'))[0]
+                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*.{i}.npy'))[0]
+                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*.{j}.npy'))[0]
                             if self.match_with_inverted:
-                                item['path_kpts_desc_inverted_0'] = \
-                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{i}.npy'))[0]
-                                item['path_kpts_desc_inverted_1'] = \
-                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{j}.npy'))[0]
+                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{i}.npy'))[0]
+                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{j}.npy'))[0]
                             item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
                         else:
                             item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
                             item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_0'] = \
-                                glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = \
-                                glob(os.path.join(processed, 'keypoint_descriptors', f'*.{i}.npy'))[0]
+                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*.{i}.npy'))[0]
+                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*.{i}.npy'))[0]
                             if self.match_with_inverted:
-                                item['path_kpts_desc_inverted_0'] = \
-                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{i}.npy'))[0]
-                                item['path_kpts_desc_inverted_1'] = \
-                                    glob(os.path.join(processed, 'keypoint_descriptors_inverted', f'*.{i}.npy'))[0]
+                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{i}.npy'))[0]
+                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{i}.npy'))[0]
                             item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
 
                         self.dataset.append(item)
@@ -131,7 +128,6 @@ class FragmentsDataset(td.Dataset):
             kp0 = pc_normalize(kp0)
             kp1 = pc_normalize(kp1)
 
-        # TODO, make pointnet in afterwards in forward pass from kpts and scores
         if self.match_with_inverted:
             if inverted_0:
                 desc_path_0 = self.dataset[idx]['path_kpts_desc_inverted_0']
