@@ -73,8 +73,8 @@ def MLP(channels: List[int], do_bn: bool = True, dropout: bool = False, activati
                 layers.append(relu_layer)
             if activation == 'tanh':
                 layers.append(nn.Tanh())
-            if activation == 'sigmoid':
-                layers.append(nn.Sigmoid())
+            if activation == 'elu':
+                layers.append(nn.ELU())
             if dropout:
                 layers.append(nn.Dropout(0.1))
     return nn.Sequential(*layers)
@@ -89,7 +89,7 @@ class KeypointEncoder(nn.Module):
         self.input_size = 4 if self.use_scores else 3
         self.encoder = MLP(channels = [self.input_size] + layers + [feature_dim],
                            dropout = True,
-                           activation = 'relu')
+                           activation = 'elu')
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
@@ -214,18 +214,16 @@ class SuperGlue(nn.Module):
         super().__init__()
         self.config = config
         self.f_dim = config['descriptor_dim']
+        self.sepenc = config['sep_encoder']
 
         if conf.hyperpillar:
-            self.penc0 = PillarEncoder(dim_in=10 *self.f_dim, dim_out=self.f_dim)
-            self.penc1 = PillarEncoder(dim_in=10 *self.f_dim, dim_out=self.f_dim)
+            self.penc0 = PillarEncoder(dim_in=10 * 10, dim_out=self.f_dim)
+            self.penc1 = PillarEncoder(dim_in=10 * 10, dim_out=self.f_dim) if self.sepenc else self.penc0
             self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
-            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
-
-        elif self.config['sep_encoder']:
-            self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
-            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
+            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
         else:
-            self.kenc =  KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
+            self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
+            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
         
         self.gnn = AttentionalGNN(
             feature_dim=self.f_dim, layer_names=self.config['GNN_layers'])
@@ -234,7 +232,7 @@ class SuperGlue(nn.Module):
             self.f_dim, self.f_dim,
             kernel_size=1, bias=True)
 
-        bin_score = torch.nn.Parameter(torch.tensor(0.))
+        bin_score = torch.nn.Parameter(torch.tensor(1.))
         self.register_parameter('bin_score', bin_score)
 
         if train_conf["load_weights"]:
@@ -265,12 +263,9 @@ class SuperGlue(nn.Module):
             encoded_kpt1 = self.kenc1(kpts1, scores1).squeeze()
             desc0 = self.penc0(desc0)
             desc1 = self.penc1(desc1)
-        elif self.config['sep_encoder']:
+        else:
             encoded_kpt0 = self.kenc0(kpts0, scores0).squeeze()
             encoded_kpt1 = self.kenc1(kpts1, scores1).squeeze()
-        else:
-            encoded_kpt0 = self.kenc(kpts0, scores).squeeze()
-            encoded_kpt1 = self.kenc(kpts1, scores).squeeze()
 
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
@@ -364,8 +359,12 @@ class SuperGlue(nn.Module):
             mask = ((m > -1) & (gt_m >= -1)).float()
             return ((m == gt_m)*mask).sum(1) / mask.sum(1)
 
-        rec = recall(pred['matches0'], data['gt_matches0'])
-        prec = precision(pred['matches0'], data['gt_matches0'])
+        rec0 = recall(pred['matches0'], data['gt_matches0'])
+        prec0 = precision(pred['matches0'], data['gt_matches0'])
+        rec1 = recall(pred['matches1'], data['gt_matches1'])
+        prec1 = precision(pred['matches1'], data['gt_matches1'])
+        rec = (rec0 + rec1) / 2
+        prec = (prec0 + prec1) / 2
         return {'match_recall': rec, 'match_precision': prec}
 
 
@@ -597,7 +596,9 @@ def dummy_training(rank, dataroot, model, train_conf):
                     for k, v in losses.items():
                         str_losses.append(f'{k} {v:.3E}')
                         wandb.log({f'{k}': v})
-
+                    metr= metrics_fn(pred, data)
+                    wandb.log({'precision_train': metr['match_precision'].item()})
+                    wandb.log({'recall_train': metr['match_recall'].item()})
                     logger.info('[E {} | it {}] loss {{{}}}'.format(
                         epoch, it, ', '.join(str_losses)))
                     for k, v in losses.items():
