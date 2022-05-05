@@ -387,23 +387,23 @@ def construct_match_matrix(x0, x1):
     return(torch.cat(matrices, dim=1))
 
 
-def do_evaluation(model, loader, device, loss_fn, metrics_fn, conf, pbar=True):
+def do_evaluation(model, loader, device, loss_fn, metrics_fn):
     model.eval()
     results = {}
-    for data in tqdm(loader, desc='Evaluation', ascii=True, disable=not pbar):
-        data = batch_to_device(data, device, non_blocking=True)
-        with torch.no_grad():
-            pred = model(data)
-            losses = loss_fn(pred, data)
-            metrics = metrics_fn(pred, data)
-            del pred, data
+    data = next(iter(loader))
+    data = batch_to_device(data, device, non_blocking=True)
+    with torch.no_grad():
+        pred = model(data)
+        losses = loss_fn(pred, data)
+        metrics = metrics_fn(pred, data)
+        del pred, data
 
-        numbers = {**metrics, **{'loss/'+k: v for k, v in losses.items()}}
-        for k, v in numbers.items():
-            if k not in results:
-                results[k] = AverageMetric()
+    numbers = {**metrics, **{'loss/'+k: v for k, v in losses.items()}}
+    for k, v in numbers.items():
+        if k not in results:
+            results[k] = AverageMetric()
 
-            results[k].update(v)
+        results[k].update(v)
 
     results = {k: results[k].compute() for k in results}
     return results
@@ -610,8 +610,8 @@ def dummy_training(rank, dataroot, model, train_conf):
                     writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
                     wandb.log({'lr':  optimizer.param_groups[0]['lr']})
 
-            if it % 1000 == 0 or it == len(train_dl) - 1:
-                results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn, train_conf, pbar=(rank == 0))
+            if it % 100 == 0 or it == len(train_dl) - 1:
+                results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn)
 
                 if rank == 0:
                     str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
