@@ -37,9 +37,11 @@ class FragmentsDataset(td.Dataset):
         self.normalize = conf['normalize_data']
         self.overfit = conf['overfit']
         self.match_with_inverted = conf['match_inverted']
-        # setuup for descriptor paths
+        # setuup for paths
         kpt_desc = 'keypoint_descriptors'
         kpt_desc_inv = 'keypoint_descriptors_inverted'
+        kpts_method = conf['kpts']
+        desc_method = '_'.join([conf['kpts'], conf['desc']])
         # correct settings of hyperpillar
         if hyperpillar:
             kpt_desc = '_'.join(['pillar', kpt_desc])
@@ -67,23 +69,23 @@ class FragmentsDataset(td.Dataset):
                         item = {}
                         # original
                         if not self.overfit:
-                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{j}.npy'))[0]
-                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*.{j}.npy'))[0]
+                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
+                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{j}.npy'))[0]
+                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
+                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{j}.npy'))[0]
                             if self.match_with_inverted:
-                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{i}.npy'))[0]
-                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{j}.npy'))[0]
-                            item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
+                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{j}.npy'))[0]
+                            item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
                         else:
-                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*.{i}.npy'))[0]
-                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*.{i}.npy'))[0]
+                            item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
+                            item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
+                            item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
+                            item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                             if self.match_with_inverted:
-                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{i}.npy'))[0]
-                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*.{i}.npy'))[0]
-                            item['path_match_mat'] = glob(os.path.join(matching, f'*{j}_{i}.npz'))[0]
+                                item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
+                                item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
+                            item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
 
                         self.dataset.append(item)
 

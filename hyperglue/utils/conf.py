@@ -1,3 +1,8 @@
+data_conf = {
+    'desc': 'pillar',
+    'kpts': 'hybrid'
+}
+
 model_conf = {
     'descriptor_dim': 36, # the descriptor dimension, must be dividable by num heads!
     'num_heads': 4, # num of heads

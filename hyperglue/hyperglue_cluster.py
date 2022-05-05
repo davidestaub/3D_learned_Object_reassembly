@@ -436,12 +436,12 @@ def do_evaluation_overfit(model, data, device, loss_fn, metrics_fn):
 
 def dummy_training(rank, dataroot, model, train_conf):
     print("Started training...")
-    train_conf['output_dir'] = '_'.join([train_conf['output_dir'], wandb.run.name])
+    output_path = '_'.join([train_conf['output_dir'], wandb.run.name])
 
     init_cp = None
     set_seed(train_conf["seed"])
     if rank == 0:
-        writer = SummaryWriter(log_dir=str(train_conf["output_dir"]))
+        writer = SummaryWriter(log_dir=str(output_path))
     if args.distributed:
         logger.info(f'Training in distributed mode with {args.n_gpus} GPUs')
         assert torch.cuda.is_available()
@@ -626,31 +626,17 @@ def dummy_training(rank, dataroot, model, train_conf):
             del pred, data, loss, losses
 
         if rank == 0 and epoch % 100 == 0:
-            state = (model.module if args.distributed else model).state_dict()
-            checkpoint = {
-                'model': state,
-                'optimizer': optimizer.state_dict(),
-                'lr_scheduler': lr_scheduler.state_dict(),
-                # removed omegaconf
-                'conf': train_conf,
-                'epoch': epoch,
-                'losses': losses_,
-                'eval': results,
-            }
             # changed string formatting
             cp_name = 'checkpoint_{}'.format(epoch)
             logger.info('Saving checkpoint {}'.format(cp_name))
             # changed string formatting
-            cp_path = str(train_conf["output_dir"] + "/" + (cp_name + '.tar'))
-            torch.save(checkpoint, cp_path)
+            cp_path = str(output_path + "/" + (cp_name + '.tar'))
+            torch.save(model.state_dict(), cp_path)
 
             if results[train_conf["best_key"]] < best_eval:
                 best_eval = results[train_conf["best_key"]]
                 logger.info(f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
-                shutil.copy(cp_path, str(train_conf["output_dir"] + "/" + 'checkpoint_best.tar'))
-            
-            del checkpoint
-
+                shutil.copy(cp_path, str(output_path + "/" + 'checkpoint_best.tar'))
         epoch += 1
 
     logger.info(f'Finished training.')
@@ -671,6 +657,7 @@ if __name__ == '__main__':
     args = parser.parse_intermixed_args()
     model_conf = conf.model_conf
     train_conf = conf.train_conf
+    data_conf  = conf.data_conf
 
     if args.path == None:
         here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -682,17 +669,17 @@ if __name__ == '__main__':
     myGlue = SuperGlue(model_conf)
 
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
-    wandb.init(project="hyperglue", entity="lessgoo", config={**model_conf, **train_conf})
+    wandb.init(project="hyperglue", entity="lessgoo", config={**model_conf, **train_conf, **data_conf})
+    config = wandb.config
     wandb.watch(myGlue)
 
     if args.distributed:
         print("distributed")
         args.n_gpus = torch.cuda.device_count()
         print(" num gpus = ", args.n_gpus)
-        torch.multiprocessing.spawn(
-            main_worker, nprocs=args.n_gpus, args=(root, myGlue, train_conf))
+        torch.multiprocessing.spawn(main_worker, nprocs=args.n_gpus, args=(root, myGlue, config))
     else:
-        dummy_training(0, root, myGlue, train_conf)
+        dummy_training(0, root, myGlue, config)
 
     torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
 
