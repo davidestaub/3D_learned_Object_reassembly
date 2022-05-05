@@ -44,7 +44,8 @@ class FragmentsDataset(td.Dataset):
         if hyperpillar:
             kpt_desc = '_'.join(['pillar', kpt_desc])
             kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
-            
+            if self.match_with_inverted:
+                raise NotImplementedError  
         # load the dataset
         for folder in object_folders:
             object_name = os.path.basename(folder)
