@@ -6,10 +6,10 @@ model_conf = {
     'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
     'GNN_layers': ['self', 'cross'] * 6,
     'sinkhorn_iterations': 100,
-    'match_threshold': 0.3,
+    'match_threshold': 0.2,
     'loss': {
         'nll_weight': 1.,
-        'nll_balancing': 0.999,
+        'nll_balancing': 0.99,
     },
 }
 
@@ -31,8 +31,8 @@ train_conf = {
     'output_dir': "output", # the 
     'load_weights': False,
     'overfit': False,
-    'use_sd_score': False,
-    'match_inverted': True,
-    'train_fraction': 0.8,
+    'use_sd_score': True,
+    'match_inverted': False,
+    'train_fraction': 0.9,
     'normalize_data': True, # normalizing the pointcloud
 }
