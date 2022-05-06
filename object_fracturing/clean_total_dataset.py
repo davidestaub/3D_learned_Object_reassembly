@@ -1,32 +1,28 @@
 import os
 import numpy as np
 import shutil
-import sys
 from multiprocessing import Pool
 from compas.datastructures import Mesh
-from compas.geometry import Pointcloud
 from compas.datastructures import mesh_explode
 import open3d as o3d
-here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-dataroot = os.path.join(here, 'data')
-#dataroot = os.path.abspath('D:\\Studium Daten\\MA2\\3D Vision\\data_full')
+import gc
 
+dataroot= os.path.join(os.path.abspath(__file__), '..','data')
 dashed_line = "----------------------------------------------------------------\n"
-
-
-# total folders (-1 for keypoint folder)
-total_folders = len([i for i in os.listdir(dataroot)])
-subdivide = False 
-
 
 def handle_folder(object_folder):
     log = []
-
     folder_path = os.path.join(dataroot, object_folder)
+    cleaned_path = os.path.join(folder_path, 'cleaned')
+
+
+    # go back if already processed
+    if os.path.exists(os.path.join(folder_path, 'log.txt')):
+        return
 
     # delete the premade cleaned and subdv folder
     try:
-        shutil.rmtree(os.path.join(folder_path, 'cleaned'))
+        shutil.rmtree(cleaned_path)
     except:
         pass
 
@@ -40,44 +36,12 @@ def handle_folder(object_folder):
     
     # clean the folder
     for filename in os.listdir(folder_path):
-        if filename in ['keypoints', 'keypoints_harris']:
-            try:
-                shutil.rmtree(os.path.join(folder_path, filename))
-            except:
-                pass
-            continue
         if filename in ['cleaned', 'processed']:
             continue
         file_path = os.path.join(folder_path, filename)
         # delete material list files
         if filename.endswith('.mtl'):
             os.remove(file_path)
-        # if it's a shard, rename them uniformly
-        elif 'shard' in filename:
-            # now rename the shards
-            if filename.endswith('.obj'):
-                point_split = filename.split('.')
-                # old format
-                shard_number = 0
-                if len(point_split) > 2:
-                    shard_split = filename.split('.')[-2]
-                    if '_' in shard_split:
-                        shard_number = 0
-                    else:
-                        shard_number = int(shard_split)
-                new_name = object_folder + "_shard_" + str(shard_number) + ".obj"
-            try:
-                os.rename(file_path, new_name, )
-            except:
-                pass
-        else:
-            new_name = os.path.join(folder_path, object_folder)
-            if filename.endswith('.obj'):
-                new_name = new_name + ".obj"
-            try:
-                os.rename(file_path, new_name)
-            except:
-                pass
 
     # now that the folder is cleaned, one can create the cleaned data and subdidive the meshes
     # check if the cleaned folder exists yet
@@ -96,7 +60,6 @@ def handle_folder(object_folder):
                 mesh = Mesh.from_obj(file_path)
                 if not mesh.is_manifold():
                     print(f'Mesh {filename} not manifold!')
-                    return
             # explode them to sepparate loose parts
             exploded_meshes = mesh_explode(mesh)
             if len(exploded_meshes) > 1:
@@ -119,10 +82,10 @@ def handle_folder(object_folder):
                 vertices = np.array([ex_mesh.vertex_coordinates(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
                 normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
                 # create a pointcloud and save as pcd file with o3d 
-                pcd = o3d.t.geometry.PointCloud()
-                pcd.point['positions'] = o3d.core.Tensor(vertices)
-                pcd.point['normals'] = o3d.core.Tensor(normals)
-                o3d.t.io.write_point_cloud(FILE_PCD, pcd)
+                pcd = o3d.geometry.PointCloud()
+                pcd.normals = o3d.utility.Vector3dVector(normals)
+                pcd.points= o3d.utility.Vector3dVector(vertices)
+                o3d.io.write_point_cloud(FILE_PCD, pcd)
 
 
             shard_counter += 1
@@ -132,8 +95,9 @@ def handle_folder(object_folder):
     with open(log_path, "w+") as text_file:
         text_file.write(''.join(log))
     print(f'Processed folder {object_folder}')
+    gc.collect()
 
 if __name__ == '__main__':
     folders = os.listdir(dataroot)
-    with Pool(4) as p:
+    with Pool(2) as p:
         p.map(handle_folder, folders)

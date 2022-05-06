@@ -22,5 +22,9 @@ if __name__ == '__main__':
                 "process_folder_cluster.py",
                 "--path",
                 folder,
+                "--descriptor_method",
+                "fpfh",
+                "--keypoint_method",
+                "hybrid"
             ]
         )

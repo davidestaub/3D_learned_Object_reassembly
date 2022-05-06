@@ -101,7 +101,7 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
-def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 1024, sharp_percentage = 0.7, mixture = 0.5):
+def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.7, mixture = 0.5):
     c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
     c = np.array(c)
     sd = np.array(sd)
@@ -487,7 +487,7 @@ if __name__ == "__main__":
         description="Spawn jobs for blender_auto_fracture_cluster.py"
     )
     parser.add_argument("--path", type=str)
-    parser.add_argument("--keypoint_method", type=str,default='hybrid', choices=['SD', 'sticky'])
-    parser.add_argument("--descriptor_method", type=str,default='pillar', choices=['shot', 'fpfh', 'pillar', 'fpfh_pillar'])
+    parser.add_argument("--keypoint_method", type=str,default='hybrid', choices=['SD', 'sticky', 'hybrid'])
+    parser.add_argument("--descriptor_method", type=str,default='fpfh', choices=['fpfh', 'pillar', 'fpfh_pillar'])
     args = parser.parse_args()
     process_folder(os.path.abspath(args.path), args)

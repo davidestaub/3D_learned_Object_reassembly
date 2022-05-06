@@ -1,6 +1,6 @@
 data_conf = {
-    'desc': 'pillar',
-    'kpts': 'hybrid'
+    'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
+    'kpts': 'hybrid' # [hybrid, sd]
 }
 
 model_conf = {
@@ -18,13 +18,13 @@ model_conf = {
     },
 }
 
-hyperpillar = True
+hyperpillar = False
 
 train_conf = {
     'seed': 42,  # training seed
     'epochs': 1000,  # number of epochs
-    'batch_size_train': 1,  # training batch size
-    'batch_size_test': 1, #test batch size
+    'batch_size_train': 4,  # training batch size
+    'batch_size_test': 4, #test batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
@@ -37,7 +37,7 @@ train_conf = {
     'load_weights': False,
     'overfit': False,
     'use_sd_score': True,
-    'match_inverted': False,
+    'match_inverted': True,
     'train_fraction': 0.9,
     'normalize_data': True, # normalizing the pointcloud
 }
