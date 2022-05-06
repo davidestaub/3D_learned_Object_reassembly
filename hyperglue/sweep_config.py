@@ -4,6 +4,11 @@ metric = {
 }
 sweep_config = {'method': 'bayes'}
 
+terminator = {
+  "type": 'hyperband',
+  "min_iter": 50
+}
+
 param_dict = {
     'learning_rate': {
         'distribution': 'uniform',
@@ -48,3 +53,4 @@ param_dict = {
 
 sweep_config['metric'] = metric
 sweep_config['parameters'] = param_dict
+sweep_config['early_terminate'] = terminator
