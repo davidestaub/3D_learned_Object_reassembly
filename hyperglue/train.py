@@ -11,6 +11,11 @@ from tqdm import tqdm
 from utils.utils import *
 from dataset import FragmentsDataset, create_datasets
 from utils import conf
+from sweep_config import sweep_config
+model_conf = conf.model_conf
+train_conf = conf.train_conf
+data_conf  = conf.data_conf
+default_conf = {**model_conf, **train_conf, **data_conf}
 
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
@@ -612,29 +617,20 @@ def train_model(dataroot, model, train_conf):
 
     writer.close()
 
+def train():
+    with wandb.init() as run:
+        config = wandb.config
+        default_conf.update(config)
+        myGlue = SuperGlue(default_conf)
+        wandb.watch(myGlue)
+        train_model(root, myGlue, default_conf)
+
 if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', default = None)
-    parser.add_argument('--learning_rate')
-    parser.add_argument('--optimizer')
-    parser.add_argument('--sinkhorn_iterations')
-    parser.add_argument('--num_heads')
-    parser.add_argument('--sep_encoder')
-    parser.add_argument('--use_sd_score')
-    parser.add_argument('--match_threshold')
-    parser.add_argument('--pillar')
-    parser.add_argument('--nll_balancing')
-    parser.add_argument('--GNN_layers')
-    parser.add_argument('--keypoint_encoder')
     args = parser.parse_intermixed_args()
 
-    model_conf = conf.model_conf
-    train_conf = conf.train_conf
-    data_conf  = conf.data_conf
-    config = {**model_conf, **train_conf, **data_conf}
-    config.update(args)
-    
     if args.path == None:
         here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
         root = os.path.join(here, '..', 'object_fracturing', 'data')
@@ -642,33 +638,9 @@ if __name__ == '__main__':
         root = args.path
 
     np.set_printoptions(threshold=sys.maxsize)
-    myGlue = SuperGlue(model_conf)
+    
 
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
-    wandb.init(project="hyperglue", entity="lessgoo", config=config)
-    config = wandb.config
-    wandb.watch(myGlue)
-
+    sweep_id = wandb.sweep(sweep_config)
+    wandb.agent(sweep_id, function=train, count=5)
    
-    train_model(root, myGlue, config)
-
-    torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
-
-    evaluation = False
-    if evaluation:
-        test_data = FragmentsDataset(root=root)
-
-        myGlue.eval()
-        test_dl = td.DataLoader(
-            test_data,
-            batch_size = train_conf['batch_size'],
-            shuffle=False,
-            num_workers=4,
-            pin_memory=True)
-        for it, datatest in enumerate(test_dl):
-            pred = myGlue(datatest)
-            print(" ========  \n  The groundtruth: for data batch ", it)
-            print(datatest["gt_matches0"])
-            print("The final predicted output is: \n \n")
-            print(pred["matches0"])
-            print(" ======== ")
