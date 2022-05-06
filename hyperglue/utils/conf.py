@@ -20,8 +20,8 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 200,  # number of epochs
-    'batch_size': 4,  # training batch size
+    'epochs': 100,  # number of epochs
+    'batch_size': 8,  # training batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer

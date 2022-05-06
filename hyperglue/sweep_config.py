@@ -27,7 +27,7 @@ param_dict = {
     'match_threshold': {
         'distribution': 'uniform',
         'min': 0.1,
-        'max': 0.9
+        'max': 0.5
     },
     'pillar': {
         'values': [True, False]},
