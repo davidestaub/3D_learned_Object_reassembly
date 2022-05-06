@@ -34,10 +34,12 @@ class FragmentsDataset(td.Dataset):
     # load the dataset(
     def __init__(self, object_folders, conf):
         self.dataset = []
+        self.pillar = conf['pillar']
         self.normalize = conf['normalize_data']
         self.overfit = conf['overfit']
         self.match_with_inverted = conf['match_inverted']
-        # setuup for paths
+
+        # setup for paths
         kpt_desc = 'keypoint_descriptors'
         kpt_desc_inv = 'keypoint_descriptors_inverted'
         kpts_method = conf['kpts']
@@ -149,7 +151,7 @@ class FragmentsDataset(td.Dataset):
         des0 = np.load(desc_path_0)
         des1 = np.load(desc_path_1)
         #zero pad if needed
-        if not hyperpillar:
+        if not self.pillar:
             diff =  model_conf['descriptor_dim'] - des0.shape[1]
             if diff < 0:
                 exit("ERROR: FEATURES ARE BIGGER THAN STATED FEATURE DIMENSION!")
