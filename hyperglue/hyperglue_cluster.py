@@ -226,7 +226,7 @@ class SuperGlue(nn.Module):
             self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
         
         self.gnn = AttentionalGNN(
-            feature_dim=self.f_dim, layer_names=self.config['GNN_layers'])
+            feature_dim=self.f_dim, layer_names= ['self', 'cross'] * self.config['GNN_layers'])
 
         self.final_proj = nn.Conv1d(
             self.f_dim, self.f_dim,

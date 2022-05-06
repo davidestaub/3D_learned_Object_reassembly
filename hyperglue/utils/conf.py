@@ -10,7 +10,7 @@ model_conf = {
     'sep_encoder': False, #sepparate encoders
     'weights': 'weights_01',
     'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
-    'GNN_layers': ['self', 'cross'] * 6,
+    'GNN_layers': 6,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
     'nll_weight': 1000.,

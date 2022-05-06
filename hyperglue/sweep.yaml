@@ -27,13 +27,7 @@ parameters:
     min: 0.9
     max: 0.999
   GNN_layers:
-    values: [
-      ['self', 'cross'] * 3,
-      ['self', 'cross'] * 4,
-      ['self', 'cross'] * 5,
-      ['self', 'cross'] * 6,
-      ['self', 'cross'] * 7
-    ]
+    values: [3,4,5,6,7]
   keypoint_encoder:
     values: [
       [8, 16, 32, 64],
