@@ -13,22 +13,20 @@ model_conf = {
     'GNN_layers': ['self', 'cross'] * 6,
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
-    'loss': {
-        'nll_weight': 1000.,
-        'nll_balancing': 0.95,
-    },
+    'nll_weight': 1000.,
+    'nll_balancing': 0.95,
+
 }
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 1000,  # number of epochs
-    'batch_size_train': 4,  # training batch size
-    'batch_size_test': 4, #test batch size
+    'epochs': 200,  # number of epochs
+    'batch_size': 4,  # training batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
     'lr':1e-4,  # learning rate
-    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 1e4},
+    'lr_schedule': {'type': 'exp', 'start': 1e3, 'exp_div_10': 1e5},
     'eval_every_iter': 500,  # interval for evaluation on the validation set
     'log_every_iter': 500,  # interval for logging the loss to the console
     'best_key': 'loss/total',  # key to use to select the best checkpoint

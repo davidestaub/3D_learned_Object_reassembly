@@ -107,7 +107,7 @@ class PillarEncoder(nn.Module):
     def __init__(self, dim_in:int, dim_out: int):
         super().__init__()
         self.indim = dim_in
-        self.batch_size = conf.train_conf['batch_size_train']
+        self.batch_size = conf.train_conf['batch_size']
         # linear projection bn and relu
         self.lin = nn.Linear(dim_in, dim_out, bias=False)
         self.bn = nn.BatchNorm1d(dim_out)
@@ -333,12 +333,12 @@ class SuperGlue(nn.Module):
         nll_neg0 = -(log_assignment[:, :-1, -1]*neg0).sum(1)
         nll_neg1 = -(log_assignment[:, -1, :-1]*neg1).sum(1)
         nll_neg = (nll_neg0 + nll_neg1) / num_neg
-        nll = (model_conf["loss"]["nll_balancing"] * nll_pos
-               + (1 - model_conf["loss"]["nll_balancing"]) * nll_neg)
+        nll = (model_conf["nll_balancing"] * nll_pos
+               + (1 - model_conf["nll_balancing"]) * nll_neg)
         losses['assignment_nll'] = nll
 
-        if model_conf["loss"]["nll_weight"] > 0:
-            losses['total'] = nll*model_conf["loss"]["nll_weight"]
+        if model_conf["nll_weight"] > 0:
+            losses['total'] = nll*model_conf["nll_weight"]
 
         # Some statistics
         losses['num_matchable'] = num_pos
@@ -434,7 +434,7 @@ def do_evaluation_overfit(model, data, device, loss_fn, metrics_fn):
     return results
 
 
-def dummy_training(dataroot, model, train_conf):
+def train_model(dataroot, model, train_conf):
     print("Started training...")
     output_path = '_'.join([train_conf['output_dir'], wandb.run.name])
 
@@ -452,14 +452,14 @@ def dummy_training(dataroot, model, train_conf):
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
         train,
-        batch_size=train_conf['batch_size_train'],
+        batch_size=train_conf['batch_size'],
         shuffle=True,
         num_workers=4,
         pin_memory=True
         )
     test_dl = td.DataLoader(
         test,
-        batch_size=train_conf['batch_size_test'],
+        batch_size=train_conf['batch_size'],
         shuffle=True,
         num_workers=4,
         pin_memory=True
@@ -636,7 +636,7 @@ if __name__ == '__main__':
     wandb.watch(myGlue)
 
    
-    dummy_training(root, myGlue, config)
+    train_model(root, myGlue, config)
 
     torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
 
