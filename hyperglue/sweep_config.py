@@ -14,7 +14,7 @@ param_dict = {
         'values': ["adam", "sgd"]
     },
     'sinkhorn_iterations': {
-        'distribution': 'uniform',
+        'distribution': 'int_uniform',
         'min': 50,
         'max': 500
     },
