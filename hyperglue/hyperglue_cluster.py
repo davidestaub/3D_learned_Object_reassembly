@@ -636,7 +636,7 @@ if __name__ == '__main__':
     wandb.watch(myGlue)
 
    
-    dummy_training(0, root, myGlue, config)
+    dummy_training(root, myGlue, config)
 
     torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
 
