@@ -12,7 +12,7 @@ from matplotlib.colors import ListedColormap
 from torch._six import string_classes
 import collections.abc as collections
 
-colors = 'red blue green orange'.split()
+colors = 'red blue orange green'.split()
 cmap = ListedColormap(colors, name='colors')
 
 def map_tensor(input_, func):
@@ -45,15 +45,15 @@ def construct_match_vector(gt, pred):
         g = gt[i]
         p = pred[i]
         if g == p and g == -1:
-            mat[:, i] = 1 #cyan
+            mat[:, i] = 1 #blue
         elif g == p and g != -1:
-            mat[:, i] = 2 # green
+            mat[:, i] = 3 # green
         elif g != p and g == -1:
-            mat[:, i] = 3 #orange
+            mat[:, i] = 2 # orange
         else:
             mat[:, i] = 0 #red
     # add additional green row to show right colors
-    mat[:,i+1] = 2
+    mat[:,i+1] = 3
 
     return mat.tolist()
 
