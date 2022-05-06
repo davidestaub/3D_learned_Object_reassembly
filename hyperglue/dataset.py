@@ -43,7 +43,7 @@ class FragmentsDataset(td.Dataset):
         kpts_method = conf['kpts']
         desc_method = '_'.join([conf['kpts'], conf['desc']])
         # correct settings of hyperpillar
-        if hyperpillar:
+        if conf['pillar']:
             kpt_desc = '_'.join(['pillar', kpt_desc])
             kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
             if self.match_with_inverted:

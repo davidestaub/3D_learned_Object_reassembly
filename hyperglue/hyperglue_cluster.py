@@ -216,7 +216,7 @@ class SuperGlue(nn.Module):
         self.f_dim = config['descriptor_dim']
         self.sepenc = config['sep_encoder']
 
-        if conf.hyperpillar:
+        if self.config['pillar']:
             self.penc0 = PillarEncoder(dim_in= 10 * 10, dim_out=self.f_dim)
             self.penc1 = PillarEncoder(dim_in= 10 * 10, dim_out=self.f_dim) if self.sepenc else self.penc0
             self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
@@ -258,7 +258,7 @@ class SuperGlue(nn.Module):
                 'matching_scores0': kpts0.new_zeros(shape0),
                 'matching_scores1': kpts1.new_zeros(shape1),
             }
-        if conf.hyperpillar:
+        if self.config['pillar']:
             encoded_kpt0 = self.kenc0(kpts0, scores0).squeeze()
             encoded_kpt1 = self.kenc1(kpts1, scores1).squeeze()
             desc0 = self.penc0(desc0)
@@ -434,33 +434,16 @@ def do_evaluation_overfit(model, data, device, loss_fn, metrics_fn):
     return results
 
 
-def dummy_training(rank, dataroot, model, train_conf):
+def dummy_training(dataroot, model, train_conf):
     print("Started training...")
     output_path = '_'.join([train_conf['output_dir'], wandb.run.name])
 
     init_cp = None
     set_seed(train_conf["seed"])
-    if rank == 0:
-        writer = SummaryWriter(log_dir=str(output_path))
-    if args.distributed:
-        logger.info(f'Training in distributed mode with {args.n_gpus} GPUs')
-        assert torch.cuda.is_available()
-        device = rank
-        lock = Path(os.getcwd(), f'distributed_lock_{os.getenv("LSB_JOBID", 0)}')
-        assert not Path(lock).exists(), lock
-        torch.distributed.init_process_group(
-            backend='nccl', world_size=args.n_gpus, rank=device,
-            init_method='file://' + str(lock))
-        torch.cuda.set_device(device)
+    writer = SummaryWriter(log_dir=str(output_path))
 
-        # adjust batch size and num of workers since these are per GPU
-        if 'batch_size' in train_conf:
-            train_conf["batch_size"] = int(
-                train_conf["batch_size"] / args.n_gpus)
-
-    else:
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        logger.info(f'Using device {device}')
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    logger.info(f'Using device {device}')
 
     # Loading the fragment data
     train, test = create_datasets(dataroot, conf = train_conf)
@@ -482,21 +465,15 @@ def dummy_training(rank, dataroot, model, train_conf):
         pin_memory=True
         )
 
-    if rank == 0:
-        logger.info(f'Training loader has {len(train_dl)} batches')
-        logger.info(f'Validation loader has {len(test_dl)} batches')
+    logger.info(f'Training loader has {len(train_dl)} batches')
+    logger.info(f'Validation loader has {len(test_dl)} batches')
 
     loss_fn, metrics_fn = model.loss, model.metrics
     model = model.to(device)
     if init_cp is not None:
         model.load_state_dict(init_cp['model'])
 
-    if args.distributed:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = torch.nn.parallel.DistributedDataParallel(
-            model, device_ids=[device])
-    if rank == 0:
-        logger.info(f'Model: \n{model}')
+    logger.info(f'Model: \n{model}')
     torch.backends.cudnn.benchmark = True
 
     optimizer_fn = {'sgd': torch.optim.SGD,
@@ -530,8 +507,7 @@ def dummy_training(rank, dataroot, model, train_conf):
             raise ValueError(train_conf["lr_schedule"]["type"])
 
     lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
-    if rank == 0:
-        logger.info(f'Starting training with configuration:\n{train_conf}')
+    logger.info(f'Starting training with configuration:\n{train_conf}')
 
     losses_ = None
 
@@ -541,8 +517,6 @@ def dummy_training(rank, dataroot, model, train_conf):
 
         logger.info(f'Starting epoch {epoch}')
         set_seed(train_conf["seed"] + epoch)
-        if args.distributed:
-            train_dl.sampler.set_epoch(epoch)
 
         # do overfitting on first batch in train_dl
         if train_conf['overfit']:
@@ -586,49 +560,41 @@ def dummy_training(rank, dataroot, model, train_conf):
 
             if it % 10 == 0 or it == len(train_dl) - 1:
                 for k in sorted(losses.keys()):
-                    if args.distributed:
-                        losses[k] = losses[k].sum()
-                        torch.distributed.reduce(losses[k], dst=0)
-                        losses[k] /= (train_dl.batch_size * args.n_gpus)
                     losses[k] = torch.mean(losses[k]).item()
-                if rank == 0:
-                    str_losses = []
-                    for k, v in losses.items():
-                        str_losses.append(f'{k} {v:.3E}')
-                        wandb.log({f'{k}': v})
-                    metr= metrics_fn(pred, data)
-                    prec = np.mean([p.item() for p in metr['match_precision']])
-                    rec = np.mean([p.item() for p in metr['match_recall']])
+                str_losses = []
+                for k, v in losses.items():
+                    str_losses.append(f'{k} {v:.3E}')
+                    wandb.log({f'{k}': v})
+                metr= metrics_fn(pred, data)
+                prec = np.mean([p.item() for p in metr['match_precision']])
+                rec = np.mean([p.item() for p in metr['match_recall']])
 
-                    wandb.log({'precision_train': prec})
-                    wandb.log({'recall_train': rec})
-                    logger.info('[E {} | it {}] loss {{{}}}'.format(
-                        epoch, it, ', '.join(str_losses)))
-                    for k, v in losses.items():
-                        writer.add_scalar('training/'+k, v, tot_it)
-                    writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
-                    wandb.log({'lr':  optimizer.param_groups[0]['lr']})
+                wandb.log({'precision_train': prec})
+                wandb.log({'recall_train': rec})
+                logger.info('[E {} | it {}] loss {{{}}}'.format(
+                    epoch, it, ', '.join(str_losses)))
+                for k, v in losses.items():
+                    writer.add_scalar('training/'+k, v, tot_it)
+                writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
+                wandb.log({'lr':  optimizer.param_groups[0]['lr']})
 
             if it % 100 == 0 or it == len(train_dl) - 1:
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn)
 
-                if rank == 0:
-                    str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
-                    wandb.log({'match_recall': results['match_recall']})
-                    wandb.log({'match_precision': results['match_precision']})
-                    wandb.log({'loss_test': results['loss/total']})
-                    
-                    # log matching matrix
-                    plot_matching_vector(data, pred)
+                str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
+                wandb.log({'match_recall': results['match_recall']})
+                wandb.log({'match_precision': results['match_precision']})
+                wandb.log({'loss_test': results['loss/total']})
+                plot_matching_vector(data, pred)
 
-                    logging.info(f'[Validation] {{{", ".join(str_results)}}}')
-                    for k, v in results.items():
-                        writer.add_scalar('val/' + k, v, tot_it)
+                logging.info(f'[Validation] {{{", ".join(str_results)}}}')
+                for k, v in results.items():
+                    writer.add_scalar('val/' + k, v, tot_it)
                 torch.cuda.empty_cache()  # should be cleared at the first iter
 
             del pred, data, loss, losses
 
-        if rank == 0 and epoch % 100 == 0:
+        if epoch % 100 == 0:
             # changed string formatting
             cp_name = 'checkpoint_{}'.format(epoch)
             logger.info('Saving checkpoint {}'.format(cp_name))
@@ -646,16 +612,9 @@ def dummy_training(rank, dataroot, model, train_conf):
 
     writer.close()
 
-
-def main_worker(rank, dataroot, model, train_conf):
-    dummy_training(rank, dataroot, model, train_conf)
-
-
-
 if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--distributed', action='store_true')
     parser.add_argument('--path', default = None)
     args = parser.parse_intermixed_args()
     model_conf = conf.model_conf
@@ -676,13 +635,8 @@ if __name__ == '__main__':
     config = wandb.config
     wandb.watch(myGlue)
 
-    if args.distributed:
-        print("distributed")
-        args.n_gpus = torch.cuda.device_count()
-        print(" num gpus = ", args.n_gpus)
-        torch.multiprocessing.spawn(main_worker, nprocs=args.n_gpus, args=(root, myGlue, config))
-    else:
-        dummy_training(0, root, myGlue, config)
+   
+    dummy_training(0, root, myGlue, config)
 
     torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
 

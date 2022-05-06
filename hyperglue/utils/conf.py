@@ -4,6 +4,7 @@ data_conf = {
 }
 
 model_conf = {
+    'pillar': False,
     'descriptor_dim': 36, # the descriptor dimension, must be dividable by num heads!
     'num_heads': 4, # num of heads
     'sep_encoder': False, #sepparate encoders
@@ -17,8 +18,6 @@ model_conf = {
         'nll_balancing': 0.95,
     },
 }
-
-hyperpillar = False
 
 train_conf = {
     'seed': 42,  # training seed
