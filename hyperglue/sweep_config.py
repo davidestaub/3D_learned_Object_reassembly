@@ -16,7 +16,7 @@ param_dict = {
         'max': 1e-2
     },
     'optimizer': {
-        'values': ["adam", "sgd"]
+        'values': ["adam", "rmsprop"]
     },
     'sinkhorn_iterations': {
         'distribution': 'int_uniform',
