@@ -13,8 +13,8 @@ model_conf = {
     'sinkhorn_iterations': 100,
     'match_threshold': 0.2,
     'loss': {
-        'nll_weight': 1.,
-        'nll_balancing': 0.99,
+        'nll_weight': 1000.,
+        'nll_balancing': 0.95,
     },
 }
 
