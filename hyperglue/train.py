@@ -237,7 +237,7 @@ class SuperGlue(nn.Module):
             self.f_dim, self.f_dim,
             kernel_size=1, bias=True)
 
-        bin_score = torch.nn.Parameter(torch.tensor(1.))
+        bin_score = torch.nn.Parameter(torch.tensor(0.))
         self.register_parameter('bin_score', bin_score)
 
         if train_conf["load_weights"]:
