@@ -5,8 +5,8 @@ metric = {
 sweep_config = {'method': 'bayes'}
 
 terminator = {
-  "type": 'hyperband',
-  "min_iter": 100
+    "type": 'hyperband',
+    "min_iter": 100
 }
 
 param_dict = {
@@ -35,6 +35,8 @@ param_dict = {
         'max': 0.3
     },
     'pillar': {
+        'values': [True, False]},
+    'match_inverted': {
         'values': [True, False]},
     'nll_balancing': {
         'distribution': 'uniform',
