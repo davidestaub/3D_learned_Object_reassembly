@@ -8,7 +8,7 @@ if __name__ == '__main__':
     parser.add_argument("--data_dir", type=str, default=None)
     args = parser.parse_args()
 
-    args.data_dir = os.path.abspath('/cluster/project/infk/courses/252-0579-00L/group19/3D_learned_Object_reassembly/object_fracturing/data')
+    args.data_dir = os.path.abspath('/cluster/project/infk/courses/252-0579-00L/group19/3D_learned_Object_reassembly/object_fracturing/data_cubes')
 
     print(f'Data dir: {args.data_dir}')
     # set to the part which should be generatred
@@ -26,5 +26,9 @@ if __name__ == '__main__':
                 "process_folder_cluster.py",
                 "--path",
                 folder,
+                "--descriptor_method",
+                "fpfh",
+                "--keypoint_method",
+                "hybrid"
             ]
         )
