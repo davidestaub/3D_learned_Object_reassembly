@@ -621,8 +621,8 @@ def train_model(dataroot, model, train_conf):
 
 def train():
     with wandb.init() as run:
-        config = wandb.config
-        default_conf.update(config)
+        default_conf.update(wandb.config)
+        wandb.config.update(default_conf)
         myGlue = SuperGlue(default_conf)
         wandb.watch(myGlue)
         train_model(root, myGlue, default_conf)
@@ -643,6 +643,6 @@ if __name__ == '__main__':
     
 
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
-    #sweep_id = wandb.sweep(sweep_config, project="hyperglue", entity="lessgoo")
-    wandb.agent('lessgoo/hyperglue/p40cei62', function=train, count=100)
+    sweep_id = wandb.sweep(sweep_config, project="hyperglue", entity="lessgoo")
+    #wandb.agent('lessgoo/hyperglue/p40cei62', function=train, count=100)
    
