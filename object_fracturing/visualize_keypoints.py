@@ -19,10 +19,10 @@ ROOT = os.path.join(here, folder, subfolder)
 CLEANED = os.path.join(ROOT, 'cleaned')
 KPTS_IN = os.path.join(ROOT,'processed','keypoints')
 
-kpts_mode = 'SD'
+kpts_mode = 'hybrid'
 
 # chose a fragments
-data_list = os.listdir(CLEANED)
+data_list = [i for i in os.listdir(CLEANED) if i.endswith('pcd')]
 print("id  name")
 for idx, val in enumerate(data_list):
     if val.endswith('.pcd'):
@@ -32,7 +32,7 @@ file = data_list[idx]
 idx = int(file.split('cleaned.')[1].split('.')[0])
 print(file, idx)
 # extract the corresponding filename
-kpts_file_sticky = f'keypoints_hybrid.{idx}.npy'
+kpts_file_sticky = f'keypoints_{kpts_mode}.{idx}.npy'
 kpts_sticky = np.load(os.path.join(KPTS_IN, kpts_file_sticky))[:,:3]
 pcd_kpts = o3d.geometry.PointCloud()
 pcd_kpts.points= o3d.utility.Vector3dVector(kpts_sticky)

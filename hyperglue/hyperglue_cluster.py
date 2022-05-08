@@ -232,7 +232,7 @@ class SuperGlue(nn.Module):
             self.f_dim, self.f_dim,
             kernel_size=1, bias=True)
 
-        bin_score = torch.nn.Parameter(torch.tensor(1.))
+        bin_score = torch.nn.Parameter(torch.tensor(0.))
         self.register_parameter('bin_score', bin_score)
 
         if train_conf["load_weights"]:
@@ -631,11 +631,12 @@ if __name__ == '__main__':
     myGlue = SuperGlue(model_conf)
 
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
-    wandb.init(project="hyperglue", entity="lessgoo", config={**model_conf, **train_conf, **data_conf})
+    wandb.init(project="hyperglue", entity="lessgoo",
+               config={**model_conf, **train_conf, **data_conf},
+               settings=wandb.Settings(start_method='thread'))
     config = wandb.config
     wandb.watch(myGlue)
 
-   
     train_model(root, myGlue, config)
 
     torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')

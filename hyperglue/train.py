@@ -571,9 +571,6 @@ def train_model(dataroot, model, train_conf):
                 for k, v in losses.items():
                     str_losses.append(f'{k} {v:.3E}')
                     wandb.log({f'{k}': v})
-                    if k == 'total' and v != v:
-                        print("Abort NaN Loss...")
-                        return
 
                 metr= metrics_fn(pred, data)
                 prec = np.mean([p.item() for p in metr['match_precision']])

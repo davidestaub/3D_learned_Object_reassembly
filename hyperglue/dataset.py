@@ -93,6 +93,13 @@ class FragmentsDataset(td.Dataset):
                         except:
                             print(f"Error loading objects in folder {folder}")
                             continue
+                        # throw out samples where we have too little matches (<5%) 
+                        # since we have two same matched (i,j) (j,i) divide by 2
+                        gt = np.array(load_npz(item['path_match_mat']).toarray(), dtype=np.float32)
+                        num_matches = np.sum(gt) / 2
+                        num = gt.shape[0]
+                        if num_matches / num < 0.05:
+                            continue
 
                         self.dataset.append(item)
 

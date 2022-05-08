@@ -1,3 +1,4 @@
+from email.policy import default
 from sklearn import neighbors
 from tools.transformation import centering_centroid
 from tools.neighborhoords import k_ring_delaunay_adaptive
@@ -94,14 +95,14 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
             # Search for corresponding points in two parts (distance below a treshold).
             matches = np.sum(cdist(fragments[i][:, :3], fragments[j][:, :3]) < 1e-3)
             # If there are more than 100 matches, the parts are considered neighbours.
-            if matches > 300:
+            if matches > 600:
                 print(f"Matched fragment {i} and {j}!")
                 matching_matrix[i, j] = matching_matrix[j, i] = 1
 
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
-def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.7, mixture = 0.5):
+def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.5, mixture = 0.7):
     c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
     c = np.array(c)
     sd = np.array(sd)
@@ -115,8 +116,11 @@ def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, shar
     n_sharp = int(n_kpts_c*sharp_percentage)
     n_plan = n_kpts_c - n_sharp
 
-    planar_idx = idx_sorted_c[-n_plan:]
-    sharp_idx = idx_sorted_c[:n_sharp]
+    start_planar = next((i for i, val in enumerate(c[idx_sorted_c]) if val > 5e-3), 0)
+
+    planar_idx = idx_sorted_c[start_planar:n_plan+start_planar]
+    sharp_idx = idx_sorted_c[-n_sharp:]
+
     sd_idx = idx_sorted_sd[-n_kpts_sd:]
     indices_to_keep = np.append(planar_idx, sharp_idx, axis = 0)
     indices_to_keep = np.append(indices_to_keep, sd_idx, axis = 0)
@@ -127,7 +131,8 @@ def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, shar
 
     kpts = np.append(kpts_planar, kpts_sharp, axis = 0)
     kpts = np.append(kpts, kpts_sd, axis = 0)
-
+    if len(kpts) != n_keypoints:
+        exit("FAIL")
     scores_planar = np.array(c[planar_idx])
     scores_sharp = np.array(c[sharp_idx])
     scores = np.append(scores_planar, scores_sharp, axis=0)
@@ -165,13 +170,16 @@ def compute_smoothness_sd(vertices, normals, n_neighbors):
 
 def get_pillar_keypoints(vertices, n_neighbors, n_keypoints=512, sharp_percentage = 0.5):
     c = np.array(compute_smoothness(vertices, n_neighbors))
+    # normalize it and argsort to get lowest and highest values
     idx_sorted = np.argsort(c)
     # get the first and last ones as best keypoints
     n_sharp = int(n_keypoints*sharp_percentage)
     n_plan = n_keypoints - n_sharp
 
-    planar_idx = idx_sorted[-n_plan:]
-    sharp_idx = idx_sorted[:n_sharp]
+    # get start for planar regions
+    start_planar = next((i for i, val in enumerate(c[idx_sorted]) if val > 5e-3), 0)
+    planar_idx = idx_sorted[start_planar:n_plan+start_planar]
+    sharp_idx = idx_sorted[-n_sharp:]
     indices_to_keep = np.append(planar_idx, sharp_idx)
 
     kpts_planar = np.array(vertices[planar_idx])
@@ -232,7 +240,7 @@ def compute_SD_point(neighbourhood, points, normals, p_idx):
     return SD
 
 
-def get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=256):
+def get_SD_keypoints(vertices, normals, r=0.05, nkeypoints=256):
     """ returns the SD keypoints with a score value normalized"""
     n_points = len(vertices)
     tree = KDTree(vertices)
@@ -315,7 +323,7 @@ def get_harris_keypoints(vertices):
     return keypoint_indexes
 
 
-def get_keypoint_assignment(keypoints1, keypoints2, threshold=1e-2):
+def get_keypoint_assignment(keypoints1, keypoints2, threshold=3e-2):
     dists = cdist(keypoints1, keypoints2)
     close_enough_mask = np.min(dists, axis=0) < threshold
     closest = np.argmin(dists, axis=0)
@@ -342,7 +350,7 @@ def get_descriptors(vertices, normals, args):
         pillar_norm, pillar_inv = fpfh_pillar_encoder(vertices, normals)
         return pillar_norm, pillar_inv
 
-def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path):
+def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path, npoints):
     method = args.keypoint_method
     processed_path = os.path.join(args.path, folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{method}.{i}.npy')
@@ -372,7 +380,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         return keypoints
     
     if args.keypoint_method == 'sticky':
-        keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 8)
+        keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 16, npoints)
 
         kpt_desc_normal = desc_normal[keypoint_idxs]
 
@@ -381,7 +389,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         return keypoints
     
     if args.keypoint_method == 'hybrid' and args.descriptor_method != "pillar":
-        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 8)
+        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 16, npoints)
         kpt_desc_normal = desc_normal[keypoint_idxs]
         kpt_desc_invert = desc_inv[keypoint_idxs]
 
@@ -390,7 +398,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         np.save(kpts_desc_path_inverted, kpt_desc_invert)
         return keypoints
     elif args.keypoint_method == 'hybrid':
-        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 8)
+        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 16, npoints)
         kpt_desc_normal = desc_normal[keypoint_idxs]
 
         np.save(keypoint_path, keypoints)
@@ -443,7 +451,7 @@ def process_folder(folder_path, args):
     keypoints = []
     for i in range(num_fragments):
         desc_n, desc_inv = get_descriptors(frag_vert[i], frag_norm[i], args)
-        frag_kpts = get_keypoints(i, frag_vert[i], frag_norm[i], desc_n, desc_inv, args, folder_path)
+        frag_kpts = get_keypoints(i, frag_vert[i], frag_norm[i], desc_n, desc_inv, args, folder_path, 512)
         keypoints.append(frag_kpts)
 
     # log for matches

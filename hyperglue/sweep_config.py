@@ -6,7 +6,7 @@ sweep_config = {'method': 'bayes'}
 
 terminator = {
   "type": 'hyperband',
-  "min_iter": 3
+  "min_iter": 100
 }
 
 param_dict = {
@@ -32,13 +32,13 @@ param_dict = {
     'match_threshold': {
         'distribution': 'uniform',
         'min': 0.1,
-        'max': 0.5
+        'max': 0.3
     },
     'pillar': {
         'values': [True, False]},
     'nll_balancing': {
         'distribution': 'uniform',
-        'min': 0.9,
+        'min': 0.8,
         'max': 0.99
     },
 
@@ -48,6 +48,7 @@ param_dict = {
         'values': [
             [8, 16, 32, 64],
             [32, 64, 128, 256],
+            [32, 64, 128, 256, 512],
         ]}
 }
 
