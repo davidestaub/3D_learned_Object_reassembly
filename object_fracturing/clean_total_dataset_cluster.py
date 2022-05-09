@@ -59,7 +59,6 @@ def handle_folder(object_folder):
                 mesh = Mesh.from_obj(file_path)
                 if not mesh.is_manifold():
                     print(f'Mesh {filename} not manifold!')
-                    return
             # explode them to sepparate loose parts
             exploded_meshes = mesh_explode(mesh)
             if len(exploded_meshes) > 1:
