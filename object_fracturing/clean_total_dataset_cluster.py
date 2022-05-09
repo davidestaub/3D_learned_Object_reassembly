@@ -9,7 +9,7 @@ import gc
 
 
 here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
-dataroot = os.path.abspath('/cluster/project/infk/courses/252-0579-00L/group19/blender_fracture_modifier/script-output')
+dataroot = os.path.abspath('/cluster/project/infk/courses/252-0579-00L/group19/3D_learned_Object_reassembly/object_fracturing/data')
 
 dashed_line = "----------------------------------------------------------------\n"
 
