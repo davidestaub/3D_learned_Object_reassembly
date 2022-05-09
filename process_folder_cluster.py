@@ -102,7 +102,7 @@ def get_fragment_matchings(fragments: List[np.array], folder_path: str):
     np.save(matching_matrix_path, matching_matrix)
     return matching_matrix
 
-def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.5, mixture = 0.7):
+def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, sharp_percentage = 0.6, mixture = 0.7):
     c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
     c = np.array(c)
     sd = np.array(sd)
@@ -116,7 +116,7 @@ def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, shar
     n_sharp = int(n_kpts_c*sharp_percentage)
     n_plan = n_kpts_c - n_sharp
 
-    start_planar = next((i for i, val in enumerate(c[idx_sorted_c]) if val > 5e-3), 0)
+    start_planar = int(len(vertices) / 4)
 
     planar_idx = idx_sorted_c[start_planar:n_plan+start_planar]
     sharp_idx = idx_sorted_c[-n_sharp:]
@@ -380,7 +380,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         return keypoints
     
     if args.keypoint_method == 'sticky':
-        keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 16, npoints)
+        keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 12, npoints)
 
         kpt_desc_normal = desc_normal[keypoint_idxs]
 
@@ -389,7 +389,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         return keypoints
     
     if args.keypoint_method == 'hybrid' and args.descriptor_method != "pillar":
-        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 16, npoints)
+        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 12, npoints)
         kpt_desc_normal = desc_normal[keypoint_idxs]
         kpt_desc_invert = desc_inv[keypoint_idxs]
 
@@ -398,7 +398,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         np.save(kpts_desc_path_inverted, kpt_desc_invert)
         return keypoints
     elif args.keypoint_method == 'hybrid':
-        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 16, npoints)
+        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 12, npoints)
         kpt_desc_normal = desc_normal[keypoint_idxs]
 
         np.save(keypoint_path, keypoints)
