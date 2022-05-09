@@ -19,10 +19,6 @@ def handle_folder(object_folder):
     cleaned_path = os.path.join(folder_path, 'cleaned')
 
 
-    # go back if already processed
-    if os.path.exists(os.path.join(folder_path, 'log.txt')):
-        return
-
     # delete the premade cleaned and subdv folder
     try:
         shutil.rmtree(cleaned_path)
