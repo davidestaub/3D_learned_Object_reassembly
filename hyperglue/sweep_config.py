@@ -20,7 +20,7 @@ param_dict = {
         'values': ["adam", "rmsprop"]
     },
     'sinkhorn_iterations': {
-        'distribution': 'int_uniform ',
+        'distribution': 'int_uniform',
         'min': 100,
         'max': 500
     },
