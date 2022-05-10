@@ -2,6 +2,7 @@ metric = {
     "name": 'total',
     "goal": 'minimize'
 }
+
 sweep_config = {'method': 'bayes'}
 
 terminator = {
@@ -12,36 +13,34 @@ terminator = {
 param_dict = {
     'learning_rate': {
         'distribution': 'uniform',
-        'min': 1e-5,
-        'max': 1e-2
+        'min': 1e-3,
+        'max': 1e-4
     },
     'optimizer': {
         'values': ["adam", "rmsprop"]
     },
     'sinkhorn_iterations': {
-        'distribution': 'int_uniform',
-        'min': 50,
-        'max': 500
+        'values':  [100,200,300]
     },
     'num_heads': {
         'values': [4, 6]},
     'sep_encoder': {
         'values': [True, False]},
     'use_sd_score': {
-        'values': [True, False]},
+        'values': [False]},
     'match_threshold': {
         'distribution': 'uniform',
-        'min': 0.1,
-        'max': 0.3
+        'min': 0.18,
+        'max': 0.28
     },
     'pillar': {
-        'values': [True, False]},
+        'values': [True]},
     'match_inverted': {
-        'values': [True, False]},
+        'values': [False]},
     'nll_balancing': {
         'distribution': 'uniform',
-        'min': 0.8,
-        'max': 0.99
+        'min': 0.9,
+        'max': 0.95
     },
 
     'GNN_layers': {
@@ -49,8 +48,7 @@ param_dict = {
     'keypoint_encoder': {
         'values': [
             [8, 16, 32, 64],
-            [32, 64, 128, 256],
-            [32, 64, 128, 256, 512],
+            [8, 32, 64, 128],
         ]}
 }
 
