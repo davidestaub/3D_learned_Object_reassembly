@@ -7,7 +7,7 @@ sweep_config = {'method': 'bayes'}
 
 terminator = {
     "type": 'hyperband',
-    "min_iter": 1000
+    "min_iter": 500
 }
 
 param_dict = {

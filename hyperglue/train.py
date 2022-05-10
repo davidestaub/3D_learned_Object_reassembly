@@ -459,14 +459,14 @@ def train_model(dataroot, model, train_conf):
         train,
         batch_size=train_conf['batch_size'],
         shuffle=True,
-        num_workers=4,
+        num_workers=8,
         pin_memory=True
         )
     test_dl = td.DataLoader(
         test,
         batch_size=train_conf['batch_size'],
         shuffle=True,
-        num_workers=4,
+        num_workers=8,
         pin_memory=True
         )
 
