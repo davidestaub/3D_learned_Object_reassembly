@@ -7,7 +7,7 @@ sweep_config = {'method': 'bayes'}
 
 terminator = {
     "type": 'hyperband',
-    "min_iter": 100
+    "min_iter": 1000
 }
 
 param_dict = {
@@ -20,18 +20,20 @@ param_dict = {
         'values': ["adam", "rmsprop"]
     },
     'sinkhorn_iterations': {
-        'values':  [100,200,300]
+        'distribution': 'uniform',
+        'min': 100,
+        'max': 500
     },
     'num_heads': {
-        'values': [4, 6]},
+        'values': [4, 6, 9]},
     'sep_encoder': {
         'values': [True, False]},
     'use_sd_score': {
         'values': [False]},
     'match_threshold': {
         'distribution': 'uniform',
-        'min': 0.18,
-        'max': 0.28
+        'min': 0.2,
+        'max': 0.4
     },
     'pillar': {
         'values': [True]},
@@ -40,11 +42,11 @@ param_dict = {
     'nll_balancing': {
         'distribution': 'uniform',
         'min': 0.9,
-        'max': 0.95
+        'max': 0.99
     },
 
     'GNN_layers': {
-        'values': [3, 4, 5, 6, 7]},
+        'values': [2, 3, 4]},
     'keypoint_encoder': {
         'values': [
             [8, 16, 32, 64],
