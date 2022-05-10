@@ -13,8 +13,8 @@ terminator = {
 param_dict = {
     'learning_rate': {
         'distribution': 'uniform',
-        'min': 1e-3,
-        'max': 1e-4
+        'min': 1e-4,
+        'max': 1e-3
     },
     'optimizer': {
         'values': ["adam", "rmsprop"]
