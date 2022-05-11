@@ -17,7 +17,7 @@ def pc_normalize(pc):
 
 
 def create_datasets(root, conf):
-    object_folders = [os.path.join(root, folder) for folder in os.listdir(root)]
+    object_folders = [os.path.join(root, folder) for folder in os.listdir(root)][:10]
     train_folders, test_folders, = train_test_split(
         object_folders,
         train_size = conf['train_fraction'],
