@@ -1,7 +1,8 @@
 import mosek, sys
 import cvxpy as cp
 import numpy as np
-from cvxpy.atoms import norm
+from cvxpy.atoms import norm, abs
+from numpy.linalg import det
 
 
 def conv_SO3(x):
@@ -55,11 +56,7 @@ def list_to_cvx_mat(p_list):
     return cp.vstack(rows)
 
 
-def run_solver(U, V, th=0.5e-1, sLU=[0.9, 1.1], S=np.eye(3), enfRot=True):
-    env = mosek.Env()
-    env.set_Stream(mosek.streamtype.log, lambda x: sys.stdout.write(x))
-    env.echointro(1)
-
+def run_solver(U, V, th=0.5e-1, sLU=[0.9, 1.1], S=np.eye(3), enfRot=True, verbose=False, tol=1e-1):
     dim = 12
     N = U.shape[1]
 
@@ -89,11 +86,36 @@ def run_solver(U, V, th=0.5e-1, sLU=[0.9, 1.1], S=np.eye(3), enfRot=True):
     constraints.append(s >= lower_S)
     constraints.append(s <= uppder_S)
 
-    objective = cp.Minimize(sum(z))
+    objective = cp.Minimize(sum(abs(z)))
 
     prob = cp.Problem(objective, constraints)
-    prob.solve(solver=cp.MOSEK)
 
+    print("Solving optimization...")
+
+    prob.solve(solver=cp.MOSEK, verbose=verbose)
+
+    if prob.status not in ["infeasible", "unbounded"]:
+
+        print("Optimization successful!")
+
+        R = np.reshape(prob.solution.primal_vars[1][:9], (3, 3))
+        t = prob.solution.primal_vars[1][9:]
+        s_opt = np.cbrt(np.abs(det(R)))
+        inliers = [1 if i < tol else 0 for i in prob.solution.primal_vars[2]]
+        x_opt = prob.solution.primal_vars[1]
+
+        sol = {"R": R,
+               "s_opt": s_opt,
+               "t": t,
+               "inliers": inliers,
+               "x_opt": x_opt,
+               "sol": prob.solution}
+
+        return sol
+
+    else:
+        print("Optimization failed, problem " + str(prob.status) + " :(")
+        return None
 
 
 if __name__ == "__main__":

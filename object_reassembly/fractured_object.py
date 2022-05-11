@@ -6,6 +6,7 @@ from scipy.spatial.transform import Rotation
 from scipy.spatial.distance import cdist
 from itertools import permutations
 import solver
+from utils import helmert_nd
 
 from utils import nchoosek
 
@@ -100,7 +101,7 @@ class FracturedObject(object):
             points.transform(Rot.from_quaternion(r_qut))
             points.transform(Translation.from_vector(self.transf_random[key][1] + [0]))
 
-    def matching(self, use_gt=True, use_solver=True):
+    def matching(self, use_gt=True, use_solver=True, s_min=0.1, use_rigid_transform=True):
         fragments = range(len(self.fragments.keys()))
         combinations = list(permutations(fragments, 2))
         for idx, comb in enumerate(combinations):
@@ -124,7 +125,7 @@ class FracturedObject(object):
 
                 if use_gt:
                     if self.kpt_matches_gt[comb] is not None:
-                        A_gt_idx,  B_gt_idx = self.kpt_matches_gt[comb]
+                        A_gt_idx, B_gt_idx = self.kpt_matches_gt[comb]
                         for i in A_gt_idx:
                             A_gt_pair.append(self.kpts_orig[comb[0]].data['points'][i])
                             A_rp_pair.append(self.kpts[comb[0]].data['points'][i])
@@ -133,7 +134,7 @@ class FracturedObject(object):
                             B_rp_pair.append(self.kpts[comb[1]].data['points'][i])
                 else:
                     if self.kpt_matches[comb] is not None:
-                        A_gt_idx,  B_gt_idx = self.kpt_matches[comb]
+                        A_gt_idx, B_gt_idx = self.kpt_matches[comb]
                         for i in A_gt_idx:
                             A_gt_pair.append(self.kpts_orig[comb[0]].data['points'][i])
                             A_rp_pair.append(self.kpts[comb[0]].data['points'][i])
@@ -141,7 +142,7 @@ class FracturedObject(object):
                             B_gt_pair.append(self.kpts_orig[comb[1]].data['points'][i])
                             B_rp_pair.append(self.kpts[comb[1]].data['points'][i])
 
-                print("Number of keypoint pairs: "+str(len(A_rp_pair)))
+                print("Number of keypoint pairs: " + str(len(A_rp_pair)))
 
                 ptsA = np.array(A_rp_pair)
                 ptsB = np.array(B_rp_pair)
@@ -152,8 +153,17 @@ class FracturedObject(object):
                 ptsB_z = np.array([ptsB + zcB])
 
                 if use_solver:
-                    solver.run_solver(ptsA_z, ptsB_z)
+                    sol = solver.run_solver(ptsA_z, ptsB_z)
+                    if sol is not None:
+                        if sol["s_opt"] > s_min and sum(abs(sol["t"])) > 1e-6:
+                            print("Valid solution for T, s = " + str(sol["s_opt"]))
+                            if use_rigid_transform:
+                                R, c, t = helmert_nd(ptsA, ptsB, sol["s_opt"], sol["R"], sol["t"])
+                                self.transf[comb] = (R*c, t)
 
+                else:
+                    # use gt for transformations
+                    raise NotImplementedError
 
     # calculate ground truth from closest points
     def gt_from_closest(self, threshold=0.001):
@@ -174,7 +184,6 @@ class FracturedObject(object):
                     self.kpt_matches_gt[(comb[0], comb[1])] = np.nonzero(keypoint_assignment)
                 else:
                     self.kpt_matches_gt[(comb[0], comb[1])] = None
-
 
     # def find_transformations_first3kpts(self):
     #     for fragment0 in range(len(self.fragments) - 1):

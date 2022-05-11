@@ -16,6 +16,7 @@ path = "../data/"
 
 
 if __name__ == "__main__":
+
     bottle = FracturedObject(name="bottle_10_seed_1")
     bottle.load_object(path)
     bottle.load_gt(path)
