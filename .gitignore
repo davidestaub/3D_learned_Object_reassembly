@@ -12,6 +12,7 @@ output*
 pcl/build/
 pcl/Release/
 *.zip
-
+object_reassembly/images
+object_reassembly/result.mp4
 wandb/
 .vscode/
