@@ -1,73 +1,102 @@
-import mosek
+import mosek, sys
 import cvxpy as cp
 import numpy as np
+from cvxpy.atoms import norm
+
 
 def conv_SO3(x):
-    x11 = x[1]; x12 = x[2]; x13 = x[3]
-    x21 = x[4]; x22 = x[5]; x23 = x[6]
-    x31 = x[7]; x32 = x[8]; x33 = x[9]
+    x11 = x[1];
+    x12 = x[2];
+    x13 = x[3]
+    x21 = x[4];
+    x22 = x[5];
+    x23 = x[6]
+    x31 = x[7];
+    x32 = x[8];
+    x33 = x[9]
 
-    L = [[x11 + x22 + x33, x32 - x23, x13 - x31, x21 - x12],
-    [x32 - x23, x11 - x22 - x33, x21 + x12, x13 + x31],
-    [x13 - x31, x21 + x12, x22 - x11 - x33, x32 + x23],
-    [x21 - x12, x13 + x31, x32 + x23, x33 - x11 - x22]]
+    L_tmp = [[x11 + x22 + x33, x32 - x23, x13 - x31, x21 - x12],
+             [x32 - x23, x11 - x22 - x33, x21 + x12, x13 + x31],
+             [x13 - x31, x21 + x12, x22 - x11 - x33, x32 + x23],
+             [x21 - x12, x13 + x31, x32 + x23, x33 - x11 - x22]]
+
+    L = list_to_cvx_mat(L_tmp)
 
     return L
 
+
 def getQqp_simTransf(C, G, S=None):
-    if not S:
+    if S is None:
         S = np.eye(3)
 
-    c1 = C[1]; c2 = C[2]; c3 = C[3]
-    g1 = G[1]; g2 = G[2]; g3 = G[3];
+    c1 = C[0]
+    c2 = C[1]
+    c3 = C[2]
+    g1 = G[0]
+    g2 = G[1]
+    g3 = G[2]
 
     A = [[c1, c2, c3, 0, 0, 0, 0, 0, 0, 1, 0, 0, -g1],
          [0, 0, 0, c1, c2, c3, 0, 0, 0, 0, 1, 0, -g2],
          [0, 0, 0, 0, 0, 0, c1, c2, c3, 0, 0, 1, -g3]]
 
     At_A = np.matmul(np.transpose(A), A)
-    q = At_A[13, 1:12]*2
-    p = At_A[13,13]
-    Q = At_A[1:12, 1:12] + 10^(-15)*np.eye(12)
+    q = At_A[12, 0:11] * 2
+    p = At_A[12, 12]
+    Q = At_A[0:11, 0:11] + 1e-15 * np.eye(11)
 
-    return A, q, p, Q
+    return At_A, q, p, Q
+
+
+def list_to_cvx_mat(p_list):
+    rows = []
+    for row in p_list:
+        rows.append(cp.hstack([item for item in row]))
+    return cp.vstack(rows)
+
 
 def run_solver(U, V, th=0.5e-1, sLU=[0.9, 1.1], S=np.eye(3), enfRot=True):
-    dim = 12;
+    env = mosek.Env()
+    env.set_Stream(mosek.streamtype.log, lambda x: sys.stdout.write(x))
+    env.echointro(1)
+
+    dim = 12
     N = U.shape[1]
 
-    x = cp.Variable((dim, 1))
-    z = cp.Variable((N, 1))
+    x = cp.Variable(dim)
+    z = cp.Variable(N)
 
     s = cp.Variable(1)
-    big_M = 10^5
+    big_M = 10 ^ 5
 
     constraints = []
 
     # L constraint
     if enfRot:
-        L = s*np.eye(4) + conv_SO3(x)
-        constraints.append(L >= 0)
+        diag = np.diag([s, s, s, s])
+        L = list_to_cvx_mat(diag) + conv_SO3(x)
+        constraints.append(L >> 0)
 
     # L\infty constraints
     for i in range(N):
-        M = getQqp_simTransf(U[:,i], V[:,i], S)
-        constraints.append(np.linalg.norm(np.matmul(M, [x,1])) <= th + z[i]*big_M)
+        M, _, _, _ = getQqp_simTransf(np.ravel(U[:, i]), np.ravel(V[:, i]), S)
+        constraints.append(norm(M @ cp.hstack([x, 1])) <= th + z[i] * big_M)
 
     # s constraints (bounds)
-    lower_S = sLU[0];
-    uppder_S = sLU[2];
+    lower_S = sLU[0]
+    uppder_S = sLU[1]
 
-    objective = np.sum(z)
+    constraints.append(s >= lower_S)
+    constraints.append(s <= uppder_S)
+
+    objective = cp.Minimize(sum(z))
 
     prob = cp.Problem(objective, constraints)
-    result = prob.solve()
+    prob.solve(solver=cp.MOSEK)
 
 
 
-
-
-if __name__=="__main__":
+if __name__ == "__main__":
     U = np.eye(3)
     V = np.eye(3)
     run_solver(U, V)
