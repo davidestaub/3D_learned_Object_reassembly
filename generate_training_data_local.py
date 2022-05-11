@@ -23,7 +23,7 @@ if __name__ == '__main__':
                 "--path",
                 folder,
                 "--descriptor_method",
-                "fpfh",
+                "pillar",
                 "--keypoint_method",
                 "hybrid"
             ]

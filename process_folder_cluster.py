@@ -116,7 +116,11 @@ def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, shar
     n_sharp = int(n_kpts_c*sharp_percentage)
     n_plan = n_kpts_c - n_sharp
 
-    start_planar = int(len(vertices) / 4)
+    # filter out the ones which are just directly on planes (the Xe-5 is arbitrary but seemed to work okay)
+    start_planar = next(i for i, item in enumerate(c[idx_sorted_c]) if item > 2.5e-5)
+    # check to not take c kpts double (just empirically stable for now, not optimal)
+    if start_planar+n_plan > len(vertices) - n_sharp:
+        start_planar = next(i for i, item in enumerate(c[idx_sorted_c]) if item > 9e-6)
 
     planar_idx = idx_sorted_c[start_planar:n_plan+start_planar]
     sharp_idx = idx_sorted_c[-n_sharp:]
@@ -132,7 +136,7 @@ def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints = 512, shar
     kpts = np.append(kpts_planar, kpts_sharp, axis = 0)
     kpts = np.append(kpts, kpts_sd, axis = 0)
     if len(kpts) != n_keypoints:
-        exit("FAIL")
+        exit("Failed calculating the keypoints!")
     scores_planar = np.array(c[planar_idx])
     scores_sharp = np.array(c[sharp_idx])
     scores = np.append(scores_planar, scores_sharp, axis=0)
