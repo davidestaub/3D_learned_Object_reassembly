@@ -19,12 +19,13 @@ if __name__ == "__main__":
     bottle = FracturedObject(name="bottle_10_seed_1")
     bottle.load_object(path)
     bottle.load_gt(path)
-    bottle.gt_from_closest()
+    # bottle.gt_from_closest()
+    bottle.create_random_pose()
+    bottle.apply_random_transf()
 
     bottle.matching()
 
-    # bottle.create_random_pose()
-    # bottle.apply_random_transf()
+
     #
     # data = get_viewer_data(keypoints=list(bottle.kpts.values()), fragments=list(bottle.fragments_meshes.values()))
     # compas_show(data)

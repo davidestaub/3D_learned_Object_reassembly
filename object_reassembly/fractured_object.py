@@ -5,6 +5,7 @@ from compas.geometry import Rotation as Rot, Translation, Pointcloud
 from scipy.spatial.transform import Rotation
 from scipy.spatial.distance import cdist
 from itertools import permutations
+import solver
 
 from utils import nchoosek
 
@@ -102,46 +103,59 @@ class FracturedObject(object):
             points.transform(Rot.from_quaternion(r_qut))
             points.transform(Translation.from_vector(self.transf_random[key][1] + [0]))
 
-    def matching(self, use_gt=True):
+    def matching(self, use_gt=True, use_solver=True):
         fragments = range(len(self.fragments.keys()))
         combinations = list(permutations(fragments, 2))
         for idx, comb in enumerate(combinations):
-            print("Combination " + str(idx) + "/" + str(len(combinations)) + " | Loop 1")
-            print("Fragments (A, B):" + str(comb))
+            if (comb in self.kpt_matches_gt.keys() and self.kpt_matches_gt[comb] is not None) \
+                    or (comb in self.kpt_matches.keys() and self.kpt_matches[comb] is not None):
+                print("Combination " + str(idx) + "/" + str(len(combinations)) + " | Loop 1")
+                print("Fragments (A, B):" + str(comb))
 
-            # Get random poise(rp), ground truth(gt) keypoints of fragment A, B
-            A_rand_pose_kpts = self.kpts[comb[0]]
-            A_gt_pose_kpts = self.kpts_orig[comb[0]]
-            B_rand_pose_kpts = self.kpts[comb[1]]
-            B_gt_pose_kpts = self.kpts_orig[comb[1]]
+                # Get random poise(rp), ground truth(gt) keypoints of fragment A, B
+                A_rand_pose_kpts = self.kpts[comb[0]]
+                A_gt_pose_kpts = self.kpts_orig[comb[0]]
+                B_rand_pose_kpts = self.kpts[comb[1]]
+                B_gt_pose_kpts = self.kpts_orig[comb[1]]
 
-            # Init corresponding keypoint pairs
-            A_gt_pair = []
-            A_rp_pair = []
-            B_gt_pair = []
-            B_rp_pair = []
-            pair_nb = 0
+                # Init corresponding keypoint pairs
+                A_gt_pair = []
+                A_rp_pair = []
+                B_gt_pair = []
+                B_rp_pair = []
+                pair_nb = 0
 
-            if use_gt:
-                if comb in self.kpt_matches_gt.keys():
-                    if self.kpt_matches_gt[(comb)] is not None:
-                        A_gt_idx,  B_gt_idx = self.kpt_matches_gt[(comb)]
+                if use_gt:
+                    if self.kpt_matches_gt[comb] is not None:
+                        A_gt_idx,  B_gt_idx = self.kpt_matches_gt[comb]
                         for i in A_gt_idx:
-                            A_gt_pair.append(self.kpts_orig[i])
-                            A_rp_pair.append(self.kpts[i])
+                            A_gt_pair.append(self.kpts_orig[comb[0]].data['points'][i])
+                            A_rp_pair.append(self.kpts[comb[0]].data['points'][i])
                         for i in B_gt_idx:
-                            B_gt_pair.append(self.kpts_orig[i])
-                            B_rp_pair.append(self.kpts[i])
-            else:
-                if comb in self.kpt_matches.keys():
-                    if self.kpt_matches[(comb)] is not None:
-                        A_gt_idx,  B_gt_idx = self.kpt_matches[(comb)]
+                            B_gt_pair.append(self.kpts_orig[comb[1]].data['points'][i])
+                            B_rp_pair.append(self.kpts[comb[1]].data['points'][i])
+                else:
+                    if self.kpt_matches[comb] is not None:
+                        A_gt_idx,  B_gt_idx = self.kpt_matches[comb]
                         for i in A_gt_idx:
-                            A_gt_pair.append(self.kpts_orig[i])
-                            A_rp_pair.append(self.kpts[i])
+                            A_gt_pair.append(self.kpts_orig[comb[0]].data['points'][i])
+                            A_rp_pair.append(self.kpts[comb[0]].data['points'][i])
                         for i in B_gt_idx:
-                            B_gt_pair.append(self.kpts_orig[i])
-                            B_rp_pair.append(self.kpts[i])
+                            B_gt_pair.append(self.kpts_orig[comb[1]].data['points'][i])
+                            B_rp_pair.append(self.kpts[comb[1]].data['points'][i])
+
+                print("Number of keypoint pairs: "+str(len(A_rp_pair)))
+
+                ptsA = np.array(A_rp_pair)
+                ptsB = np.array(B_rp_pair)
+
+                zcA = np.zeros((1, ptsA.shape[1]))
+                ptsA_z = np.array([ptsA, zcA])
+                zcB = np.zeros((1, ptsA.shape[1]))
+                ptsB_z = np.array([ptsB, zcB])
+
+                if use_solver:
+                    solver.run_solver(ptsA_z, ptsB_z)
 
 
     # calculate ground truth from closest points
