@@ -6,7 +6,7 @@ import numpy as np
 
 from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation
-from fractured_object import FracturedObject
+from fractured_object_o3d import FracturedObject
 from compas_vis import compas_show
 from utils import get_viewer_data
 

@@ -1,4 +1,6 @@
 import os
+
+import numpy
 import numpy as np
 from compas.datastructures import Mesh
 from compas.geometry import Rotation as Rot, Translation, Pointcloud
@@ -6,6 +8,8 @@ from scipy.spatial.transform import Rotation
 from scipy.spatial.distance import cdist
 from itertools import permutations
 import solver
+import open3d as o3d
+from random import choice
 
 from utils import nchoosek
 
@@ -28,7 +32,13 @@ class FracturedObject(object):
         self.kpt_matches = {}
         # stored random transformation
         self.transf_random = {}
+        self.transf_random_o3d = {}
         self.transf = {}
+
+        #just because compas viever is buggy i try it with open3d instead:
+        self.fragments_orig_o3d = {}
+        self.stepper_fragments_o3d = self.fragments_orig_o3d
+        self.fragments_o3d = {}
 
     # load fragment pointclouds and keypoints
     def load_object(self, path):
@@ -36,21 +46,40 @@ class FracturedObject(object):
         new_path = path + self.name + "/cleaned/"
 
         print("Loading fragment meshes of object " + self.name + "...")
+        try:
+            for fragment in os.listdir(new_path):
+                if fragment.endswith('.obj'):
+                    frag_no = int(fragment.rsplit(sep=".")[1])
+                    self.fragments_orig[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
+                    self.fragments[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
+        except Exception as e:
+            print("could not load the directory, ", new_path)
+
 
         for fragment in os.listdir(new_path):
-            if fragment.endswith('.obj'):
+            print(fragment)
+            if fragment.endswith(".pcd"):
                 frag_no = int(fragment.rsplit(sep=".")[1])
-                self.fragments_orig[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
-                self.fragments[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
+                print(new_path + fragment)
+                self.fragments_orig_o3d[frag_no] = o3d.io.read_point_cloud(new_path + fragment)
+                self.fragments_o3d[frag_no] = o3d.io.read_point_cloud(new_path + fragment)
+                self.stepper_fragments_o3d[frag_no] = self.fragments_orig_o3d[frag_no]
+                print("loaded file", fragment)
 
         print("Loading keypoints of object " + self.name + "...")
 
         new_path = path + self.name + "/processed/keypoints/"
 
+        print(new_path)
+
         for kpts in os.listdir(new_path):
             frag_no = int(kpts.rsplit(sep=".")[1])
-            self.kpts_orig[frag_no] = Pointcloud(np.load(new_path + kpts))
-            self.kpts[frag_no] = Pointcloud(np.load(new_path + kpts))
+            pts = np.load(new_path + kpts)
+            #remove keypoint score
+            if pts.shape[1] == 4:
+                pts = np.delete(pts, -1, axis=1)
+            self.kpts_orig[frag_no] = Pointcloud(pts)
+            self.kpts[frag_no] = Pointcloud(pts)
 
     def save_object(self, path):
         # TODO: implement
@@ -90,6 +119,22 @@ class FracturedObject(object):
 
             self.transf_random[int(fragment)] = (r, t)
 
+    def create_random_pose_for_o3d(self):
+        print("Creating random pose for object " + self.name + "...")
+        for fragment in self.fragments_o3d.keys():
+            # insert random rotations
+            theta_x = np.random.uniform(0, 2 * np.pi)
+            theta_y = np.random.uniform(0, 2 * np.pi)
+            theta_z = np.random.uniform(0, 2 * np.pi)
+
+            r = Rotation.from_euler(seq='xyz', angles=[theta_x, theta_y, theta_z])
+
+            # insert random translation
+
+            t = [choice([i for i in range(-50, 50) if i not in range(-5,5)]),-20,choice([i for i in range(-50, 50) if i not in range(-5,5)])]
+
+            self.transf_random_o3d[int(fragment)] = (r, t)
+
     def apply_random_transf(self):
         print("Applying random transformation to fragments...")
         for key, fragment in self.fragments.items():
@@ -102,6 +147,68 @@ class FracturedObject(object):
             r_qut = self.transf_random[key][0].as_quat()
             points.transform(Rot.from_quaternion(r_qut))
             points.transform(Translation.from_vector(self.transf_random[key][1] + [0]))
+
+    def apply_random_transf_to_o3d(self):
+        print("Applying random transformation to fragments...")
+        print(self.fragments_o3d)
+        for key, fragment in self.fragments_o3d.items():
+            print(key,fragment)
+            r_qut = self.transf_random_o3d[key][0].as_quat()
+            T = Rot.from_quaternion(r_qut)
+            T_np = numpy.zeros(shape=(4,4))
+            for i in range(0,4):
+                for j in range(0,4):
+                    T_np[i,j] = T[i,j]
+
+            print(type(self.transf_random_o3d[key][1] + [0]))
+            T_np[:,3] = self.transf_random_o3d[key][1] + [0]
+            T_np[3, 3] = 1.0
+
+            self.fragments_o3d[key] = self.fragments_o3d[key].transform(T_np)
+
+    def get_random_transform_np(self):
+        print("Applying random transformation to fragments...")
+        print(self.fragments_o3d)
+        trans_list = []
+        for key, fragment in self.fragments_o3d.items():
+            r_qut = self.transf_random_o3d[key][0].as_quat()
+            T = Rot.from_quaternion(r_qut)
+            T_np = numpy.zeros(shape=(4,4))
+            for i in range(0,4):
+                for j in range(0,4):
+                    T_np[i,j] = T[i,j]
+            T_np[:,3] = self.transf_random_o3d[key][1] + [0]
+            T_np[3, 3] = 1.0
+            trans_list.append(T_np)
+        return trans_list
+
+
+    def apply_random_transf_to_o3d_step(self):
+        print("Applying random transformation to fragments...")
+        print(self.fragments_o3d)
+        for key, fragment in self.stepper_fragments_o3d.items():
+            print(key,fragment)
+            r_qut = self.transf_random_o3d[key][0].as_quat()
+            T = Rot.from_quaternion(r_qut)
+            T_np = numpy.zeros(shape=(4,4))
+            for i in range(0,4):
+                for j in range(0,4):
+                    T_np[i,j] = T[i,j]
+            print(type(self.transf_random_o3d[key][1] + [0]))
+            T_np[:,3] = self.transf_random_o3d[key][1] + [0]
+            T_np[3, 3] = 1.0
+
+            for i in range(0,4):
+                for j in range(0,4):
+                    T_np[i,j] /= 10.0
+            T_np[3, 3] = 1.0
+
+
+            print(T_np)
+
+
+            self.stepper_fragments_o3d[key] = self.stepper_fragments_o3d[key].transform(T_np)
+
 
     def matching(self, use_gt=True, use_solver=True):
         fragments = range(len(self.fragments.keys()))

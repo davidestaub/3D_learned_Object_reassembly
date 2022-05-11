@@ -2,7 +2,7 @@ import bpy
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from fractured_object import FracturedObject
+from fractured_object_o3d import FracturedObject
 
 
 def install_dependencies():
