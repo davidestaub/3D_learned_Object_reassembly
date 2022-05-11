@@ -257,7 +257,7 @@ class FracturedObject(object):
                 ptsB = np.array(B_rp_pair)
 
                 zcA = np.zeros((1, ptsA.shape[1]))
-                ptsA_z = np.array([ptsA, zcA])
+                ptsA_z = np.array([ptsA + zcA])
                 zcB = np.zeros((1, ptsA.shape[1]))
                 ptsB_z = np.array([ptsB, zcB])
 
