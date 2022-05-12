@@ -73,6 +73,7 @@ class FragmentsDataset(td.Dataset):
                         # original
                         try:
                             if not self.overfit:
+                                item['pairname'] = '_'.join([folder, i, j])
                                 item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
                                 item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{j}.npy'))[0]
                                 item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
@@ -176,7 +177,8 @@ class FragmentsDataset(td.Dataset):
             "descriptors1": torch.from_numpy(des1.astype(np.float32)),
             "gt_assignment": torch.from_numpy(gtasg),
             "gt_matches0": torch.from_numpy(gt_matches0),
-            "gt_matches1": torch.from_numpy(gt_matches1)
+            "gt_matches1": torch.from_numpy(gt_matches1),
+            "pair_name": self.dataset[idx]['pairname']
         }
 
         return sample
