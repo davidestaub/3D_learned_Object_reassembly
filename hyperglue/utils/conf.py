@@ -1,7 +1,7 @@
 data_conf = {
     'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
     'kpts': 'hybrid', # [hybrid, sd]
-    'inference': False
+    'gt_match_thresh': 0.0
 }
 
 model_conf = {
