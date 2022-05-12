@@ -1,6 +1,7 @@
 data_conf = {
     'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
     'kpts': 'hybrid' # [hybrid, sd]
+    'inference': False
 }
 
 model_conf = {
@@ -15,13 +16,12 @@ model_conf = {
     'match_threshold': 0.245,
     'nll_weight': 1000.,
     'nll_balancing': 0.96,
-
 }
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 500,  # number of epochs
-    'batch_size': 4,  # training batch size
+    'epochs': 1000,  # number of epochs
+    'batch_size': 2,  # training batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
