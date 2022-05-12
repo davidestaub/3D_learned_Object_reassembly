@@ -91,8 +91,8 @@ class FragmentsDataset(td.Dataset):
                                     item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
                                     item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
                                 item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
-                        except:
-                            print(f"Error loading objects in folder {folder}")
+                        except Exception as e:
+                            print(f"Error loading objects in folder {folder}: {e}")
                             continue
                         # throw out samples where we have too little matches (<5%) 
                         # since we have two same matched (i,j) (j,i) divide by 2
