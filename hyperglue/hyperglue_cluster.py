@@ -83,13 +83,14 @@ def MLP(channels: List[int], do_bn: bool = True, dropout: bool = False, activati
 class KeypointEncoder(nn.Module):
     """ Joint encoding of visual appearance and location using MLPs"""
 
-    def __init__(self, feature_dim: int, layers: List[int]) -> None:
+    def __init__(self, feature_dim: int, layers: List[int], do_bn = True, dropout = True, activation = 'relu') -> None:
         super().__init__()
         self.use_scores = conf.train_conf['use_sd_score']
         self.input_size = 4 if self.use_scores else 3
         self.encoder = MLP(channels = [self.input_size] + layers + [feature_dim],
-                           dropout = True,
-                           activation = 'elu')
+                           do_bn= True,
+                           dropout = dropout,
+                           activation = activation)
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     # scores is the confidence of a given keypoint, as we currently only have position and saliency score (!= confidence) I am gonna leave it out for now,
