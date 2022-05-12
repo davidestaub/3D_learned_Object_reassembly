@@ -73,7 +73,7 @@ class FragmentsDataset(td.Dataset):
                         # original
                         try:
                             if not self.overfit:
-                                item['pairname'] = '_'.join([folder, i, j])
+                                item['pairname'] = '_'.join([folder, str(i), str(j)])
                                 item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
                                 item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{j}.npy'))[0]
                                 item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
