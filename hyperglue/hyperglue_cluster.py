@@ -235,7 +235,7 @@ class SuperGlue(nn.Module):
         bin_score = torch.nn.Parameter(torch.tensor(0.))
         self.register_parameter('bin_score', bin_score)
 
-        if train_conf["load_weights"]:
+        if self.config["load_weights"]:
             path = Path(__file__).parent
             path = path / '{}.pth'.format(self.config['weights'])
             self.load_state_dict(torch.load(str(path)))
@@ -558,7 +558,7 @@ def train_model(dataroot, model, train_conf):
             optimizer.step()
             lr_scheduler.step()
 
-            if it % 10 == 0 or it == len(train_dl) - 1:
+            if it == len(train_dl) - 1:
                 for k in sorted(losses.keys()):
                     losses[k] = torch.mean(losses[k]).item()
                 str_losses = []
