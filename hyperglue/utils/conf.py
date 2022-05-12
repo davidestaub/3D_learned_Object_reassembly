@@ -1,6 +1,6 @@
 data_conf = {
     'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
-    'kpts': 'hybrid' # [hybrid, sd]
+    'kpts': 'hybrid', # [hybrid, sd]
     'inference': False
 }
 
