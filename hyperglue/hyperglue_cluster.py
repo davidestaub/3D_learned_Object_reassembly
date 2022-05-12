@@ -326,12 +326,12 @@ class SuperGlue(nn.Module):
         nll_neg0 = -(log_assignment[:, :-1, -1]*neg0).sum(1)
         nll_neg1 = -(log_assignment[:, -1, :-1]*neg1).sum(1)
         nll_neg = (nll_neg0 + nll_neg1) / num_neg
-        nll = (model_conf["nll_balancing"] * nll_pos
-               + (1 - model_conf["nll_balancing"]) * nll_neg)
+        nll = (self.config["nll_balancing"] * nll_pos
+               + (1 - self.config["nll_balancing"]) * nll_neg)
         losses['assignment_nll'] = nll
 
-        if model_conf["nll_weight"] > 0:
-            losses['total'] = nll*model_conf["nll_weight"]
+        if self.config["nll_weight"] > 0:
+            losses['total'] = nll*self.config["nll_weight"]
 
         # Some statistics
         losses['num_matchable'] = num_pos
