@@ -99,7 +99,7 @@ class FragmentsDataset(td.Dataset):
                         gt = np.array(load_npz(item['path_match_mat']).toarray(), dtype=np.float32)
                         num_matches = np.sum(gt) / 2
                         num = gt.shape[0]
-                        if num_matches / num < 0.05:
+                        if num_matches / num < 0.05 and not conf['inference']:
                             continue
 
                         self.dataset.append(item)
