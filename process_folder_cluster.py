@@ -264,7 +264,7 @@ def get_SD_keypoints(vertices, normals, r=0.05, nkeypoints=256):
     return np.append(keypoints, scores, axis=1), indices_to_keep
 
 
-def get_harris_keypoints(vertices):
+def get_harris_keypoints(vertices, npoints=512):
     points = deepcopy(vertices)
     # parameters
     delta = 0.025
@@ -320,9 +320,11 @@ def get_harris_keypoints(vertices):
     candidate = np.array(candidate)
 
     # Method 1 : fraction
+    # keypoint_indexes = np.array(
+    #     candidate[:int(fraction*len(points)), 0], dtype=np.int)
+    # labels_fraction[keypoint_indexes] = 1
     keypoint_indexes = np.array(
-        candidate[:int(fraction*len(points)), 0], dtype=np.int)
-    labels_fraction[keypoint_indexes] = 1
+         candidate[:npoints, 0], dtype=np.int)
 
     return keypoint_indexes
 
@@ -354,7 +356,8 @@ def get_descriptors(vertices, normals, args):
         pillar_norm, pillar_inv = fpfh_pillar_encoder(vertices, normals)
         return pillar_norm, pillar_inv
 
-def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path, npoints):
+
+def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path, npoints, save=True):
     method = args.keypoint_method
     processed_path = os.path.join(args.path, folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{method}.{i}.npy')
@@ -365,51 +368,36 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
         kpts_desc_path_normal = os.path.join(processed_path, 'pillar_keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
         kpts_desc_path_inverted = os.path.join(processed_path,'pillar_keypoint_descriptors_inverted', f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
 
-    os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
-    os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
-    os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)
+    if save:
+        os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
+        os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
+        os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)
 
     if os.path.exists(kpts_desc_path_normal) and os.path.exists(kpts_desc_path_inverted):
         keypoints = np.load(keypoint_path)
         return keypoints
 
     if args.keypoint_method == 'SD':
-        keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.1)
-        kpt_desc_normal = desc_normal[keypoint_idxs]
-        kpt_desc_invert = desc_inv[keypoint_idxs]
-
-        np.save(keypoint_path, keypoints)
-        np.save(kpts_desc_path_normal, kpt_desc_normal)
-        np.save(kpts_desc_path_inverted, kpt_desc_invert)
-        return keypoints
-    
-    if args.keypoint_method == 'sticky':
+        keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=npoints)
+    elif args.keypoint_method == 'sticky':
         keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 12, npoints)
-
-        kpt_desc_normal = desc_normal[keypoint_idxs]
-
-        np.save(keypoint_path, keypoints)
-        np.save(kpts_desc_path_normal, kpt_desc_normal)
-        return keypoints
-    
-    if args.keypoint_method == 'hybrid' and args.descriptor_method != "pillar":
-        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 12, npoints)
-        kpt_desc_normal = desc_normal[keypoint_idxs]
-        kpt_desc_invert = desc_inv[keypoint_idxs]
-
-        np.save(keypoint_path, keypoints)
-        np.save(kpts_desc_path_normal, kpt_desc_normal)
-        np.save(kpts_desc_path_inverted, kpt_desc_invert)
-        return keypoints
     elif args.keypoint_method == 'hybrid':
         keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 12, npoints)
-        kpt_desc_normal = desc_normal[keypoint_idxs]
-
-        np.save(keypoint_path, keypoints)
-        np.save(kpts_desc_path_normal, kpt_desc_normal)
-        return keypoints
+    elif args.keypoint_method == 'harris':
+        keypoint_idxs = get_harris_keypoints(vertices, npoints)
+        keypoints = vertices[keypoint_idxs]
     else:
         raise NotImplementedError
+
+    if save:
+        np.save(keypoint_path, keypoints)
+        kpt_desc_normal = desc_normal[keypoint_idxs]
+        np.save(kpts_desc_path_normal, kpt_desc_normal)
+        if args.keypoint_method == 'SD' or (args.keypoint_method == 'hybrid' and args.descriptor_method != "pillar"):
+            kpt_desc_invert = desc_inv[keypoint_idxs]
+            np.save(kpts_desc_path_inverted, kpt_desc_invert)
+
+    return keypoints
 
 
 def process_folder(folder_path, args):
