@@ -7,6 +7,7 @@ from scipy.spatial.distance import cdist
 from itertools import permutations
 import solver
 from utils import helmert_nd
+from cv2 import estimateAffine3D
 
 from utils import nchoosek
 
@@ -25,8 +26,8 @@ class FracturedObject(object):
         self.kpts = {}
         self.kpt_matches_gt = {}
         self.kpt_matches = {}
-        self.transf_random = {}
-        self.transf = {}
+        self.transf_random = {} # key: N, value: (R,t), apply R(N)+t to move N from original position
+        self.transf = {} # key: (A,B), value: (R,t), apply R(A)+t to match A to B
 
     # load fragment pointclouds and keypoints
     def load_object(self, path):
@@ -81,12 +82,25 @@ class FracturedObject(object):
             theta_y = np.random.uniform(0, 2 * np.pi)
             theta_z = np.random.uniform(0, 2 * np.pi)
 
-            r = Rotation.from_euler(seq='xyz', angles=[theta_x, theta_y, theta_z])
+            R = Rotation.from_euler(seq='xyz', angles=[theta_x, theta_y, theta_z])
 
             # insert random translation
             t = [np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)]
 
-            self.transf_random[int(fragment)] = (r, t)
+            self.transf_random[int(fragment)] = (R, t)
+
+    def apply_transf(self, A, B):
+        if self.transf[(A, B)][0] is not None and self.transf[(A, B)][1] is not None:
+            r_qut = self.transf[(A, B)][0].as_quat()
+            print("Applying transformation from " + str(A) + " to " + str(B) + " to fragment " + str(A))
+            Mesh.transform(self.fragments[A], Rot.from_quaternion(r_qut))
+            Mesh.transform(self.fragments[A], Translation.from_vector(self.transf[(A, B)][1] + [0]))
+
+            print("Applying transformation from " + str(A) + " to " + str(B) + " to keypoints of fragment " + str(A))
+            self.kpts[A].transform(Rot.from_quaternion(r_qut))
+            self.kpts[A].transform(Translation.from_vector(self.transf[(A, B)][1] + [0]))
+
+
 
     def apply_random_transf(self):
         print("Applying random transformation to fragments...")
@@ -101,16 +115,20 @@ class FracturedObject(object):
             points.transform(Rot.from_quaternion(r_qut))
             points.transform(Translation.from_vector(self.transf_random[key][1] + [0]))
 
-    def matching(self, use_gt=True, use_solver=True, s_min=0.1, use_rigid_transform=True):
-        fragments = range(len(self.fragments.keys()))
-        combinations = list(permutations(fragments, 2))
+    def find_transformations(self, use_gt=True, find_t_method="RANSAC", s_min=0.1, use_rigid_transform=True):
+        fragments = range(len(self.fragments.keys())) # nof fragments
+        combinations = list(permutations(fragments, 2)) # all possible fragment pairs
+        nb_non_matches = 0
+
+        match_pairwise = np.zeros((len(combinations), 1)) # pairwise matching array
+
         for idx, comb in enumerate(combinations):
             if (comb in self.kpt_matches_gt.keys() and self.kpt_matches_gt[comb] is not None) \
                     or (comb in self.kpt_matches.keys() and self.kpt_matches[comb] is not None):
                 print("Combination " + str(idx) + "/" + str(len(combinations)) + " | Loop 1")
                 print("Fragments (A, B):" + str(comb))
 
-                # Get random poise(rp), ground truth(gt) keypoints of fragment A, B
+                # Get random pose(rp), ground truth(gt) keypoints of fragment A, B
                 A_rand_pose_kpts = self.kpts[comb[0]]
                 A_gt_pose_kpts = self.kpts_orig[comb[0]]
                 B_rand_pose_kpts = self.kpts[comb[1]]
@@ -152,18 +170,45 @@ class FracturedObject(object):
                 zcB = np.zeros((1, ptsA.shape[1]))
                 ptsB_z = np.array([ptsB + zcB])
 
-                if use_solver:
+                if find_t_method=="solver":
                     sol = solver.run_solver(ptsA_z, ptsB_z)
                     if sol is not None:
                         if sol["s_opt"] > s_min and sum(abs(sol["t"])) > 1e-6:
                             print("Valid solution for T, s = " + str(sol["s_opt"]))
+                            R_mat = sol["R"]
+                            t = sol["t"]
                             if use_rigid_transform:
-                                R, c, t = helmert_nd(ptsA, ptsB, sol["s_opt"], sol["R"], sol["t"])
-                                self.transf[comb] = (R*c, t)
+                                R_mat, c, t = helmert_nd(ptsA, ptsB, sol["s_opt"], sol["R"], sol["t"])
+                            R = Rotation.from_matrix(R_mat)
+                            self.transf[comb] = (R, t)
+                            nb_non_matches += 1
+                            match_pairwise[idx] = 1
 
+                    else:
+                        print("No valid solution for T -> creating NaN R, T")
+                        self.transf[comb] = (None, None)
+                        nb_non_matches += 1
+                elif find_t_method=="RANSAC":
+                    retval, out, inliers = estimateAffine3D(ptsA, ptsB, confidence=0.99)
+                    if not retval:
+                        print("Transformation estimation unsuccessful -> creating NaN R, T")
+                        self.transf[comb] = (None, None)
+                        nb_non_matches += 1
+                    else:
+                        print("Valid T estimated, " + str(np.sum(inliers)) + "/" + str(len(A_rp_pair)) + " inliers")
+                        R_mat = out[:, :3]
+                        t = out[:,3]
+                        R = Rotation.from_matrix(R_mat)
+                        self.transf[comb] = (R, t)
+                        nb_non_matches += 1
+                        match_pairwise[idx] = 1
                 else:
                     # use gt for transformations
                     raise NotImplementedError
+
+
+    def matching(self, use_gt=True, use_solver=True, s_min=0.1, use_rigid_transform=True):
+        self.find_transformations()
 
     # calculate ground truth from closest points
     def gt_from_closest(self, threshold=0.001):

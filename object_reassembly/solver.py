@@ -3,7 +3,7 @@ import cvxpy as cp
 import numpy as np
 from cvxpy.atoms import norm, abs
 from numpy.linalg import det
-
+from mip_cvxpy import PYTHON_MIP
 
 def conv_SO3(x):
     x11 = x[1];
@@ -92,17 +92,17 @@ def run_solver(U, V, th=0.5e-1, sLU=[0.9, 1.1], S=np.eye(3), enfRot=True, verbos
 
     print("Solving optimization...")
 
-    prob.solve(solver=cp.MOSEK, verbose=verbose)
+    prob.solve(solver=cp.MOSEK)
 
     if prob.status not in ["infeasible", "unbounded"]:
 
         print("Optimization successful!")
 
-        R = np.reshape(prob.solution.primal_vars[1][:9], (3, 3))
-        t = prob.solution.primal_vars[1][9:]
+        R = np.reshape(x.value[:9], (3, 3))
+        t = x.value[9:]
         s_opt = np.cbrt(np.abs(det(R)))
-        inliers = [1 if i < tol else 0 for i in prob.solution.primal_vars[2]]
-        x_opt = prob.solution.primal_vars[1]
+        inliers = [1 if i < tol else 0 for i in z.value]
+        x_opt = x.value
 
         sol = {"R": R,
                "s_opt": s_opt,
