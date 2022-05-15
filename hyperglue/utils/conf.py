@@ -1,7 +1,7 @@
 data_conf = {
     'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
     'kpts': 'hybrid', # [hybrid, sd]
-    'gt_match_thresh': 0.0
+    'gt_match_thresh': 0.05
 }
 
 model_conf = {
@@ -20,13 +20,13 @@ model_conf = {
 
 train_conf = {
     'seed': 42,  # training seed
-    'epochs': 1000,  # number of epochs
-    'batch_size': 2,  # training batch size
+    'epochs': 500,  # number of epochs
+    'batch_size': 16,  # training batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
     'opt_regexp': None,  # regular expression to filter parameters to optimize
     'optimizer_options': {},  # optional arguments passed to the optimizer
     'lr':0.0085,  # learning rate
-    'lr_schedule': {'type': 'exp', 'start': 10e3, 'exp_div_10': 1e5},
+    'lr_schedule': {'type': 'exp', 'start': 10e3, 'exp_div_10': 2e5},
     'eval_every_iter': 500,  # interval for evaluation on the validation set
     'log_every_iter': 500,  # interval for logging the loss to the console
     'best_key': 'loss/total',  # key to use to select the best checkpoint

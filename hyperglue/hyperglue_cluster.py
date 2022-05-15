@@ -626,6 +626,13 @@ if __name__ == '__main__':
     np.set_printoptions(threshold=sys.maxsize)
     myGlue = SuperGlue(model_conf)
 
+    # loading weights
+    weights = 'weights/weights_CUBES_ALL_5_CTD.pth'
+    myGlue.load_state_dict(torch.load(weights))
+    # reset bin score
+    myGlue.bin_score = torch.nn.Parameter(torch.tensor(0.))
+    
+    # wandb login
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
     wandb.init(project="hyperglue", entity="lessgoo",
                config={**model_conf, **train_conf, **data_conf},
