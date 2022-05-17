@@ -3,7 +3,7 @@ import cvxpy as cp
 import numpy as np
 from cvxpy.atoms import norm, abs
 from numpy.linalg import det
-from mip_cvxpy import PYTHON_MIP
+#from mip_cvxpy import PYTHON_MIP
 
 def conv_SO3(x):
     x11 = x[1];

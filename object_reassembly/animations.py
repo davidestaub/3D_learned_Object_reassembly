@@ -121,6 +121,9 @@ if __name__ == "__main__":
     # Create a random transformation (later this will be the input transformation obtained trough superglue - matching)
     bottle.create_random_pose_for_o3d()
 
+    #bottle.apply_random_rotation_to_o3d()
+
+
     # Aplly the transformation to the original fragment
     bottle.apply_random_transf_to_o3d()
 

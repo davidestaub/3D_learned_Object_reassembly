@@ -12,6 +12,7 @@ def compas_show(data: dict, dist=3):
     pointclouds = []
     pc_dict = {}
     meshes = []
+    lines = []
 
 
     if "keypoints" in data.keys():
@@ -23,9 +24,19 @@ def compas_show(data: dict, dist=3):
         for fragment in data["fragments"].values():
             meshes.append(fragment)
 
+    if "lines" in data.keys():
+        lines = data["lines"]
+        print(lines)
+
+
+
     viewer = App()
 
     add_to_viewer(pointclouds + meshes, viewer)
+
+
+    add_to_viewer(lines,viewer)
+
     viewer.view.camera.distance = dist
     viewer.show()
 
