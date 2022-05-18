@@ -1,6 +1,7 @@
-from scipy.special import factorial
 import numpy as np
 from numpy.linalg import svd, matrix_rank, det
+from scipy.special import factorial
+
 
 def get_viewer_data(fragments=None, keypoints=None):
     data = {}
@@ -14,6 +15,7 @@ def get_viewer_data(fragments=None, keypoints=None):
 
 def nchoosek(n, k) -> int:
     return factorial(n) / (factorial(n - k) * factorial(k))
+
 
 def helmert_nd(X, Y, S_bnb, R_bnb, T_bnb):
     # RALIGN - Rigid alignment of two sets of points in k - dimensional
@@ -65,16 +67,16 @@ def helmert_nd(X, Y, S_bnb, R_bnb, T_bnb):
     Y = np.transpose(Y)
     (m, n) = X.shape
 
-    mx = np.mean(X, axis=1) # Eqn.(34)
-    my = np.mean(Y, axis=1) # Eqn.(35)
+    mx = np.mean(X, axis=1)  # Eqn.(34)
+    my = np.mean(Y, axis=1)  # Eqn.(35)
 
     Xc = X - np.tile(mx, (1, n)).reshape(X.shape)
     Yc = Y - np.tile(my, (1, n)).reshape(Y.shape)
 
-    sx = np.mean(np.sum(np.power(Xc, 2), axis=0)) # Eqn.(36)
-    sy = np.mean(np.sum(np.power(Yc, 2), axis=0)) # Eqn.(37)
+    sx = np.mean(np.sum(np.power(Xc, 2), axis=0))  # Eqn.(36)
+    sy = np.mean(np.sum(np.power(Yc, 2), axis=0))  # Eqn.(37)
 
-    Sxy = np.matmul(Yc, np.transpose(Xc))/n  # Eqn. (38)
+    Sxy = np.matmul(Yc, np.transpose(Xc)) / n  # Eqn. (38)
 
     U, D, V = svd(Sxy)
 
@@ -84,10 +86,10 @@ def helmert_nd(X, Y, S_bnb, R_bnb, T_bnb):
     S = np.eye(m)
     if (r > m - 1):
         if (det(Sxy) < 0):
-            S[m-1, m-1] = -1
-    elif(r == m - 1):
+            S[m - 1, m - 1] = -1
+    elif (r == m - 1):
         if (det(U) * det(V) < 0):
-            S[m-1, m-1] = -1
+            S[m - 1, m - 1] = -1
     else:
         print('Insufficient rank in covariance to determine rigid transform. Returning input values for R, T, s.');
         R = R_bnb
@@ -96,11 +98,9 @@ def helmert_nd(X, Y, S_bnb, R_bnb, T_bnb):
         return (R, c, t)
 
     SV = np.matmul(S, np.transpose(V))
-    R = np.matmul(U, SV) # Eqn. (40)
-    c = np.trace(np.matmul(np.diag(D), S))/sx # Eqn.(42)
+    R = np.matmul(U, SV)  # Eqn. (40)
+    c = np.trace(np.matmul(np.diag(D), S)) / sx  # Eqn.(42)
     tmp = np.matmul(R, mx)
-    t = my - (c * tmp) # Eqn.(41)
+    t = my - (c * tmp)  # Eqn.(41)
 
     return (R, c, t)
-
-

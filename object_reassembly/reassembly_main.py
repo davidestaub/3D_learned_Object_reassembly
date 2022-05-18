@@ -1,14 +1,15 @@
 import os
-import open3d
-import compas
-from tools import *
-import numpy as np
 
+import compas
+import numpy as np
+import open3d
+from compas.geometry import Line
 from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation
-from fractured_object import FracturedObject
+
 from compas_vis import compas_show
-from compas.geometry import Line
+from fractured_object import FracturedObject
+from tools import *
 from utils import get_viewer_data
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -16,14 +17,13 @@ path = "data_from_pred/"
 
 if __name__ == "__main__":
 
-    #bottle = FracturedObject(name="bottle_10_seed_1")
+    # bottle = FracturedObject(name="bottle_10_seed_1")
     bottle = FracturedObject(name="cube_10_seed_0")
     bottle.load_object(path)
     bottle.load_gt(path)
     # bottle.gt_from_closest()
     bottle.create_random_pose()
     bottle.apply_random_transf()
-
 
     visualize = False
     print(bottle.kpt_matches_gt)
@@ -85,15 +85,15 @@ if __name__ == "__main__":
             if visualize:
                 compas_show(data)
 
-    #data = {"keypoints": bottle.kpts,
-            #"fragments": bottle.fragments}
+    # data = {"keypoints": bottle.kpts,
+    # "fragments": bottle.fragments}
 
-    #compas_show(data)
+    # compas_show(data)
 
     print("Hello")
     print(bottle.transf)
     bottle.create_inverse_transformations_for_existing_pairs()
-    bottle.tripplet_matching(1.0,10.0)
+    bottle.tripplet_matching(1.0, 10.0)
 
     #
     # data = get_viewer_data(keypoints=list(bottle.kpts.values()), fragments=list(bottle.fragments_meshes.values()))

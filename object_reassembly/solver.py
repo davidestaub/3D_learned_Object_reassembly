@@ -3,17 +3,19 @@ import cvxpy as cp
 import numpy as np
 from cvxpy.atoms import norm, abs
 from numpy.linalg import det
-#from mip_cvxpy import PYTHON_MIP
+
+
+# from mip_cvxpy import PYTHON_MIP
 
 def conv_SO3(x):
-    x11 = x[1];
-    x12 = x[2];
+    x11 = x[1]
+    x12 = x[2]
     x13 = x[3]
-    x21 = x[4];
-    x22 = x[5];
+    x21 = x[4]
+    x22 = x[5]
     x23 = x[6]
-    x31 = x[7];
-    x32 = x[8];
+    x31 = x[7]
+    x32 = x[8]
     x33 = x[9]
 
     L_tmp = [[x11 + x22 + x33, x32 - x23, x13 - x31, x21 - x12],

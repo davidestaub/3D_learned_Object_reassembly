@@ -1,18 +1,16 @@
 import os
+from itertools import permutations
+
 import numpy as np
 from compas.datastructures import Mesh
-from compas.geometry import Rotation as Rot, Translation, Pointcloud, Line
-from scipy.spatial.transform import Rotation
+from compas.geometry import Pointcloud
+from compas.geometry import Rotation as Rot, Translation
+from cv2 import estimateAffine3D
 from scipy.spatial.distance import cdist
-from itertools import permutations
+from scipy.spatial.transform import Rotation
+
 import solver
 from utils import helmert_nd
-from cv2 import estimateAffine3D
-from compas.datastructures import Mesh
-from compas.geometry import Pointcloud
-from compas_view2.app import App
-
-from utils import nchoosek
 
 np.random.seed(42)
 
@@ -29,8 +27,8 @@ class FracturedObject(object):
         self.kpts = {}
         self.kpt_matches_gt = {}
         self.kpt_matches = {}
-        self.transf_random = {} # key: N, value: (R,t), apply R(N)+t to move N from original position
-        self.transf = {} # key: (A,B), value: (R,t), apply R(A)+t to match A to B
+        self.transf_random = {}  # key: N, value: (R,t), apply R(N)+t to move N from original position
+        self.transf = {}  # key: (A,B), value: (R,t), apply R(A)+t to match A to B
 
     # load fragment pointclouds and keypoints
     def load_object(self, path):
@@ -50,17 +48,17 @@ class FracturedObject(object):
 
         new_path = path + self.name + "/processed/keypoints/"
 
-        #for kpts in os.listdir(new_path):
-            #frag_no = int(kpts.rsplit(sep=".")[1])
-           # self.kpts_orig[frag_no] = Pointcloud(np.load(new_path + kpts))
-            #self.kpts[frag_no] = Pointcloud(np.load(new_path + kpts))
+        # for kpts in os.listdir(new_path):
+        # frag_no = int(kpts.rsplit(sep=".")[1])
+        # self.kpts_orig[frag_no] = Pointcloud(np.load(new_path + kpts))
+        # self.kpts[frag_no] = Pointcloud(np.load(new_path + kpts))
 
         for kpts in os.listdir(new_path):
             frag_no = int(kpts.rsplit(sep=".")[1])
             print(frag_no)
             print(new_path + kpts)
             print(np.load(new_path + kpts))
-            npy_kpts = np.load(new_path + kpts)[:,0:3]
+            npy_kpts = np.load(new_path + kpts)[:, 0:3]
             print(npy_kpts)
             self.kpts_orig[frag_no] = Pointcloud(npy_kpts)
             self.kpts[frag_no] = Pointcloud(npy_kpts)
@@ -91,7 +89,7 @@ class FracturedObject(object):
 
                 if matches.endswith(".npy"):
                     print("found npy")
-                    #idk if this is good
+                    # idk if this is good
                     if "m0" in matches:
                         fragment0 = int(matches.rsplit(sep="_")[-4])
                         fragment1 = int(matches.rsplit(sep="_")[-3])
@@ -110,10 +108,10 @@ class FracturedObject(object):
                         print(tuple_1)
                         print(tuple_2)
                         self.kpt_matches_gt[(fragment0, fragment1)] = (tuple_1, tuple_2)
-                        print(fragment0,fragment1)
+                        print(fragment0, fragment1)
                         print(type(tuple_1))
                         print(type(tuple_2))
-                        #self.kpt_matches_gt[(fragment0, fragment1)] = np.load(new_path + matches)
+                        # self.kpt_matches_gt[(fragment0, fragment1)] = np.load(new_path + matches)
 
     # construct random transformation
     def create_random_pose(self):
@@ -133,20 +131,19 @@ class FracturedObject(object):
 
     def apply_transf(self, A, B):
         if self.transf[(A, B)][0] is not None and self.transf[(A, B)][1] is not None:
-            #r_qut = self.transf[(A, B)][0].as_quat()
-            #print("Applying transformation from " + str(A) + " to " + str(B) + " to fragment " + str(A))
-            #Mesh.transform(self.fragments[A], Rot.from_quaternion(r_qut))
-            #Mesh.transform(self.fragments[A], Translation.from_vector(self.transf[(A, B)][1] + [0]))
+            # r_qut = self.transf[(A, B)][0].as_quat()
+            # print("Applying transformation from " + str(A) + " to " + str(B) + " to fragment " + str(A))
+            # Mesh.transform(self.fragments[A], Rot.from_quaternion(r_qut))
+            # Mesh.transform(self.fragments[A], Translation.from_vector(self.transf[(A, B)][1] + [0]))
 
             print("Applying transformation from " + str(A) + " to " + str(B) + " to keypoints of fragment " + str(A))
 
-            T = transform_from_rotm_tr(self.transf[(A, B)][0],self.transf[(A, B)][1])
+            T = transform_from_rotm_tr(self.transf[(A, B)][0], self.transf[(A, B)][1])
             self.kpts[A].transform(T)
             Mesh.transform(self.fragments[A], T)
 
-            #self.kpts[A].transform(Rot.from_quaternion(r_qut))
-            #self.kpts[A].transform(Translation.from_vector(self.transf[(A, B)][1] + [0]))
-
+            # self.kpts[A].transform(Rot.from_quaternion(r_qut))
+            # self.kpts[A].transform(Translation.from_vector(self.transf[(A, B)][1] + [0]))
 
     def apply_random_transf(self):
         print("Applying random transformation to fragments...")
@@ -162,11 +159,11 @@ class FracturedObject(object):
             points.transform(Translation.from_vector(self.transf_random[key][1] + [0]))
 
     def find_transformations(self, use_gt=True, find_t_method="RANSAC_RIGID", s_min=0.1, use_rigid_transform=True):
-        fragments = range(len(self.fragments.keys())) # nof fragments
-        combinations = list(permutations(fragments, 2)) # all possible fragment pairs
+        fragments = range(len(self.fragments.keys()))  # nof fragments
+        combinations = list(permutations(fragments, 2))  # all possible fragment pairs
         nb_non_matches = 0
 
-        match_pairwise = np.zeros((len(combinations), 1)) # pairwise matching array
+        match_pairwise = np.zeros((len(combinations), 1))  # pairwise matching array
 
         for idx, comb in enumerate(combinations):
             if (comb in self.kpt_matches_gt.keys() and self.kpt_matches_gt[comb] is not None) \
@@ -218,7 +215,7 @@ class FracturedObject(object):
                 zcB = np.zeros((1, ptsA.shape[1]))
                 ptsB_z = np.array([ptsB + zcB])
 
-                if find_t_method=="solver":
+                if find_t_method == "solver":
                     sol = solver.run_solver(ptsA_z, ptsB_z)
                     if sol is not None:
                         if sol["s_opt"] > s_min and sum(abs(sol["t"])) > 1e-6:
@@ -236,7 +233,7 @@ class FracturedObject(object):
                         print("No valid solution for T -> creating NaN R, T")
                         self.transf[comb] = (None, None)
                         nb_non_matches += 1
-                elif find_t_method=="RANSAC":
+                elif find_t_method == "RANSAC":
                     retval, out, inliers = estimateAffine3D(ptsA, ptsB, confidence=0.99)
                     if not retval:
                         print("Transformation estimation unsuccessful -> creating NaN R, T")
@@ -245,14 +242,14 @@ class FracturedObject(object):
                     else:
                         print("Valid T estimated, " + str(np.sum(inliers)) + "/" + str(len(A_rp_pair)) + " inliers")
                         R_mat = out[:, :3]
-                        t = out[:,3]
+                        t = out[:, 3]
                         print(out)
                         R = Rotation.from_matrix(R_mat)
                         self.transf[comb] = (R, t)
                         nb_non_matches += 1
                         match_pairwise[idx] = 1
 
-                elif find_t_method =="RANSAC_RIGID":
+                elif find_t_method == "RANSAC_RIGID":
                     min_number_pairs = 4
                     if len(A_rp_pair) < min_number_pairs:
                         print("Not enough keypoint pairs, returning NAN transformation")
@@ -266,7 +263,7 @@ class FracturedObject(object):
                         print("mse naive: {}".format(mse_naive))
 
                         # estimate with RANSAC
-                        ransac = RansacEstimator(min_samples=3,residual_threshold=(0.01),max_trials=100,)
+                        ransac = RansacEstimator(min_samples=3, residual_threshold=(0.01), max_trials=100, )
                         ret = ransac.fit(Procrustes(), [ptsA, ptsB])
                         transform_ransac = ret["best_params"]
                         inliers_ransac = ret["best_inliers"]
@@ -286,49 +283,47 @@ class FracturedObject(object):
                     # use gt for transformations
                     raise NotImplementedError
 
-
     def create_inverse_transformations_for_existing_pairs(self):
-        #For now I am just takinh the inverses, later we could also use m1 and notjust m0 files and compute these transformatinos like they do
+        # For now I am just takinh the inverses, later we could also use m1 and notjust m0 files and compute these transformatinos like they do
         # in the matlab script
         dict_inv = {}
         for key in self.transf:
             A = key[0]
             B = key[1]
             current_transf = self.transf[key]
-            T = transform_from_rotm_tr(current_transf[0],current_transf[1])
+            T = transform_from_rotm_tr(current_transf[0], current_transf[1])
             T_inv = np.linalg.inv(T)
-            R_inv = T_inv[:3,:3]
-            t_inv = T_inv[:3,3]
-            dict_inv[(B,A)] = (R_inv,t_inv)
+            R_inv = T_inv[:3, :3]
+            t_inv = T_inv[:3, 3]
+            dict_inv[(B, A)] = (R_inv, t_inv)
         self.transf.update(dict_inv)
 
-
-    def tripplet_matching(self,R_threshold,T_threshold):
+    def tripplet_matching(self, R_threshold, T_threshold):
 
         fragments = range(len(self.fragments.keys()))
         comb_triplewise = list(permutations(fragments, 3))
         print(comb_triplewise)
-        for i in range(0,len(comb_triplewise)):
-            first =  comb_triplewise[i][0]
-            second =  comb_triplewise[i][1]
-            third =  comb_triplewise[i][2]
-            print(first,second,third)
-            index_12 = (first,second)
-            index_23 = (second,third)
-            index_13 = (first,third)
+        for i in range(0, len(comb_triplewise)):
+            first = comb_triplewise[i][0]
+            second = comb_triplewise[i][1]
+            third = comb_triplewise[i][2]
+            print(first, second, third)
+            index_12 = (first, second)
+            index_23 = (second, third)
+            index_13 = (first, third)
             if index_12 in self.kpt_matches_gt and index_23 in self.kpt_matches_gt and index_13 in self.kpt_matches_gt:
-                print("found potential triplet: ",index_12,index_23,index_13)
+                print("found potential triplet: ", index_12, index_23, index_13)
 
-                T_12 = transform_from_rotm_tr(self.transf[index_12][0],self.transf[index_12][1])
-                T_31 = transform_from_rotm_tr(self.transf[(third,first)][0],self.transf[(third,first)][1])
-                T_32 = transform_from_rotm_tr(self.transf[(third,second)][0],self.transf[(third,second)][1])
-                print(T_32,T_31,T_12)
+                T_12 = transform_from_rotm_tr(self.transf[index_12][0], self.transf[index_12][1])
+                T_31 = transform_from_rotm_tr(self.transf[(third, first)][0], self.transf[(third, first)][1])
+                T_32 = transform_from_rotm_tr(self.transf[(third, second)][0], self.transf[(third, second)][1])
+                print(T_32, T_31, T_12)
 
                 T_32_est = T_12 @ T_31
 
-                R_32 = T_32[0:3,0:3]
+                R_32 = T_32[0:3, 0:3]
                 R_32_est = T_32_est[0:3, 0:3]
-                angle_R_32 = np.arccos((np.trace(R_32)-1) * 0.5)
+                angle_R_32 = np.arccos((np.trace(R_32) - 1) * 0.5)
                 angle_R_32_est = np.arccos((np.trace(R_32_est) - 1) * 0.5)
                 angle_diff = np.abs(angle_R_32 - angle_R_32_est)
 
@@ -336,25 +331,12 @@ class FracturedObject(object):
                 Transl_32_est = T_32_est[0:3, 3]
                 distance_diff = np.linalg.norm(Transl_32 - Transl_32_est)
 
-                if distance_diff <=T_threshold and angle_diff <= R_threshold:
+                if distance_diff <= T_threshold and angle_diff <= R_threshold:
                     constraint = 0
                     print("TRIPLET MATCH")
                 else:
                     constraint = 1
                     print("NO Match")
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     # calculate ground truth from closest points
     def gt_from_closest(self, threshold=0.001):
@@ -375,7 +357,6 @@ class FracturedObject(object):
                     self.kpt_matches_gt[(comb[0], comb[1])] = np.nonzero(keypoint_assignment)
                 else:
                     self.kpt_matches_gt[(comb[0], comb[1])] = None
-
 
     # def find_transformations_first3kpts(self):
     #     for fragment0 in range(len(self.fragments) - 1):
@@ -424,61 +405,63 @@ class FracturedObject(object):
 
 
 class Procrustes:
-  """Determines the best rigid transform [1] between two point clouds.
-  References:
-    [1]: https://en.wikipedia.org/wiki/Orthogonal_Procrustes_problem
-  """
-  def __init__(self, transform=None):
-    self._transform = transform
-
-  def __call__(self, xyz):
-    return Procrustes.transform_xyz(xyz, self._transform)
-
-  @staticmethod
-  def transform_xyz(xyz, transform):
-    """Applies a rigid transform to an (N, 3) point cloud.
+    """Determines the best rigid transform [1] between two point clouds.
+    References:
+      [1]: https://en.wikipedia.org/wiki/Orthogonal_Procrustes_problem
     """
-    xyz_h = np.hstack([xyz, np.ones((len(xyz), 1))])  # homogenize 3D pointcloud
-    xyz_t_h = (transform @ xyz_h.T).T  # apply transform
-    return xyz_t_h[:, :3]
 
-  def estimate(self, X, Y):
-    # find centroids
-    X_c = np.mean(X, axis=0)
-    Y_c = np.mean(Y, axis=0)
+    def __init__(self, transform=None):
+        self._transform = transform
 
-    # shift
-    X_s = X - X_c
-    Y_s = Y - Y_c
+    def __call__(self, xyz):
+        return Procrustes.transform_xyz(xyz, self._transform)
 
-    # compute SVD of covariance matrix
-    cov = Y_s.T @ X_s
-    u, _, vt = np.linalg.svd(cov)
+    @staticmethod
+    def transform_xyz(xyz, transform):
+        """Applies a rigid transform to an (N, 3) point cloud.
+        """
+        xyz_h = np.hstack([xyz, np.ones((len(xyz), 1))])  # homogenize 3D pointcloud
+        xyz_t_h = (transform @ xyz_h.T).T  # apply transform
+        return xyz_t_h[:, :3]
 
-    # determine rotation
-    rot = u @ vt
-    if np.linalg.det(rot) < 0.:
-      vt[2, :] *= -1
-      rot = u @ vt
+    def estimate(self, X, Y):
+        # find centroids
+        X_c = np.mean(X, axis=0)
+        Y_c = np.mean(Y, axis=0)
 
-    # determine optimal translation
-    trans = Y_c - rot @ X_c
+        # shift
+        X_s = X - X_c
+        Y_s = Y - Y_c
 
-    self._transform = transform_from_rotm_tr(rot, trans)
+        # compute SVD of covariance matrix
+        cov = Y_s.T @ X_s
+        u, _, vt = np.linalg.svd(cov)
 
-  def residuals(self, X, Y):
-    """L2 distance between point correspondences.
-    """
-    #print("X=",X)
-    Y_est = self(X)
-    #print("Y_est=",Y_est)
-    #print("Y=",Y)
-    sum_sq = np.sum((Y_est - Y)**2, axis=1)
-    return sum_sq
+        # determine rotation
+        rot = u @ vt
+        if np.linalg.det(rot) < 0.:
+            vt[2, :] *= -1
+            rot = u @ vt
 
-  @property
-  def params(self):
-    return self._transform
+        # determine optimal translation
+        trans = Y_c - rot @ X_c
+
+        self._transform = transform_from_rotm_tr(rot, trans)
+
+    def residuals(self, X, Y):
+        """L2 distance between point correspondences.
+        """
+        # print("X=",X)
+        Y_est = self(X)
+        # print("Y_est=",Y_est)
+        # print("Y=",Y)
+        sum_sq = np.sum((Y_est - Y) ** 2, axis=1)
+        return sum_sq
+
+    @property
+    def params(self):
+        return self._transform
+
 
 def transform_from_rotm_tr(rotm, tr):
     transform = np.eye(4)
@@ -488,92 +471,93 @@ def transform_from_rotm_tr(rotm, tr):
 
 
 class RansacEstimator:
-  """Random Sample Consensus.
-  """
-  def __init__(self, min_samples=None, residual_threshold=None, max_trials=100):
-    """Constructor.
-    Args:
-      min_samples: The minimal number of samples needed to fit the model
-        to the data. If `None`, we assume a linear model in which case
-        the minimum number is one more than the feature dimension.
-      residual_threshold: The maximum allowed residual for a sample to
-        be classified as an inlier. If `None`, the threshold is chosen
-        to be the median absolute deviation of the target variable.
-      max_trials: The maximum number of trials to run RANSAC for. By
-        default, this value is 100.
+    """Random Sample Consensus.
     """
-    self.min_samples = min_samples
-    self.residual_threshold = residual_threshold
-    self.max_trials = max_trials
 
-  def fit(self, model, data):
-    """Robustely fit a model to the data.
-    Args:
-      model: a class object that implements `estimate` and
-        `residuals` methods.
-      data: the data to fit the model to. Can be a list of
-        data pairs, such as `X` and `y` in the case of
-        regression.
-    Returns:
-      A dictionary containing:
-        best_model: the model with the largest consensus set
-          and lowest residual error.
-        inliers: a boolean mask indicating the inlier subset
-          of the data for the best model.
-    """
-    best_model = None
-    best_inliers = None
-    best_num_inliers = 0
-    best_residual_sum = np.inf
+    def __init__(self, min_samples=None, residual_threshold=None, max_trials=100):
+        """Constructor.
+        Args:
+          min_samples: The minimal number of samples needed to fit the model
+            to the data. If `None`, we assume a linear model in which case
+            the minimum number is one more than the feature dimension.
+          residual_threshold: The maximum allowed residual for a sample to
+            be classified as an inlier. If `None`, the threshold is chosen
+            to be the median absolute deviation of the target variable.
+          max_trials: The maximum number of trials to run RANSAC for. By
+            default, this value is 100.
+        """
+        self.min_samples = min_samples
+        self.residual_threshold = residual_threshold
+        self.max_trials = max_trials
 
-    if not isinstance(data, (tuple, list)):
-      data = [data]
-    num_data, num_feats = data[0].shape
+    def fit(self, model, data):
+        """Robustely fit a model to the data.
+        Args:
+          model: a class object that implements `estimate` and
+            `residuals` methods.
+          data: the data to fit the model to. Can be a list of
+            data pairs, such as `X` and `y` in the case of
+            regression.
+        Returns:
+          A dictionary containing:
+            best_model: the model with the largest consensus set
+              and lowest residual error.
+            inliers: a boolean mask indicating the inlier subset
+              of the data for the best model.
+        """
+        best_model = None
+        best_inliers = None
+        best_num_inliers = 0
+        best_residual_sum = np.inf
 
-    print(num_feats)
+        if not isinstance(data, (tuple, list)):
+            data = [data]
+        num_data, num_feats = data[0].shape
 
-    if self.min_samples is None:
-      self.min_samples = num_feats + 1
-    if self.residual_threshold is None:
-      if len(data) > 1:
-        data_idx = 1
-      else:
-        data_idx = 0
-      self.residual_threshold = np.median(np.abs(
-        data[data_idx] - np.median(data[data_idx])))
+        print(num_feats)
 
-    for trial in range(self.max_trials):
-      # randomly select subset
-      rand_subset_idxs = np.random.choice(np.arange(num_data), size=self.min_samples, replace=False)
-      rand_subset = [d[rand_subset_idxs] for d in data]
+        if self.min_samples is None:
+            self.min_samples = num_feats + 1
+        if self.residual_threshold is None:
+            if len(data) > 1:
+                data_idx = 1
+            else:
+                data_idx = 0
+            self.residual_threshold = np.median(np.abs(
+                data[data_idx] - np.median(data[data_idx])))
 
-      # estimate with model
-      model.estimate(*rand_subset)
+        for trial in range(self.max_trials):
+            # randomly select subset
+            rand_subset_idxs = np.random.choice(np.arange(num_data), size=self.min_samples, replace=False)
+            rand_subset = [d[rand_subset_idxs] for d in data]
 
-      # compute residuals
-      residuals = model.residuals(*data)
-      residuals_sum = residuals.sum()
-      inliers = residuals <= self.residual_threshold
-      num_inliers = np.sum(inliers)
+            # estimate with model
+            model.estimate(*rand_subset)
 
-      # decide if better
-      if (best_num_inliers < num_inliers) or (best_residual_sum > residuals_sum):
-        best_num_inliers = num_inliers
-        best_residual_sum = residuals_sum
-        best_inliers = inliers
+            # compute residuals
+            residuals = model.residuals(*data)
+            residuals_sum = residuals.sum()
+            inliers = residuals <= self.residual_threshold
+            num_inliers = np.sum(inliers)
 
-    # refit model using all inliers for this set
-    if best_num_inliers == 0:
-      data_inliers = data
-    else:
-      data_inliers = [d[best_inliers] for d in data]
-    model.estimate(*data_inliers)
+            # decide if better
+            if (best_num_inliers < num_inliers) or (best_residual_sum > residuals_sum):
+                best_num_inliers = num_inliers
+                best_residual_sum = residuals_sum
+                best_inliers = inliers
 
-    ret = {
-      "best_params": model.params,
-      "best_inliers": best_inliers,
-    }
-    return ret
+        # refit model using all inliers for this set
+        if best_num_inliers == 0:
+            data_inliers = data
+        else:
+            data_inliers = [d[best_inliers] for d in data]
+        model.estimate(*data_inliers)
+
+        ret = {
+            "best_params": model.params,
+            "best_inliers": best_inliers,
+        }
+        return ret
 
 
 def add_to_viewer(elements: list, viewer):
