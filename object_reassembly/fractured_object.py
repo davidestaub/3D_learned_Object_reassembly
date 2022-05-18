@@ -43,6 +43,15 @@ class FracturedObject(object):
                 frag_no = int(fragment.rsplit(sep=".")[1])
                 self.fragments_orig[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
                 self.fragments[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
+                centroid_orig = self.fragments_orig[frag_no].centroid()
+                centroid = self.fragments[frag_no].centroid()
+                T_orig = np.eye(4)
+                T = np.eye(4)
+                T[0:3,3] = centroid
+                T_orig[0:3, 3] = centroid_orig
+                self.fragments_orig[frag_no].transform(np.linalg.inv(T_orig))
+                self.fragments[frag_no].transform(np.linalg.inv(T))
+
 
         print("Loading keypoints of object " + self.name + "...")
 

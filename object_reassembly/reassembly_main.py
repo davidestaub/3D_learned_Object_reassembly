@@ -25,7 +25,8 @@ if __name__ == "__main__":
     bottle.create_random_pose()
     bottle.apply_random_transf()
 
-    visualize = False
+    visualize = True
+
     print(bottle.kpt_matches_gt)
 
     for key in bottle.kpt_matches_gt:
