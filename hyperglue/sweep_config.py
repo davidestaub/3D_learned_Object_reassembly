@@ -27,7 +27,7 @@ param_dict = {
     'num_heads': {
         'values': [4, 6, 9]},
     'sep_encoder': {
-        'values': [True, False]},
+        'values': [True]},
     'batch_size': {
         'values': [8, 16, 32]},
     'use_sd_score': {
