@@ -1,34 +1,39 @@
 import os
 
-import compas
-import numpy as np
-import open3d
 from compas.geometry import Line
-from scipy.spatial.distance import cdist
-from scipy.spatial.transform import Rotation
 
 from compas_vis import compas_show
 from fractured_object import FracturedObject
-from tools import *
-from utils import get_viewer_data
 
 here = os.path.dirname(os.path.abspath(__file__))
 path = "data_from_pred/"
 
-if __name__ == "__main__":
+visualize = False
+vis_idx = (3, 4)
+visualize_only_solution = True
 
-    # bottle = FracturedObject(name="bottle_10_seed_1")
-    bottle = FracturedObject(name="cube_10_seed_0")
-    bottle.load_object(path)
-    bottle.load_gt(path)
-    # bottle.gt_from_closest()
+
+def full_reassembly(fractured_object):
+    fractured_object.create_random_pose()
+    fractured_object.apply_random_transf()
+    fractured_object.find_transformations()
+    fractured_object.create_inverse_transformations_for_existing_pairs()
+    fractured_object.tripplet_matching(1.0, 10.0)
+    fractured_object.find_final_transforms()
+
+    if visualize or visualize_only_solution:
+        keypoints = {}
+        fragments = {}
+        for idx in range(len(fractured_object.fragments)):
+            keypoints[idx] = fractured_object.kpts[idx]
+            fragments[idx] = fractured_object.fragments[idx]
+        compas_show({"keypoints": keypoints, "fragments": fragments})
+
+
+def pairwise_reassembly(fractured_object):
     bottle.create_random_pose()
     bottle.apply_random_transf()
-
-    visualize = True
-
     print(bottle.kpt_matches_gt)
-
     for key in bottle.kpt_matches_gt:
         A = key[0]
         B = key[1]
@@ -55,7 +60,7 @@ if __name__ == "__main__":
                                   4: bottle.fragments[B]
                                   },
                     "lines": line_list}
-            if visualize:
+            if visualize or (A, B) == vis_idx or (B, A) == vis_idx:
                 compas_show(data)
             bottle.find_transformations()
             bottle.apply_transf(A, B)
@@ -83,18 +88,24 @@ if __name__ == "__main__":
                                   4: bottle.fragments[B]
                                   },
                     "lines": line_list}
-            if visualize:
+            if visualize or (A, B) == vis_idx or (B, A) == vis_idx:
                 compas_show(data)
-
-    # data = {"keypoints": bottle.kpts,
-    # "fragments": bottle.fragments}
-
-    # compas_show(data)
 
     print("Hello")
     print(bottle.transf)
-    bottle.create_inverse_transformations_for_existing_pairs()
-    bottle.tripplet_matching(1.0, 10.0)
+
+
+if __name__ == "__main__":
+    # bottle = FracturedObject(name="bottle_10_seed_1")
+    bottle = FracturedObject(name="cube_10_seed_0")
+    bottle.load_object(path)
+    bottle.load_gt(path)
+    # bottle.gt_from_closest()
+    full_reassembly(bottle)
+    # pairwise_reassembly(bottle)
+
+
+
 
     #
     # data = get_viewer_data(keypoints=list(bottle.kpts.values()), fragments=list(bottle.fragments_meshes.values()))

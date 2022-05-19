@@ -1,11 +1,11 @@
-from compas.datastructures import Mesh
+from compas.colors import Color
 from compas.geometry import Pointcloud
 from compas_view2.app import App
 
 
-def add_to_viewer(elements: list, viewer):
-    for element in elements:
-        viewer.add(element)
+def add_to_viewer(elements: list, viewer, colors=None):
+    for i, element in enumerate(elements):
+        viewer.add(element, color=colors[i][1] if colors else None)
 
 
 def compas_show(data: dict, dist=3):
@@ -13,7 +13,6 @@ def compas_show(data: dict, dist=3):
     pc_dict = {}
     meshes = []
     lines = []
-
 
     if "keypoints" in data.keys():
         for pointcloud in data["keypoints"].values():
@@ -28,18 +27,30 @@ def compas_show(data: dict, dist=3):
         lines = data["lines"]
         print(lines)
 
-
-
     viewer = App()
 
-    add_to_viewer(pointclouds + meshes, viewer)
+    colors = [
+                 ('orange', Color.orange()),
+                 ('yellow', Color.yellow()),
+                 ('green', Color.green()),
+                 ('red', Color.red()),
+                 ('cyan', Color.cyan()),
+                 ('blue', Color.blue()),
+                 ('violet', Color.violet()),
+                 ('pink', Color.pink()),
+                 ('brown', Color.brown())
+             ][:len(meshes)]
 
+    for i, (name, c) in enumerate(colors):
+        print(f"{i}: {name}, {c}")
+    add_to_viewer(pointclouds + meshes, viewer, colors * 2)
 
-    add_to_viewer(lines,viewer)
+    add_to_viewer(lines, viewer)
 
     viewer.view.camera.distance = dist
     viewer.show()
 
+
 def compas_show_matches():
-    #TODO: implement
+    # TODO: implement
     pass

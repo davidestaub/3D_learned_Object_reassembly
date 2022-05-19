@@ -1,6 +1,9 @@
 import os
+from collections import OrderedDict
 from itertools import permutations
+from typing import Dict, List
 
+import cvxpy as cp
 import numpy as np
 from compas.datastructures import Mesh
 from compas.geometry import Pointcloud
@@ -28,7 +31,8 @@ class FracturedObject(object):
         self.kpt_matches_gt = {}
         self.kpt_matches = {}
         self.transf_random = {}  # key: N, value: (R,t), apply R(N)+t to move N from original position
-        self.transf = {}  # key: (A,B), value: (R,t), apply R(A)+t to match A to B
+        self.transf = OrderedDict()  # key: (A,B), value: (R,t), apply R(A)+t to match A to B
+        self.constraints = None  # List of triplet constraints (a, b, c)
 
     # load fragment pointclouds and keypoints
     def load_object(self, path):
@@ -308,7 +312,7 @@ class FracturedObject(object):
         self.transf.update(dict_inv)
 
     def tripplet_matching(self, R_threshold, T_threshold):
-
+        self.constraints = []
         fragments = range(len(self.fragments.keys()))
         comb_triplewise = list(permutations(fragments, 3))
         print(comb_triplewise)
@@ -341,11 +345,64 @@ class FracturedObject(object):
                 distance_diff = np.linalg.norm(Transl_32 - Transl_32_est)
 
                 if distance_diff <= T_threshold and angle_diff <= R_threshold:
-                    constraint = 0
-                    print("TRIPLET MATCH")
+                    self.constraints += [(first, second, third)]
+                    print(f"TRIPLET MATCH: {(first, second, third)}")
                 else:
-                    constraint = 1
                     print("NO Match")
+        print(self.constraints)
+
+    def find_final_transforms(self):
+        assert self.constraints is not None, f"Perform triplet matching."
+
+        # Solve optimization problem.
+        idx_to_pair = [(a, b) for a, b in self.transf]
+        pair_to_idx = {p: i for i, p in enumerate(idx_to_pair)}
+
+        zs = cp.Variable(len(self.transf), boolean=True)
+        objective = cp.sum(zs)
+        # Triplet constraint.
+        constraints = [zs[pair_to_idx[a, b]] + zs[pair_to_idx[b, c]] + zs[pair_to_idx[c, a]] <= 2 for a, b, c in
+                       self.constraints]
+        # Symmetry constraint.
+        constraints += [zs[pair_to_idx[a, b]] == zs[pair_to_idx[b, a]] for a, b in pair_to_idx if a < b]
+        problem = cp.Problem(cp.Maximize(objective), constraints)
+        problem.solve()
+        assignment = problem.solution.primal_vars[1]
+
+        vertices: List[List[int]] = [[] for _ in self.fragments]
+        degree = {}
+        for i, z in enumerate(assignment):
+            if z:
+                a, b = idx_to_pair[i]
+                vertices[a] += [b]
+                degree[a] = degree.get(a, 0) + 1
+
+        for i, neighbors in enumerate(vertices):
+            print(f"{i}: {neighbors}")
+
+        x = max(degree, key=degree.get)
+
+        queue = [(x,  (np.eye(3), (np.zeros(3))))]
+        visited = [False for _ in self.fragments]
+        visited[x] = True
+        self.final_transforms: Dict[int, (np.array, np.array)] = {}
+
+        while queue:
+            x, transform = queue.pop(0)
+            self.final_transforms[x] = transform
+
+            for y in vertices[x]:
+                if not visited[y]:
+                    y_transform = compose_transforms(transform, self.transf[y, x])
+                    visited[y] = True
+                    queue.append((y, y_transform))
+
+        for idx, fragment_mesh in enumerate(self.fragments):
+            T = transform_from_rotm_tr(*self.final_transforms[idx])
+            self.kpts[idx].transform(T)
+            Mesh.transform(self.fragments[idx], T)
+
+
 
     # calculate ground truth from closest points
     def gt_from_closest(self, threshold=0.001):
@@ -477,6 +534,13 @@ def transform_from_rotm_tr(rotm, tr):
     transform[:3, :3] = rotm
     transform[:3, 3] = tr
     return transform
+
+def compose_transforms(a, b):
+    Ta = transform_from_rotm_tr(*a)
+    Tb = transform_from_rotm_tr(*b)
+
+    Tc = Ta @ Tb
+    return Tc[:3, :3], Tc[:3, 3]
 
 
 class RansacEstimator:
