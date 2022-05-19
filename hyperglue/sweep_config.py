@@ -7,17 +7,17 @@ sweep_config = {'method': 'bayes'}
 
 terminator = {
     "type": 'hyperband',
-    "min_iter": 500
+    "min_iter": 100
 }
 
 param_dict = {
     'learning_rate': {
         'distribution': 'uniform',
-        'min': 1e-4,
+        'min': 1e-5,
         'max': 1e-3
     },
     'optimizer': {
-        'values': ["adam", "rmsprop"]
+        'values': ["adam"]
     },
     'sinkhorn_iterations': {
         'distribution': 'int_uniform',
@@ -28,8 +28,10 @@ param_dict = {
         'values': [4, 6, 9]},
     'sep_encoder': {
         'values': [True, False]},
+    'batch_size': {
+        'values': [8, 16, 32]},
     'use_sd_score': {
-        'values': [False]},
+        'values': [True, False]},
     'match_threshold': {
         'distribution': 'uniform',
         'min': 0.2,

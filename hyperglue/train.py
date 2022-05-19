@@ -585,7 +585,7 @@ def train_model(dataroot, model, train_conf):
                 writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
                 wandb.log({'lr':  optimizer.param_groups[0]['lr']})
 
-            if it % 100 == 0 or it == len(train_dl) - 1:
+            if it == len(train_dl) - 1:
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn)
 
                 str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
@@ -624,6 +624,8 @@ def train():
         default_conf.update(wandb.config)
         wandb.config.update(default_conf)
         myGlue = SuperGlue(default_conf)
+        weights = 'weights/weights_CUBES_ALL_5_CTD.pth'
+        myGlue.load_state_dict(torch.load(weights))
         wandb.watch(myGlue)
         train_model(root, myGlue, default_conf)
 
@@ -645,5 +647,5 @@ if __name__ == '__main__':
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
     sweep_id = wandb.sweep(sweep_config, project="hyperglue", entity="lessgoo")
     #wandb.agent('lessgoo/hyperglue/3d9w3oyw', function=train, count=100)
-    wandb.agent(sweep_id, function=train, count=200)
+    wandb.agent(sweep_id, function=train, count=20)
    
