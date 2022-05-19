@@ -11,7 +11,7 @@ terminator = {
 }
 
 param_dict = {
-    'learning_rate': {
+    'lr': {
         'distribution': 'uniform',
         'min': 1e-5,
         'max': 1e-3
