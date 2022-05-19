@@ -644,6 +644,6 @@ if __name__ == '__main__':
 
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
     #sweep_id = wandb.sweep(sweep_config, project="hyperglue", entity="lessgoo")
-    wandb.agent('lessgoo/hyperglue/zs0o6k0e', function=train, count=5)
+    wandb.agent('lessgoo/hyperglue/f35618h4', function=train, count=5)
     #wandb.agent(sweep_id, function=train, count=5)
    
