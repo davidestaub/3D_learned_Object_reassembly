@@ -370,38 +370,45 @@ class FracturedObject(object):
         assignment = problem.solution.primal_vars[1]
 
         vertices: List[List[int]] = [[] for _ in self.fragments]
-        degree = {}
         for i, z in enumerate(assignment):
             if z:
                 a, b = idx_to_pair[i]
                 vertices[a] += [b]
-                degree[a] = degree.get(a, 0) + 1
 
         for i, neighbors in enumerate(vertices):
             print(f"{i}: {neighbors}")
 
-        x = max(degree, key=degree.get)
-
-        queue = [(x,  (np.eye(3), (np.zeros(3))))]
         visited = [False for _ in self.fragments]
-        visited[x] = True
         self.final_transforms: Dict[int, (np.array, np.array)] = {}
 
-        while queue:
-            x, transform = queue.pop(0)
-            self.final_transforms[x] = transform
+        num_components = 0
+        while not all(visited):
+            # Start from the vertex that has the highest degree and has not been visited yet.
+            x = max(range(len(visited)), key=lambda idx: len(vertices[idx]) if not visited[idx] else -1)
 
-            for y in vertices[x]:
-                if not visited[y]:
-                    y_transform = compose_transforms(transform, self.transf[y, x])
-                    visited[y] = True
-                    queue.append((y, y_transform))
+            # Render components far apart.
+            component_translation = np.array([2, 0, 0]) * num_components
+            queue = [(x,  (np.eye(3), component_translation))]
+            visited[x] = True
+            while queue:
+                x, transform = queue.pop(0)
+                self.final_transforms[x] = transform
 
+                for y in vertices[x]:
+                    if not visited[y]:
+                        y_transform = compose_transforms(transform, self.transf[y, x])
+                        visited[y] = True
+                        queue.append((y, y_transform))
+            num_components += 1
+
+        print(f"Matching graph resulted in {num_components} components.")
         for idx, fragment_mesh in enumerate(self.fragments):
-            T = transform_from_rotm_tr(*self.final_transforms[idx])
-            self.kpts[idx].transform(T)
-            Mesh.transform(self.fragments[idx], T)
-
+            if idx in self.final_transforms:
+                T = transform_from_rotm_tr(*self.final_transforms[idx])
+                self.kpts[idx].transform(T)
+                Mesh.transform(self.fragments[idx], T)
+            else:
+                print(f"Matching graph is disconnected. Fragment {idx} has no final transformation.")
 
 
     # calculate ground truth from closest points

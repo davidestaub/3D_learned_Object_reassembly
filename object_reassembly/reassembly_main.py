@@ -97,7 +97,7 @@ def pairwise_reassembly(fractured_object):
 
 if __name__ == "__main__":
     # bottle = FracturedObject(name="bottle_10_seed_1")
-    bottle = FracturedObject(name="cube_10_seed_0")
+    bottle = FracturedObject(name="cube_10_seed_3")
     bottle.load_object(path)
     bottle.load_gt(path)
     # bottle.gt_from_closest()

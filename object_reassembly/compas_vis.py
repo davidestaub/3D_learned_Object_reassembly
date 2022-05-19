@@ -38,8 +38,13 @@ def compas_show(data: dict, dist=3):
                  ('blue', Color.blue()),
                  ('violet', Color.violet()),
                  ('pink', Color.pink()),
-                 ('brown', Color.brown())
-             ][:len(meshes)]
+                 ('brown', Color.brown()),
+                 ('grey', Color.grey()),
+                 ('mint', Color.mint()),
+                 ('olive', Color.olive())
+             ]
+    colors = colors[:len(meshes)]
+
 
     for i, (name, c) in enumerate(colors):
         print(f"{i}: {name}, {c}")
