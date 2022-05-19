@@ -574,7 +574,7 @@ def train_model(dataroot, model, train_conf):
                 writer.add_scalar('training/lr', optimizer.param_groups[0]['lr'], tot_it)
                 wandb.log({'lr':  optimizer.param_groups[0]['lr']})
 
-            if it % 100 == 0 or it == len(train_dl) - 1:
+            if it == len(train_dl) - 1:
                 results = do_evaluation(model, test_dl, device, loss_fn, metrics_fn)
 
                 str_results = [f'{k}: {v:.3E}' for k, v in results.items()]
