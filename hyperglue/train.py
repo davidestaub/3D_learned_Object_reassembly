@@ -624,8 +624,6 @@ def train():
         default_conf.update(wandb.config)
         wandb.config.update(default_conf)
         myGlue = SuperGlue(default_conf)
-        weights = 'weights/weights_CUBES_ALL_5_CTD.pth'
-        myGlue.load_state_dict(torch.load(weights))
         wandb.watch(myGlue)
         train_model(root, myGlue, default_conf)
 
