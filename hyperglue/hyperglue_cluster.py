@@ -436,8 +436,6 @@ def train_model(dataroot, model, train_conf):
     lr_scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_fn)
     logger.info(f'Starting training with configuration:\n{train_conf}')
 
-    losses_ = None
-
     epoch = 0
     best_eval = 10000
     while epoch < train_conf["epochs"]:
@@ -524,10 +522,9 @@ def train_model(dataroot, model, train_conf):
             del pred, data, loss, losses
 
         if epoch % 100 == 0:
-            # changed string formatting
+
             cp_name = 'checkpoint_{}'.format(epoch)
             logger.info('Saving checkpoint {}'.format(cp_name))
-            # changed string formatting
             cp_path = str(output_path + "/" + (cp_name + '.tar'))
             torch.save(model.state_dict(), cp_path)
 

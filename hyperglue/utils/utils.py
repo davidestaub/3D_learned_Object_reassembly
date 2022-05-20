@@ -111,8 +111,18 @@ def arange_like(x, dim: int):
     """
     return x.new_ones(x.shape[dim]).cumsum(0) - 1
 
-"""Constructs a vector to visualize """
+
 def construct_match_vector(gt, pred):
+    """
+    It takes two lists of integers, and returns a list of lists of integers. The first list is the
+    ground truth, the second list is the prediction. The output is a list of lists of integers, where
+    each list of integers is a row in the confusion matrix. The integers are 0, 1, 2, or 3, which
+    correspond to red, blue, orange, and green, respectively
+    
+    :param gt: ground truth
+    :param pred: the predicted labels
+    :return: A list of lists.
+    """
 
     mat = np.zeros((10, len(gt)+1))
     for i in range(len(gt)):
@@ -134,8 +144,8 @@ def construct_match_vector(gt, pred):
     return mat.tolist()
 
 def plot_matching_vector(data, pred):
-    """Generates a matching vector for the matches 0 1 and their respective ground truth"""
-    # extract the necessary data
+    """Generates a matching vector and their respective ground truth for both fragments"""
+
     fig, axs = plt.subplots(2, 1, figsize=(10, 2))
     gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
     pred0= pred['matches0'].cpu().detach().numpy()[0]
@@ -144,9 +154,10 @@ def plot_matching_vector(data, pred):
 
     # construct the matching matrix
     # by converting from index correspondence to a vector with three values
-    # 0:Red   -> There is a match but prediction wrong
-    # 1:Blue  -> There is no match and it predicted no match
-    # 2:Green -> There is a match and prediction is true
+    # 0:Red    -> There is a match but prediction wrong
+    # 1:Blue   -> There is no match and it predicted no match
+    # 2:Orange -> There is no match but it predicted one
+    # 3:Green  -> There is a match and the prediction is true
     
     matches0 = construct_match_vector(gt0, pred0)
     matches1 = construct_match_vector(gt1, pred1)
