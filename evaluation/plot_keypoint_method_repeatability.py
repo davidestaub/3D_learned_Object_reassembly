@@ -27,6 +27,12 @@ def plot():
     plt.savefig('keypoint_repeatability.png')
     fig.show()
 
+    r = 0.05
+    num_pts = dists.shape[1] # dists.shape = [2 * NUM_PTS * NUM_METHODS, NUM_FRAGMENTS]
+    df['rel_repeatability'] = (dists < r).sum(axis=1) / num_pts
+    print(df.describe())
+    print(df)
+
 
 if __name__ == '__main__':
     plot()

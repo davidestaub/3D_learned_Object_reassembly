@@ -388,7 +388,7 @@ def train_model(dataroot, model, train_conf):
     # Loading the fragment data
     train, test = create_datasets(dataroot, conf = train_conf)
     print(f"Train size: {train.__len__()}\nTest size:{test.__len__()}")
-    
+
     # create a data loader for train and test sets
     train_dl = td.DataLoader(
         train,
@@ -561,9 +561,10 @@ if __name__ == '__main__':
     #myGlue.load_state_dict(torch.load(weights))
     # reset bin score
     myGlue.bin_score = torch.nn.Parameter(torch.tensor(0.))
-    
+
     # wandb login
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
+    wandb.login(key='fb88544dfb8128619cdbd372098028a7a3f39e6c', relogin=False)
     wandb.init(project="hyperglue", entity="lessgoo",
                config={**model_conf, **train_conf, **data_conf},
                settings=wandb.Settings(start_method='thread'))
