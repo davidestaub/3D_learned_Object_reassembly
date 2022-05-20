@@ -1,7 +1,11 @@
+folder_conf = {
+    'evaluation_data_path': 'data_evaluation'
+}
+
 data_conf = {
     'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
     'kpts': 'hybrid', # [hybrid, sd]
-    'gt_match_thresh': 0.0
+    'gt_match_thresh': 0.0,
 }
 
 model_conf = {
@@ -9,7 +13,7 @@ model_conf = {
     'descriptor_dim': 36, # the descriptor dimension, must be dividable by num heads!
     'num_heads': 6, # num of heads
     'sep_encoder': True, #sepparate encoders
-    'keypoint_encoder': [8, 16, 32, 64], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
+    'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
     'GNN_layers': 3,
     'sinkhorn_iterations': 321,
     'match_threshold': 0.245,
@@ -25,7 +29,7 @@ train_conf = {
     'lr':0.0085,  # learning rate
     'lr_schedule': {'type': 'exp', 'start': 10e3, 'exp_div_10': 2e5},
     'overfit': False,
-    'use_sd_score': False,
+    'use_sd_score': True,
     'match_inverted': False,
     'train_fraction': 0.9,
     'normalize_data': True, # normalizing the pointcloud

@@ -95,8 +95,8 @@ class FracturedObject(object):
                     print("found npy")
                     # idk if this is good
                     if "m0" in matches:
-                        fragment0 = int(matches.rsplit(sep="_")[-4])
-                        fragment1 = int(matches.rsplit(sep="_")[-3])
+                        fragment0 = int(matches.rsplit(sep="_")[-3])
+                        fragment1 = int(matches.rsplit(sep="_")[-2])
                         from_frag0_to_frag1 = np.load(new_path + matches)
 
                         tuple_1 = []

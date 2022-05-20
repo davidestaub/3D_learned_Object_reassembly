@@ -15,7 +15,7 @@ import collections.abc as collections
 colors = 'red blue orange green'.split()
 cmap = ListedColormap(colors, name='colors')
 
-""""""
+
 def map_tensor(input_, func):
     if isinstance(input_, torch.Tensor):
         return func(input_)

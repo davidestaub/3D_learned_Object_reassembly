@@ -23,14 +23,121 @@ def create_datasets(root, conf):
         train_size = conf['train_fraction'],
         random_state = conf['seed']
     )
-    train_dataset = FragmentsDataset(train_folders, conf)
-    test_dataset = FragmentsDataset(test_folders, conf)
+    train_dataset = DatasetTrain(train_folders, conf)
+    test_dataset = DatasetTrain(test_folders, conf)
     return train_dataset, test_dataset
+
+
+class DatasetPredict(td.Dataset):
+    def __init__(self, folder_root, conf):
+        self.dataset = []
+        self.pillar = conf['pillar']
+        self.normalize = conf['normalize_data']
+        self.overfit = conf['overfit']
+        self.match_with_inverted = conf['match_inverted']
+        # setup for paths
+        object_folders = [folder for folder in os.listdir(folder_root) if not "prediction" in folder]
+        kpt_desc = 'keypoint_descriptors'
+        kpt_desc_inv = 'keypoint_descriptors_inverted'
+        kpts_method = conf['kpts']
+        desc_method = '_'.join([conf['kpts'], conf['desc']])
+        # correct settings of hyperpillar
+        if conf['pillar']:
+            kpt_desc = '_'.join(['pillar', kpt_desc])
+            kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
+            self.match_with_inverted = False
+            desc_method = '_'.join([conf['kpts'], 'pillar'])
+        
+        for folder in object_folders:
+            processed = os.path.join(folder_root, folder, 'processed')
+            kpts_path = os.path.join(processed, 'keypoints')
+
+            numn_files = len(os.listdir(os.path.join(folder, kpts_path)))
+
+            for i in range(numn_files):
+                for j in range(i+1, numn_files):
+                    item = {}
+                    object_name = os.path.basename(folder)
+                    
+                    item['pairname'] = '_'.join([folder, str(i), str(j)])
+                    try:
+                        item['path_kpts_0'] = glob(os.path.join(kpts_path, f'*{kpts_method}.{i}.npy'))[0]
+                        item['path_kpts_1'] = glob(os.path.join(kpts_path, f'*{kpts_method}.{j}.npy'))[0]
+                        item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
+                        item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{j}.npy'))[0]
+                        if self.match_with_inverted:
+                            item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
+                            item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{j}.npy'))[0]
+                    except Exception as e:
+                        print(f"Error loading objects in folder {folder}: {e}")
+            
+                    self.dataset.append(item)
+
+
+    def __len__(self):
+        if self.match_with_inverted:
+            return 2 * len(self.dataset)
+        else:
+            return len(self.dataset)
+
+
+     # get a row at an index
+    def __getitem__(self, idx):
+
+        if self.match_with_inverted:
+            # Every pair of fragments is fed to the network twice, once frag_0 and inverted frag_1 and once vice versa.
+            inverted_0 = idx % 2 == 0
+            idx = idx // 2
+
+        kp0_full = np.load(self.dataset[idx]['path_kpts_0'])
+        kp1_full = np.load(self.dataset[idx]['path_kpts_1'])
+        sc0 = kp0_full[:, 3]
+        sc1 = kp1_full[:, 3]
+        kp0 = kp0_full[:, :3]
+        kp1 = kp1_full[:, :3]
+
+        if self.normalize:
+            kp0 = pc_normalize(kp0)
+            kp1 = pc_normalize(kp1)
+
+        if self.match_with_inverted:
+            if inverted_0:
+                desc_path_0 = self.dataset[idx]['path_kpts_desc_inverted_0']
+                desc_path_1 = self.dataset[idx]['path_kpts_desc_1']
+            else:
+                desc_path_0 = self.dataset[idx]['path_kpts_desc_0']
+                desc_path_1 = self.dataset[idx]['path_kpts_desc_inverted_1']
+        else:
+            desc_path_0 = self.dataset[idx]['path_kpts_desc_0']
+            desc_path_1 = self.dataset[idx]['path_kpts_desc_1']
+        # load descriptors
+        des0 = np.load(desc_path_0)
+        des1 = np.load(desc_path_1)
+        #zero pad if needed
+        if not self.pillar:
+            diff =  model_conf['descriptor_dim'] - des0.shape[1]
+            if diff < 0:
+                exit("ERROR: FEATURES ARE BIGGER THAN STATED FEATURE DIMENSION!")
+            if diff > 0:
+                des0 = np.concatenate((des0, np.zeros((des0.shape[0], diff))), axis=1)
+                des1 = np.concatenate((des1, np.zeros((des1.shape[0], diff))), axis=1)
+
+        sample = {
+            "keypoints0": torch.from_numpy(kp0.astype(np.float32)).unsqueeze(0),
+            "keypoints1": torch.from_numpy(kp1.astype(np.float32)).unsqueeze(0),
+            "scores0": torch.from_numpy(sc0.astype(np.float32)).unsqueeze(0),
+            "scores1": torch.from_numpy(sc1.astype(np.float32)).unsqueeze(0),
+            "descriptors0": torch.from_numpy(des0.astype(np.float32)).unsqueeze(0),
+            "descriptors1": torch.from_numpy(des1.astype(np.float32)).unsqueeze(0),
+            "pair_name": self.dataset[idx]['pairname']
+        }
+
+        return sample
 
 
 # Creating a own dataset type for our input.
 # dataset definition
-class FragmentsDataset(td.Dataset):
+class DatasetTrain(td.Dataset):
     # load the dataset(
     def __init__(self, object_folders, conf):
         self.dataset = []
