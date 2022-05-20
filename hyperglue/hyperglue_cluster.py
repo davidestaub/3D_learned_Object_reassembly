@@ -376,7 +376,7 @@ def do_evaluation_overfit(model, data, device, loss_fn, metrics_fn):
 
 def train_model(dataroot, model, train_conf):
     print("Started training...")
-    output_path = '_'.join([train_conf['output_dir'], wandb.run.name])
+    output_path = '_'.join(['output', wandb.run.name])
 
     init_cp = None
     set_seed(train_conf["seed"])
@@ -419,25 +419,12 @@ def train_model(dataroot, model, train_conf):
     optimizer_fn = {'sgd': torch.optim.SGD,
                     'adam': torch.optim.Adam,
                     'rmsprop': torch.optim.RMSprop}[train_conf["optimizer"]]
+    
     params = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
-    if train_conf["opt_regexp"]:
-        # examples: '.*(weight|bias)$', 'cnn\.(enc0|enc1).*bias'
-        def filter_fn(x):
-            n, p = x
-            match = re.search(train_conf["opt_regexp"], n)
-            if not match:
-                p.requires_grad = False
-            return match
+    
+    optimizer = optimizer_fn([p for n, p in params], lr=train_conf["lr"])
 
-        params = list(filter(filter_fn, params))
-        assert len(params) > 0, train_conf["opt_regexp"]
-        logger.info('Selected parameters:\n' +
-                     '\n'.join(n for n, p in params))
-    optimizer = optimizer_fn(
-        [p for n, p in params], lr=train_conf["lr"],
-        **train_conf["optimizer_options"])
-
-    def lr_fn(it):  # noqa: E306
+    def lr_fn(it):
         if train_conf["lr_schedule"]["type"] is None:
             return 1
         if train_conf["lr_schedule"]["type"] == 'exp':
@@ -544,9 +531,9 @@ def train_model(dataroot, model, train_conf):
             cp_path = str(output_path + "/" + (cp_name + '.tar'))
             torch.save(model.state_dict(), cp_path)
 
-            if results[train_conf["best_key"]] < best_eval:
-                best_eval = results[train_conf["best_key"]]
-                logger.info(f'New best checkpoint: {train_conf["best_key"]}={best_eval}')
+            if results['loss/total'] < best_eval:
+                best_eval = results['loss/total']
+                logger.info(f'New best checkpoint: loss/total={best_eval}')
                 shutil.copy(cp_path, str(output_path + "/" + 'checkpoint_best.tar'))
         epoch += 1
 
@@ -573,8 +560,8 @@ if __name__ == '__main__':
     myGlue = StickyBalls(model_conf)
 
     # loading weights
-    weights = 'weights/weights_CUBES_ALL_5_CTD.pth'
-    myGlue.load_state_dict(torch.load(weights))
+    #weights = 'weights/weights_CUBES_ALL_5_CTD.pth'
+    #myGlue.load_state_dict(torch.load(weights))
     # reset bin score
     myGlue.bin_score = torch.nn.Parameter(torch.tensor(0.))
     
@@ -589,22 +576,3 @@ if __name__ == '__main__':
     train_model(root, myGlue, config)
 
     torch.save(myGlue.state_dict(), f'weights_{wandb.run.name}.pth')
-
-    evaluation = False
-    if evaluation:
-        test_data = FragmentsDataset(root=root)
-
-        myGlue.eval()
-        test_dl = td.DataLoader(
-            test_data,
-            batch_size = train_conf['batch_size'],
-            shuffle=False,
-            num_workers=4,
-            pin_memory=True)
-        for it, datatest in enumerate(test_dl):
-            pred = myGlue(datatest)
-            print(" ========  \n  The groundtruth: for data batch ", it)
-            print(datatest["gt_matches0"])
-            print("The final predicted output is: \n \n")
-            print(pred["matches0"])
-            print(" ======== ")
