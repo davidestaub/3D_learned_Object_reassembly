@@ -15,12 +15,12 @@ def create_output_folders(folder_root):
     for folder in os.listdir(folder_root):
         if "prediction" in folder:
             continue
-        os.makedirs(os.path.join(folder_root, f'{folder}_prediction'), exist_ok=True)
+        os.makedirs(os.path.join(folder_root, folder, 'predictions'), exist_ok=True)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default='\weights\weights_A100_V1.pth')
+    parser.add_argument('--weights_path', default='weights\weights_A100_V3.pth')
     args = parser.parse_intermixed_args()
 
     root = tkinter.Tk()
@@ -44,9 +44,9 @@ if __name__ == '__main__':
             pred = model(item)
 
         name = item['pair_name']
-        basename = '_'.join(name.split('_')[:-2] + ['prediction'])
+        basename = '_'.join(name.split('_')[:-2])
         name_pair = '_'.join(['prediction'] + name.split('_')[-2:])
         m0 = pred["matches0"].cpu()
         m1 = pred["matches1"].cpu()
-        np.save(os.path.join(root, basename, f'{name_pair}_m0.npy'), m0)
-        np.save(os.path.join(root, basename, f'{name_pair}_m1.npy'), m1)
+        np.save(os.path.join(root, basename,'predictions', f'{name_pair}_m0.npy'), m0)
+        np.save(os.path.join(root, basename,'predictions', f'{name_pair}_m1.npy'), m1)
