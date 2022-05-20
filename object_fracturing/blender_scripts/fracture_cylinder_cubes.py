@@ -10,10 +10,10 @@ bpy.app.debug = True
 bpyscene = bpy.context.scene
 
 
-#primitive = "cube"
-primitive = "cylinder"
+primitive = "cube"
+#primitive = "cylinder"
 
-for seed in range(1, 5):
+for seed in range(0, 100):
 
     # delete all the meshes
     # bpy.ops.mesh.select_all(action='DESELECT')
@@ -51,7 +51,7 @@ for seed in range(1, 5):
     # subdivide
     bmesh.ops.subdivide_edges(bm,
                             edges=bm.edges,
-                            cuts=40,
+                            cuts=60,
                             use_grid_fill=True,
                             )
 
@@ -65,7 +65,7 @@ for seed in range(1, 5):
     ob.update_from_editmode()
 
     # variables
-    count = 20
+    count = 10
 
     # modifier = object.modifiers.new(name="Fracture", frac_algorithm='BOOLEAN_FRACTAL')
     bpy.ops.object.modifier_add(type='FRACTURE')

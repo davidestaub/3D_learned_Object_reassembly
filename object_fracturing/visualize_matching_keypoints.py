@@ -1,69 +1,79 @@
+from glob import glob
 import os
-from compas.datastructures import Mesh
-from compas.utilities import i_to_rgb
-from compas.geometry import Pointcloud, closest_point_in_cloud
+import open3d as o3d
 import numpy as np
-from compas_view2.app import App
-
+from scipy.sparse import load_npz
 # chose a data folder
+folder = "data"
 here = os.path.dirname(os.path.abspath(__file__))
-data_list = os.listdir(os.path.join(here, 'data'))
+data_list = os.listdir(os.path.join(here, folder))
+
+
 print("id  name")
 for idx, val in enumerate(data_list):
     print(idx, " ", val)
 idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
 subfolder = data_list[idx]
-ROOT = os.path.join(here, 'data', subfolder)
+ROOT = os.path.join(here, folder, subfolder)
 
 # get the other folders
-os.chdir(ROOT)
-os.chdir('..')
-DATAROOT = os.path.join(os.getcwd())
 CLEANED = os.path.join(ROOT, 'cleaned')
 KPTS_IN = os.path.join(ROOT,'processed','keypoints')
-kpt_method = 'SD'
+MATCHINGS = os.path.join(ROOT,'processed','matching')
 
-viewer = App()
+kpts_mode = 'SD'
 
-# load all fragments
-fragment_idx = 0
-fragment_files = [file for file in  os.listdir(CLEANED) if file.endswith('.obj')]
-fragment_num = len(fragment_files)
-# add all fragments to the visualizer
-for fragment in fragment_files:
-    mesh = Mesh().from_obj(os.path.join(CLEANED, fragment))
-    viewer.add(mesh, facecolor=i_to_rgb(fragment_idx/fragment_num, True))
-    fragment_idx += 1
+# chose a fragments
+data_list = [file for file in os.listdir(CLEANED) if file.endswith('pcd')]
+print("id  name")
+for idx, val in enumerate(data_list):
+    if val.endswith('.pcd'):
+        print(idx, " ", val)
+idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
+file = data_list[idx]
+idx = int(file.split('cleaned.')[1].split('.')[0])
+print(file, idx)
+# extract the corresponding filename
+kpts_file_sticky = f'keypoints_hybrid.{idx}.npy'
+kpts_sticky = np.load(os.path.join(KPTS_IN, kpts_file_sticky))[:,:3]
 
-# load all the keypoints
-kpt_files = [file for file in  os.listdir(KPTS_IN) if file.endswith('.npy')]
-# filter by method
-kpt_files = [file for file in kpt_files if kpt_method in file]
+# find the matching fragments
+match_gt = glob(os.path.join(MATCHINGS,f'*{idx}*.npz'))
+match_matrix = np.load(glob(os.path.join(MATCHINGS,f'*.npy'))[0])
+matches = [i for i in range(match_matrix.shape[0]) if match_matrix[idx,i] == 1]
+pcd_matches = []
+for i in matches:
+    kpts = np.load(os.path.join(KPTS_IN, f'keypoints_hybrid.{i}.npy'))[:,:3]
+    pcd_matches.append(kpts)
 
-clouds = []
-for pointcloud in kpt_files:
-    kpt_in = np.load(os.path.join(KPTS_IN, pointcloud))
-    kpt_in = kpt_in[:,:3]
-    clouds.append(Pointcloud(kpt_in))
+# load the masks for ground trugh
+mask_paths = []
+for match in matches:
+    files = []
+    files.append(glob(os.path.join(MATCHINGS, f'*{idx}_{match}*.npz')))
+    files.append(glob(os.path.join(MATCHINGS, f'*{match}_{idx}*.npz')))
+    mask_paths.append([i[0] for i in files if i])
 
-# go through all points and check distance
-n_clouds = len(clouds)
-close_points = []
-for idx, cloud in enumerate(clouds):
-    # check each point in cloud against every other cloud
-    for point in cloud:
-        for counter_idx in range(idx, n_clouds):
-            # skip same cloud
-            if counter_idx == idx:
-                continue
-            closest_point = closest_point_in_cloud(point, clouds[counter_idx])
-            dist = closest_point[0]
-            if dist < 0.0001:
-                close_points.append(point)
-                close_points.append(closest_point[1])
-            
+close_kps = []
+for j in range(len(mask_paths)):
+    mask = np.array(load_npz(mask_paths[j][0]).toarray(), dtype=np.int)
+    kpts = np.array(pcd_matches[j])
+    close_kps.append(kpts[mask])
 
-print(f'There are {len(close_points)/2} matching pairs!')
-keypoints_all = Pointcloud(close_points)
-viewer.add(keypoints_all, color=[100,0,0])
-viewer.run()
+pcd_kpts = o3d.geometry.PointCloud()
+pcd_kpts.points= o3d.utility.Vector3dVector(kpts_sticky)
+print(pcd_kpts)
+pcd_kpts.paint_uniform_color([1,0,0])
+
+
+fragment_pcd = o3d.io.read_point_cloud(os.path.join(CLEANED, file))
+print(fragment_pcd)
+fragment_pcd.scale(0.99, fragment_pcd.get_center())
+fragment_pcd.paint_uniform_color([0.1, 0.1, 0.1])
+sphere = o3d.geometry.TriangleMesh.create_sphere(2e-2)
+sphere.paint_uniform_color([1,0,0])
+
+# make same center
+fragment_pcd.translate([0,0,0], relative=False)
+
+o3d.visualization.draw_geometries([fragment_pcd, pcd_kpts, sphere])

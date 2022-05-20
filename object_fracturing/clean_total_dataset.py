@@ -99,5 +99,5 @@ def handle_folder(object_folder):
 
 if __name__ == '__main__':
     folders = os.listdir(dataroot)
-    with Pool(2) as p:
+    with Pool(4) as p:
         p.map(handle_folder, folders)

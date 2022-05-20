@@ -15,6 +15,7 @@ import collections.abc as collections
 colors = 'red blue orange green'.split()
 cmap = ListedColormap(colors, name='colors')
 
+""""""
 def map_tensor(input_, func):
     if isinstance(input_, torch.Tensor):
         return func(input_)
@@ -29,15 +30,88 @@ def map_tensor(input_, func):
             f'input must be tensor, dict or list; found {type(input_)}')
 
 
+def log_sinkhorn_iterations(Z: torch.Tensor, log_mu: torch.Tensor, log_nu: torch.Tensor, iters: int) -> torch.Tensor:
+    """ Perform Sinkhorn Normalization in Log-space for stability"""
+    u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
+    for _ in range(iters):
+        u = log_mu - torch.logsumexp(Z + v.unsqueeze(1), dim=2)
+        v = log_nu - torch.logsumexp(Z + u.unsqueeze(2), dim=1)
+    return Z + u.unsqueeze(2) + v.unsqueeze(1)
+
+
+def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int) -> torch.Tensor:
+    """ Perform Differentiable Optimal Transport in Log-space for stability"""
+    b, m, n = scores.shape
+    one = scores.new_tensor(1)
+    ms, ns = (m*one).to(scores), (n*one).to(scores)
+
+    bins0 = alpha.expand(b, m, 1)
+    bins1 = alpha.expand(b, 1, n)
+    alpha = alpha.expand(b, 1, 1)
+
+    couplings = torch.cat([torch.cat([scores, bins0], -1),
+                           torch.cat([bins1, alpha], -1)], 1)
+
+    norm = - (ms + ns).log()
+    log_mu = torch.cat([norm.expand(m), ns.log()[None] + norm])
+    log_nu = torch.cat([norm.expand(n), ms.log()[None] + norm])
+    log_mu, log_nu = log_mu[None].expand(b, -1), log_nu[None].expand(b, -1)
+
+    Z = log_sinkhorn_iterations(couplings, log_mu, log_nu, iters)
+    Z = Z - norm  # multiply probabilities by M+N
+    return Z
+
+
+def construct_match_matrix(x0, x1):
+    matrices = []
+    # do for every batch
+    for batch in range(x0.shape[0]):
+        assg_0 = x0[batch]
+        assg_1 = x1[batch]
+        mat = torch.zeros((len(assg_0), len(assg_1)))
+        # scan matches of x0
+        for idx, match in enumerate(assg_0):
+            if match != 0:
+                mat[idx, match.long()] = 1
+        # scan matches of x1
+        for idx, match in enumerate(assg_1):
+            if match != 0:
+                mat[match.long(), idx] = 1
+        matrices.append(mat)
+    return(torch.cat(matrices, dim=1))
+
+
+
 def batch_to_device(batch, device, non_blocking=True):
+    """
+    It takes a batch of tensors and moves them to the specified device
+    
+    Args:
+      batch: a dictionary of tensors
+      device: the device to which the tensor will be moved.
+      non_blocking: If True and this copy is between CPU and GPU, the copy may occur asynchronously with
+    respect to the host. For other cases, this argument has no effect. Defaults to True
+    
+    Returns:
+      A map of tensors to the device
+    """
     def _func(tensor):
         return tensor.to(device=device, non_blocking=non_blocking)
 
     return map_tensor(batch, _func)
 
 def arange_like(x, dim: int):
-    return x.new_ones(x.shape[dim]).cumsum(0) - 1  # traceable in 1.1
+    """
+    It creates a tensor of ones with the same shape as the input tensor, except for the dimension
+    specified by `dim`, which is set to 1. Then it cumsums along that dimension, and subtracts 1
+    
+    :param x: the tensor to be indexed
+    :param dim: the dimension along which to count
+    :type dim: int
+    """
+    return x.new_ones(x.shape[dim]).cumsum(0) - 1
 
+"""Constructs a vector to visualize """
 def construct_match_vector(gt, pred):
 
     mat = np.zeros((10, len(gt)+1))
@@ -52,7 +126,9 @@ def construct_match_vector(gt, pred):
             mat[:, i] = 2 # orange
         else:
             mat[:, i] = 0 #red
-    # add additional green row to show right colors
+
+    # add additional green entry to force matplotlib to show
+    # all colors
     mat[:,i+1] = 3
 
     return mat.tolist()
@@ -65,11 +141,13 @@ def plot_matching_vector(data, pred):
     pred0= pred['matches0'].cpu().detach().numpy()[0]
     gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
     pred1= pred['matches1'].cpu().detach().numpy()[0]
+
     # construct the matching matrix
     # by converting from index correspondence to a vector with three values
     # 0:Red   -> There is a match but prediction wrong
     # 1:Blue  -> There is no match and it predicted no match
     # 2:Green -> There is a match and prediction is true
+    
     matches0 = construct_match_vector(gt0, pred0)
     matches1 = construct_match_vector(gt1, pred1)
     # detach to cpu and generate plots
@@ -84,128 +162,3 @@ def plot_matching_vector(data, pred):
     plt.tight_layout()
     wandb.log({"matching" : fig})
     plt.close('all')
-
-class STN3d(nn.Module):
-    def __init__(self, channel):
-        super(STN3d, self).__init__()
-        self.conv1 = torch.nn.Conv1d(channel, 64, 1)
-        self.conv2 = torch.nn.Conv1d(64, 128, 1)
-        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
-        self.fc1 = nn.Linear(1024, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 9)
-        self.relu = nn.ReLU()
-
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(1024)
-        self.bn4 = nn.BatchNorm1d(512)
-        self.bn5 = nn.BatchNorm1d(256)
-
-    def forward(self, x):
-        batchsize = x.size()[0]
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 1024)
-
-        x = F.relu(self.bn4(self.fc1(x)))
-        x = F.relu(self.bn5(self.fc2(x)))
-        x = self.fc3(x)
-
-        iden = Variable(torch.from_numpy(np.array([1, 0, 0, 0, 1, 0, 0, 0, 1]).astype(np.float32))).view(1, 9).repeat(
-            batchsize, 1)
-        if x.is_cuda:
-            iden = iden.cuda()
-        x = x + iden
-        x = x.view(-1, 3, 3)
-        return x
-
-
-class STNkd(nn.Module):
-    def __init__(self, k=64):
-        super(STNkd, self).__init__()
-        self.conv1 = torch.nn.Conv1d(k, 64, 1)
-        self.conv2 = torch.nn.Conv1d(64, 128, 1)
-        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
-        self.fc1 = nn.Linear(1024, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, k * k)
-        self.relu = nn.ReLU()
-
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(1024)
-        self.bn4 = nn.BatchNorm1d(512)
-        self.bn5 = nn.BatchNorm1d(256)
-
-        self.k = k
-
-    def forward(self, x):
-        batchsize = x.size()[0]
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 1024)
-
-        x = F.relu(self.bn4(self.fc1(x)))
-        x = F.relu(self.bn5(self.fc2(x)))
-        x = self.fc3(x)
-
-        iden = Variable(torch.from_numpy(np.eye(self.k).flatten().astype(np.float32))).view(1, self.k * self.k).repeat(
-            batchsize, 1)
-        if x.is_cuda:
-            iden = iden.cuda()
-        x = x + iden
-        x = x.view(-1, self.k, self.k)
-        return x
-
-
-class PointNetEncoder(nn.Module):
-    def __init__(self, global_feat=True, feature_transform=False, channel=4):
-        super(PointNetEncoder, self).__init__()
-        self.stn = STN3d(channel)
-        self.conv1 = torch.nn.Conv1d(channel, 64, 1)
-        self.conv2 = torch.nn.Conv1d(64, 128, 1)
-        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(128)
-        self.bn3 = nn.BatchNorm1d(1024)
-        self.global_feat = global_feat
-        self.feature_transform = feature_transform
-        if self.feature_transform:
-            self.fstn = STNkd(k=64)
-
-    def forward(self, x):
-        B, D, N = x.size()
-        trans = self.stn(x)
-        x = x.transpose(1, 2)
-        if D > 3:
-            feature = x[:, :, 3:]
-            x = x[:, :, :3]
-        x = torch.bmm(x, trans)
-        if D > 3:
-            x = torch.cat([x, feature], dim=2)
-        x = x.transpose(2, 1)
-        x = F.relu(self.bn1(self.conv1(x)))
-
-        if self.feature_transform:
-            trans_feat = self.fstn(x)
-            x = x.transpose(2, 1)
-            x = torch.bmm(x, trans_feat)
-            x = x.transpose(2, 1)
-        else:
-            trans_feat = None
-
-        pointfeat = x
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = self.bn3(self.conv3(x))
-        x = torch.max(x, 2, keepdim=True)[0]
-        #x = x.view(-1, 1024)
-        if self.global_feat:
-            return x, trans, trans_feat
-        else:
-            x = x.view(-1, 1024, 1).repeat(1, 1, N)
-            return torch.cat([x, pointfeat], 1), trans, trans_feat

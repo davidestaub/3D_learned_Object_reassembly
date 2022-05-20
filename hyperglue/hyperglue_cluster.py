@@ -59,7 +59,7 @@ class MedianMetric:
 
 
 def MLP(channels: List[int], do_bn: bool = True, dropout: bool = False, activation='relu') -> nn.Module:
-    """ Multi-layer perceptron """
+    """ Multi-layer perceptron implemented as a 1D Convolution with kernel size of 1"""
     n = len(channels)
     layers = []
     for i in range(1, n):
@@ -81,14 +81,15 @@ def MLP(channels: List[int], do_bn: bool = True, dropout: bool = False, activati
 
 
 class KeypointEncoder(nn.Module):
-    """ Joint encoding of visual appearance and location using MLPs"""
+    """ Encoding of the keypoint coordinates and optionally its saliency score to a chosen feature
+        dimension via MLP"""
 
     def __init__(self, feature_dim: int, layers: List[int], do_bn = True, dropout = True, activation = 'relu') -> None:
         super().__init__()
         self.use_scores = conf.train_conf['use_sd_score']
         self.input_size = 4 if self.use_scores else 3
         self.encoder = MLP(channels = [self.input_size] + layers + [feature_dim],
-                           do_bn= True,
+                           do_bn= do_bn,
                            dropout = dropout,
                            activation = activation)
         nn.init.constant_(self.encoder[-1].bias, 0.0)
@@ -103,8 +104,8 @@ class KeypointEncoder(nn.Module):
             return self.encoder(kpts.transpose(1,2))
 
 
-class PillarEncoder(nn.Module):
-    """Pillar Encoder after the idea from StickyPillar"""
+class NeighborhoodEncoder(nn.Module):
+    """"""
     def __init__(self, dim_in:int, dim_out: int):
         super().__init__()
         self.indim = dim_in
@@ -178,39 +179,7 @@ class AttentionalGNN(nn.Module):
             desc0, desc1 = (desc0 + delta0), (desc1 + delta1)
         return desc0, desc1
 
-
-def log_sinkhorn_iterations(Z: torch.Tensor, log_mu: torch.Tensor, log_nu: torch.Tensor, iters: int) -> torch.Tensor:
-    """ Perform Sinkhorn Normalization in Log-space for stability"""
-    u, v = torch.zeros_like(log_mu), torch.zeros_like(log_nu)
-    for _ in range(iters):
-        u = log_mu - torch.logsumexp(Z + v.unsqueeze(1), dim=2)
-        v = log_nu - torch.logsumexp(Z + u.unsqueeze(2), dim=1)
-    return Z + u.unsqueeze(2) + v.unsqueeze(1)
-
-
-def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int) -> torch.Tensor:
-    """ Perform Differentiable Optimal Transport in Log-space for stability"""
-    b, m, n = scores.shape
-    one = scores.new_tensor(1)
-    ms, ns = (m*one).to(scores), (n*one).to(scores)
-
-    bins0 = alpha.expand(b, m, 1)
-    bins1 = alpha.expand(b, 1, n)
-    alpha = alpha.expand(b, 1, 1)
-
-    couplings = torch.cat([torch.cat([scores, bins0], -1),
-                           torch.cat([bins1, alpha], -1)], 1)
-
-    norm = - (ms + ns).log()
-    log_mu = torch.cat([norm.expand(m), ns.log()[None] + norm])
-    log_nu = torch.cat([norm.expand(n), ms.log()[None] + norm])
-    log_mu, log_nu = log_mu[None].expand(b, -1), log_nu[None].expand(b, -1)
-
-    Z = log_sinkhorn_iterations(couplings, log_mu, log_nu, iters)
-    Z = Z - norm  # multiply probabilities by M+N
-    return Z
-
-class SuperGlue(nn.Module):
+class StickyBalls(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -218,8 +187,8 @@ class SuperGlue(nn.Module):
         self.sepenc = config['sep_encoder']
 
         if self.config['pillar']:
-            self.penc0 = PillarEncoder(dim_in= 10 * 10, dim_out=self.f_dim)
-            self.penc1 = PillarEncoder(dim_in= 10 * 10, dim_out=self.f_dim) if self.sepenc else self.penc0
+            self.penc0 = NeighborhoodEncoder(dim_in= 10 * 10, dim_out=self.f_dim)
+            self.penc1 = NeighborhoodEncoder(dim_in= 10 * 10, dim_out=self.f_dim) if self.sepenc else self.penc0
             self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
             self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
         else:
@@ -264,8 +233,6 @@ class SuperGlue(nn.Module):
         desc0 = desc0.transpose(1, 2) + encoded_kpt0
         desc1 = desc1.transpose(1, 2) + encoded_kpt1
         
-        
-
         # Multi-layer Transformer network.
         desc0, desc1 = self.gnn(desc0, desc1)
 
@@ -342,8 +309,6 @@ class SuperGlue(nn.Module):
 
         return losses
 
-
-    # Copied from superglue_v1.py
     def metrics(self, pred, data):
         def recall(m, gt_m):
             mask = (gt_m > -1).float()
@@ -360,25 +325,6 @@ class SuperGlue(nn.Module):
         rec = (rec0 + rec1) / 2
         prec = (prec0 + prec1) / 2
         return {'match_recall': rec, 'match_precision': prec}
-
-
-def construct_match_matrix(x0, x1):
-    matrices = []
-    # do for every batch
-    for batch in range(x0.shape[0]):
-        assg_0 = x0[batch]
-        assg_1 = x1[batch]
-        mat = torch.zeros((len(assg_0), len(assg_1)))
-        # scan matches of x0
-        for idx, match in enumerate(assg_0):
-            if match != 0:
-                mat[idx, match.long()] = 1
-        # scan matches of x1
-        for idx, match in enumerate(assg_1):
-            if match != 0:
-                mat[match.long(), idx] = 1
-        matrices.append(mat)
-    return(torch.cat(matrices, dim=1))
 
 
 def do_evaluation(model, loader, device, loss_fn, metrics_fn):
@@ -624,7 +570,7 @@ if __name__ == '__main__':
         root = args.path
 
     np.set_printoptions(threshold=sys.maxsize)
-    myGlue = SuperGlue(model_conf)
+    myGlue = StickyBalls(model_conf)
 
     # loading weights
     weights = 'weights/weights_CUBES_ALL_5_CTD.pth'
