@@ -1,16 +1,12 @@
-
+import collections.abc as collections
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.parallel
 import torch.utils.data
-from torch.autograd import Variable
-import numpy as np
 import wandb
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from torch._six import string_classes
-import collections.abc as collections
 
 colors = 'red blue orange green'.split()
 cmap = ListedColormap(colors, name='colors')

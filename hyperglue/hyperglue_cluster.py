@@ -8,6 +8,7 @@ from copy import deepcopy
 from typing import List, Tuple
 
 import torch.nn.functional as F
+from torch import nn
 import torch.utils.data as td
 from torch.utils.tensorboard import SummaryWriter
 
@@ -250,7 +251,8 @@ class StickyBalls(nn.Module):
         nll_neg1 = -(log_assignment[:, -1, :-1] * neg1).sum(1)
         nll_neg = (nll_neg0 + nll_neg1) / num_neg
         nll = (self.config["nll_balancing"] * nll_pos + (1 - self.config["nll_balancing"]) * nll_neg)
-        losses['assignment_nll'] = nll * self.config["nll_weight"]
+        losses['assignment_nll'] = nll
+        losses['total'] = nll * model_conf["nll_weight"]
 
         # Some statistics
         losses['num_matchable'] = num_pos
@@ -511,12 +513,12 @@ if __name__ == '__main__':
 
     # wandb login
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
-    wandb.login(key='fb88544dfb8128619cdbd372098028a7a3f39e6c', relogin=False)
+    #wandb.login(key='fb88544dfb8128619cdbd372098028a7a3f39e6c', relogin=False)
     wandb.init(project="hyperglue", entity="lessgoo",
                config={**model_conf, **train_conf, **data_conf},
                settings=wandb.Settings(start_method='thread'))
     config = wandb.config
-    myGlue = build_model('weights/VX.pth', config)
+    myGlue = build_model(None, config)
     wandb.watch(myGlue)
 
     train_model(root, myGlue, config)
