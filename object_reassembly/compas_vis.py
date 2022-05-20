@@ -1,56 +1,58 @@
+from typing import Dict
+
 from compas.colors import Color
 from compas.geometry import Pointcloud
 from compas_view2.app import App
 
 
-def add_to_viewer(elements: list, viewer, colors=None):
+def add_to_viewer(elements: list, viewer: App, colors=None):
     for i, element in enumerate(elements):
-        viewer.add(element, color=colors[i][1] if colors else None)
+        if colors:
+            color = colors[i][1]
+            pointcolor = color.darkened(50)
+        else:
+            color = None
+            pointcolor = None
+        viewer.add(element, pointcolor=pointcolor, facecolor=color, pointsize=8)
 
 
-def compas_show(data: dict, dist=3):
+def compas_show(keypoints: Dict[int, Pointcloud] = None, fragments=None, lines=None, dist=3):
     pointclouds = []
-    pc_dict = {}
     meshes = []
-    lines = []
 
-    if "keypoints" in data.keys():
-        for pointcloud in data["keypoints"].values():
-            pc_dict["points"] = pointcloud
-            pointclouds.append(Pointcloud.from_data(pc_dict))
+    if keypoints:
+        for pointcloud in keypoints.values():
+            pointclouds.append(Pointcloud(pointcloud))
 
-    if "fragments" in data.keys():
-        for fragment in data["fragments"].values():
+    if fragments:
+        for fragment in fragments.values():
             meshes.append(fragment)
 
-    if "lines" in data.keys():
-        lines = data["lines"]
-        print(lines)
-
-    viewer = App()
-
     colors = [
-                 ('orange', Color.orange()),
-                 ('yellow', Color.yellow()),
-                 ('green', Color.green()),
-                 ('red', Color.red()),
-                 ('cyan', Color.cyan()),
-                 ('blue', Color.blue()),
-                 ('violet', Color.violet()),
-                 ('pink', Color.pink()),
-                 ('brown', Color.brown()),
-                 ('grey', Color.grey()),
-                 ('mint', Color.mint()),
-                 ('olive', Color.olive())
-             ]
+        ('orange', Color.orange()),
+        ('yellow', Color.yellow()),
+        ('green', Color.green()),
+        ('red', Color.red()),
+        ('cyan', Color.cyan()),
+        ('blue', Color.blue()),
+        ('violet', Color.violet()),
+        ('pink', Color.pink()),
+        ('brown', Color.brown()),
+        ('grey', Color.grey()),
+        ('mint', Color.mint()),
+        ('olive', Color.olive())
+    ]
     colors = colors[:len(meshes)]
-
 
     for i, (name, c) in enumerate(colors):
         print(f"{i}: {name}, {c}")
-    add_to_viewer(pointclouds + meshes, viewer, colors * 2)
 
-    add_to_viewer(lines, viewer)
+    viewer = App()
+    add_to_viewer(pointclouds, viewer, colors=colors)
+    add_to_viewer(meshes, viewer, colors=colors)
+    if lines:
+        print(lines)
+        add_to_viewer(lines, viewer)
 
     viewer.view.camera.distance = dist
     viewer.show()
