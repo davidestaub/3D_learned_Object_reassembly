@@ -494,9 +494,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', default=None)
     args = parser.parse_intermixed_args()
-    model_conf = conf.model_conf
-    train_conf = conf.train_conf
-    data_conf = conf.data_conf
+    model_conf, train_conf, data_conf = conf.model_conf, conf.train_conf, conf.data_conf
 
     if args.path == None:
         here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
@@ -505,7 +503,6 @@ if __name__ == '__main__':
         root = args.path
 
     np.set_printoptions(threshold=sys.maxsize)
-    myGlue = build_model()
 
     # wandb login
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2', relogin=False)
@@ -514,6 +511,7 @@ if __name__ == '__main__':
                config={**model_conf, **train_conf, **data_conf},
                settings=wandb.Settings(start_method='thread'))
     config = wandb.config
+    myGlue = build_model('weights/VX.pth', config)
     wandb.watch(myGlue)
 
     train_model(root, myGlue, config)
