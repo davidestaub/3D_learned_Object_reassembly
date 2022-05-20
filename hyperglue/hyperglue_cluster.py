@@ -361,9 +361,14 @@ def train_model(dataroot, model, train_conf):
 
     logger.info(f'Model: \n{model}')
     torch.backends.cudnn.benchmark = True
+
+    optimizer_fn = {'sgd': torch.optim.SGD,
+                    'adam': torch.optim.Adam,
+                    'rmsprop': torch.optim.RMSprop}[train_conf["optimizer"]]
+
     params = [(n, p) for n, p in model.named_parameters() if p.requires_grad]
 
-    optimizer = torch.optim.Adam(lr=train_conf["lr"])
+    optimizer = optimizer_fn([p for n, p in params], lr=train_conf["lr"])
 
     def lr_fn(it):
         if train_conf["lr_schedule"]["type"] is None:
