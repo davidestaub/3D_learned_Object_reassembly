@@ -7,7 +7,6 @@ import cvxpy as cp
 import numpy as np
 from compas.datastructures import Mesh
 from compas.geometry import Pointcloud
-from compas.geometry import Rotation as Rot, Translation
 from cv2 import estimateAffine3D
 from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation
@@ -22,17 +21,18 @@ class FracturedObject(object):
 
     def __init__(self, name):
         self.name = name
-        self.fragments_orig = {}
-        self.fragments = {}
+        self.fragments_orig: Dict[int, Mesh] = {}
+        self.fragments: Dict[int, Mesh] = {}
         self.fragment_matches_gt = []
         self.fragment_matches = []
         self.kpts_orig = {}
-        self.kpts = {}
+        self.kpts: Dict[int, Pointcloud] = {}
         self.kpt_matches_gt = {}
         self.kpt_matches = {}
         self.transf_random = {}  # key: N, value: (R,t), apply R(N)+t to move N from original position
         self.transf = OrderedDict()  # key: (A,B), value: (R,t), apply R(A)+t to match A to B
         self.constraints = None  # List of triplet constraints (a, b, c)
+        self.N = -1
 
     # load fragment pointclouds and keypoints
     def load_object(self, path):
@@ -46,25 +46,16 @@ class FracturedObject(object):
             if fragment.endswith('.obj'):
                 frag_no = int(fragment.rsplit(sep=".")[1])
                 self.fragments_orig[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
-                self.fragments[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
-                centroid_orig = self.fragments_orig[frag_no].centroid()
-                centroid = self.fragments[frag_no].centroid()
-                T_orig = np.eye(4)
+                centroid = self.fragments_orig[frag_no].centroid()
                 T = np.eye(4)
-                T[0:3,3] = centroid
-                T_orig[0:3, 3] = centroid_orig
-                self.fragments_orig[frag_no].transform(np.linalg.inv(T_orig))
-                self.fragments[frag_no].transform(np.linalg.inv(T))
+                T[0:3, 3] = centroid
+                self.fragments_orig[frag_no].transform(np.linalg.inv(T))
+                self.fragments[frag_no] = self.fragments_orig[frag_no].copy()
 
-
+        self.N = len(self.fragments)
         print("Loading keypoints of object " + self.name + "...")
 
         new_path = path + self.name + "/processed/keypoints/"
-
-        # for kpts in os.listdir(new_path):
-        # frag_no = int(kpts.rsplit(sep=".")[1])
-        # self.kpts_orig[frag_no] = Pointcloud(np.load(new_path + kpts))
-        # self.kpts[frag_no] = Pointcloud(np.load(new_path + kpts))
 
         for kpts in os.listdir(new_path):
             frag_no = int(kpts.rsplit(sep=".")[1])
@@ -80,7 +71,7 @@ class FracturedObject(object):
         # TODO: implement
         pass
 
-    # load ground truth matches from file
+    # Load ground truth matches from file.
     def load_gt(self, path, gt_from_closest=False):
         print("Loading ground truth matches of object " + self.name + "...")
 
@@ -128,48 +119,31 @@ class FracturedObject(object):
 
     # construct random transformation
     def create_random_pose(self):
+        rng = np.random.default_rng(seed=42)
         print("Creating random pose for object " + self.name + "...")
         for fragment in self.fragments.keys():
             # insert random rotations
-            theta_x = np.random.uniform(0, 2 * np.pi)
-            theta_y = np.random.uniform(0, 2 * np.pi)
-            theta_z = np.random.uniform(0, 2 * np.pi)
-
-            R = Rotation.from_euler(seq='xyz', angles=[theta_x, theta_y, theta_z])
-
-            # insert random translation
-            t = [np.random.uniform(-1, 1), np.random.uniform(-1, 1), np.random.uniform(-1, 1)]
-
+            theta = rng.uniform(0, 2 * np.pi, size=(3,))
+            R = Rotation.from_euler(seq='xyz', angles=theta).as_matrix()
+            t = rng.uniform(-1, 1, size=(3,))
             self.transf_random[int(fragment)] = (R, t)
 
     def apply_transf(self, A, B):
-        if self.transf[(A, B)][0] is not None and self.transf[(A, B)][1] is not None:
-            # r_qut = self.transf[(A, B)][0].as_quat()
-            # print("Applying transformation from " + str(A) + " to " + str(B) + " to fragment " + str(A))
-            # Mesh.transform(self.fragments[A], Rot.from_quaternion(r_qut))
-            # Mesh.transform(self.fragments[A], Translation.from_vector(self.transf[(A, B)][1] + [0]))
-
+        transf = self.transf[(A, B)]
+        if transf[0] is not None and transf[1] is not None:
             print("Applying transformation from " + str(A) + " to " + str(B) + " to keypoints of fragment " + str(A))
-
-            T = transform_from_rotm_tr(self.transf[(A, B)][0], self.transf[(A, B)][1])
+            T = transform_from_rotm_tr(transf)
             self.kpts[A].transform(T)
-            Mesh.transform(self.fragments[A], T)
-
-            # self.kpts[A].transform(Rot.from_quaternion(r_qut))
-            # self.kpts[A].transform(Translation.from_vector(self.transf[(A, B)][1] + [0]))
+            self.fragments[A].transform(T)
 
     def apply_random_transf(self):
         print("Applying random transformation to fragments...")
         for key, fragment in self.fragments.items():
-            r_qut = self.transf_random[key][0].as_quat()
-            Mesh.transform(fragment, Rot.from_quaternion(r_qut))
-            Mesh.transform(fragment, Translation.from_vector(self.transf_random[key][1] + [0]))
+            fragment.transform(transform_from_rotm_tr(self.transf_random[key]))
 
         print("Applying random transformation to keypoints...")
         for key, points in self.kpts.items():
-            r_qut = self.transf_random[key][0].as_quat()
-            points.transform(Rot.from_quaternion(r_qut))
-            points.transform(Translation.from_vector(self.transf_random[key][1] + [0]))
+            points.transform(transform_from_rotm_tr(self.transf_random[key]))
 
     def find_transformations(self, use_gt=True, find_t_method="RANSAC_RIGID", s_min=0.1, use_rigid_transform=True):
         fragments = range(len(self.fragments.keys()))  # nof fragments
@@ -304,7 +278,7 @@ class FracturedObject(object):
             A = key[0]
             B = key[1]
             current_transf = self.transf[key]
-            T = transform_from_rotm_tr(current_transf[0], current_transf[1])
+            T = transform_from_rotm_tr(current_transf)
             T_inv = np.linalg.inv(T)
             R_inv = T_inv[:3, :3]
             t_inv = T_inv[:3, 3]
@@ -327,9 +301,9 @@ class FracturedObject(object):
             if index_12 in self.kpt_matches_gt and index_23 in self.kpt_matches_gt and index_13 in self.kpt_matches_gt:
                 print("found potential triplet: ", index_12, index_23, index_13)
 
-                T_12 = transform_from_rotm_tr(self.transf[index_12][0], self.transf[index_12][1])
-                T_31 = transform_from_rotm_tr(self.transf[(third, first)][0], self.transf[(third, first)][1])
-                T_32 = transform_from_rotm_tr(self.transf[(third, second)][0], self.transf[(third, second)][1])
+                T_12 = transform_from_rotm_tr(self.transf[index_12])
+                T_31 = transform_from_rotm_tr(self.transf[(third, first)])
+                T_32 = transform_from_rotm_tr(self.transf[(third, second)])
                 print(T_32, T_31, T_12)
 
                 T_32_est = T_12 @ T_31
@@ -345,9 +319,9 @@ class FracturedObject(object):
                 distance_diff = np.linalg.norm(Transl_32 - Transl_32_est)
 
                 if distance_diff <= T_threshold and angle_diff <= R_threshold:
-                    self.constraints += [(first, second, third)]
                     print(f"TRIPLET MATCH: {(first, second, third)}")
                 else:
+                    self.constraints += [(first, second, third)]
                     print("NO Match")
         print(self.constraints)
 
@@ -388,7 +362,7 @@ class FracturedObject(object):
 
             # Render components far apart.
             component_translation = np.array([2, 0, 0]) * num_components
-            queue = [(x,  (np.eye(3), component_translation))]
+            queue = [(x, (np.eye(3), component_translation))]
             visited[x] = True
             while queue:
                 x, transform = queue.pop(0)
@@ -404,12 +378,21 @@ class FracturedObject(object):
         print(f"Matching graph resulted in {num_components} components.")
         for idx, fragment_mesh in enumerate(self.fragments):
             if idx in self.final_transforms:
-                T = transform_from_rotm_tr(*self.final_transforms[idx])
+                T = transform_from_rotm_tr(self.final_transforms[idx])
                 self.kpts[idx].transform(T)
-                Mesh.transform(self.fragments[idx], T)
+                self.fragments[idx].transform(T)
             else:
                 print(f"Matching graph is disconnected. Fragment {idx} has no final transformation.")
 
+        # Reverse the initial random transformation of the starting fragment,
+        # so the object stands neatly in the middle.
+        starting_vertex = max(range(self.N), key=lambda idx: len(vertices[idx]))
+        random_T = self.transf_random[starting_vertex]
+        initial_random_transform = transform_from_rotm_tr(random_T)
+        T = np.linalg.inv(initial_random_transform)
+        for i in range(self.N):
+            self.kpts[i].transform(T)
+            self.fragments[i].transform(T)
 
     # calculate ground truth from closest points
     def gt_from_closest(self, threshold=0.001):
@@ -519,7 +502,7 @@ class Procrustes:
         # determine optimal translation
         trans = Y_c - rot @ X_c
 
-        self._transform = transform_from_rotm_tr(rot, trans)
+        self._transform = transform_from_rotm_tr((rot, trans))
 
     def residuals(self, X, Y):
         """L2 distance between point correspondences.
@@ -536,15 +519,18 @@ class Procrustes:
         return self._transform
 
 
-def transform_from_rotm_tr(rotm, tr):
+
+def transform_from_rotm_tr(transformation_pair):
+    rotation, translation = transformation_pair
     transform = np.eye(4)
-    transform[:3, :3] = rotm
-    transform[:3, 3] = tr
+    transform[:3, :3] = rotation
+    transform[:3, 3] = translation
     return transform
 
+
 def compose_transforms(a, b):
-    Ta = transform_from_rotm_tr(*a)
-    Tb = transform_from_rotm_tr(*b)
+    Ta = transform_from_rotm_tr(a)
+    Tb = transform_from_rotm_tr(b)
 
     Tc = Ta @ Tb
     return Tc[:3, :3], Tc[:3, 3]
