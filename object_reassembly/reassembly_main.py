@@ -1,4 +1,7 @@
+import argparse
 import os
+import tkinter
+from tkinter import filedialog
 
 from compas.geometry import Line
 
@@ -76,8 +79,20 @@ def pairwise_reassembly(obj):
 
 
 if __name__ == "__main__":
-    obj = FracturedObject(name="cube_10_seed_0")
-    obj.load_object(path)
-    obj.load_gt(path)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir')
+    args = parser.parse_intermixed_args()
+
+    if not args.data_dir:
+        data_dir = tkinter.Tk()
+        data_dir.withdraw()
+        data_dir = filedialog.askdirectory(parent=data_dir, initialdir=os.getcwd(),
+                                           title='Please select the parent directory of the fractured object folders')
+    else:
+        data_dir = args.data_dir
+
+    obj = FracturedObject(path=data_dir)
+    obj.load_object()
+    obj.load_gt()
     full_reassembly(obj)
     # pairwise_reassembly(obj)

@@ -19,8 +19,9 @@ np.random.seed(42)
 
 class FracturedObject(object):
 
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, path):
+        self.name = os.path.basename(path)
+        self.path = path
         self.fragments_orig: Dict[int, Mesh] = {}
         self.fragments: Dict[int, Mesh] = {}
         self.fragment_matches_gt = []
@@ -35,9 +36,9 @@ class FracturedObject(object):
         self.N = -1
 
     # load fragment pointclouds and keypoints
-    def load_object(self, path):
+    def load_object(self):
 
-        new_path = path + self.name + "/cleaned/"
+        new_path = self.path + "/cleaned/"
 
         print("Loading fragment meshes of object " + self.name + "...")
 
@@ -55,7 +56,7 @@ class FracturedObject(object):
         self.N = len(self.fragments)
         print("Loading keypoints of object " + self.name + "...")
 
-        new_path = path + self.name + "/processed/keypoints/"
+        new_path = self.path + "/processed/keypoints/"
 
         for kpts in os.listdir(new_path):
             frag_no = int(kpts.rsplit(sep=".")[1])
@@ -72,13 +73,13 @@ class FracturedObject(object):
         pass
 
     # Load ground truth matches from file.
-    def load_gt(self, path, gt_from_closest=False):
+    def load_gt(self, gt_from_closest=False):
         print("Loading ground truth matches of object " + self.name + "...")
 
-        new_path = path + self.name + "/processed/matching/" + self.name + "_matching_matrix.npy"
+        new_path = self.path + "/processed/matching/" + self.name + "_matching_matrix.npy"
 
         self.fragment_matches_gt = np.load(new_path).astype(bool)
-        new_path = path + self.name + "/processed/matching/"
+        new_path = self.path + "/processed/matching/"
 
         if gt_from_closest:
             self.gt_from_closest()
