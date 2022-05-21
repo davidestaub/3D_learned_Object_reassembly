@@ -5,6 +5,7 @@ import math
 import os
 from glob import glob
 from multiprocessing import Pool
+from typing import Dict, List
 
 import numpy as np
 import open3d as o3d
@@ -13,7 +14,7 @@ from open3d.cpu.pybind.geometry import PointCloud
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
-from process_folder_cluster import get_keypoints
+from process_folder_cluster import get_keypoints, get_fragment_matchings
 
 np.random.seed(42)
 
@@ -31,18 +32,16 @@ def calculate_score(keypoints1, keypoints2):
     return closest
 
 
-def evaluate_repeatability(fragment_idx, pcd, args, method):
+def evaluate_repeatability(fragment_idx, pcd, keypoints, args, method, folder_path):
     c = pcd.get_center()
     pcd = pcd.translate(-1 * c)
     pcd_rotated = copy.deepcopy(pcd).rotate(ROTATION, center=(0, 0, 0))
 
     args.keypoint_method = method
-    keypoints = get_keypoints(fragment_idx, np.array(pcd.points), np.array(pcd.normals),
-                              args=args, desc_normal=None, desc_inv=None, folder_path='', npoints=NUM_KEYPOINTS,
-                              save=False)
     keypoints_rotated = get_keypoints(fragment_idx, np.array(pcd_rotated.points), np.array(pcd_rotated.normals),
-                                      args=args, desc_normal=None, desc_inv=None, folder_path='', npoints=NUM_KEYPOINTS,
-                                      save=False)
+                                      args=args, desc_normal=None, desc_inv=None, folder_path=folder_path,
+                                      npoints=NUM_KEYPOINTS,
+                                      keypoints_only=True)
 
     kpts_pcd = PointCloud(o3d.utility.Vector3dVector(keypoints[:, :3]))
     kpts_pcd_rotated = PointCloud(o3d.utility.Vector3dVector(keypoints_rotated[:, :3]))
@@ -51,6 +50,18 @@ def evaluate_repeatability(fragment_idx, pcd, args, method):
     closest = calculate_score(kpts_pcd.points, kpts_pcd_rotated.points)
 
     return closest
+
+
+def evaluate_surface_repeatability(fragments, keypoints, folder_path):
+    matching_matrix = get_fragment_matchings(fragments, folder_path)
+
+    data = []
+    # Iterate over matching pairs.
+    for a, b in zip(*np.nonzero(matching_matrix)):
+        if a < b:  # Only once per pair.
+            data.append((a, b, *calculate_score(keypoints[a], keypoints[b])))
+
+    return data
 
 
 def process_folder(args, folder_path):
@@ -67,14 +78,32 @@ def process_folder(args, folder_path):
         file_path = os.path.join(args.path, folder_path, 'cleaned', f'{object_name}_cleaned.{i}.pcd')
         fragment_pcds.append(o3d.io.read_point_cloud(file_path))
 
-    # object name, fragment, method, mean, std
-    data = []
+    all_keypoints: Dict[str, List[PointCloud]] = {}  # method: {idx: kpts}
+    for method in KEYPOINT_METHODS:
+        all_keypoints[method] = []
+        for i, f in enumerate(fragment_pcds):
+            args.keypoint_method = method
+            all_keypoints[method].append(
+                get_keypoints(i, np.array(f.points), np.array(f.normals),
+                              args=args, desc_normal=None, desc_inv=None,
+                              folder_path=folder_path, npoints=NUM_KEYPOINTS, keypoints_only=True)
+            )
+
+    # object name, fragment, method, distances
+    data_repeatability = []
     for i, pcd in enumerate(fragment_pcds):
         for method in KEYPOINT_METHODS:
-            distances = evaluate_repeatability(i, pcd, args, method)
-            data.append((object_name, i, method, *distances))
+            distances = evaluate_repeatability(i, pcd, all_keypoints[method][i], args, method, folder_path)
+            data_repeatability.append((object_name, i, method, *distances))
 
-    return data
+    # object name, method, fragment_1, fragment_2, distances
+    surface_repeatability = []
+    for method in KEYPOINT_METHODS:
+        data = evaluate_surface_repeatability(fragment_pcds, all_keypoints[method], folder_path)
+        for entry in data:
+            surface_repeatability.append((object_name, method, *entry))
+
+    return data_repeatability, surface_repeatability
 
 
 if __name__ == "__main__":
@@ -89,9 +118,20 @@ if __name__ == "__main__":
     paths = [os.path.abspath(os.path.join(args.path, folder)) for folder in os.listdir(args.path)]
     fn = functools.partial(process_folder, args)
     with Pool() as p:
+        # Data is [NUM_PROCS, 2, NUM_FRAGS * NUM_METHODS]
         data = list(tqdm(p.imap(fn, paths), total=len(paths)))
+    # for p in paths:
+    #     data = process_folder(args, p)
 
-    df = pd.DataFrame(data=[entry for sublist in data for entry in sublist],
-                      columns=['object_name', 'fragment_idx', 'method', *[f'k_{i}' for i in range(2 * NUM_KEYPOINTS)]])
-    df.to_csv('keypoint_repeatability.csv')
-    print(df.sort_values(by='method'))
+
+    repeatability = pd.DataFrame(data=[entry for sublist, _ in data for entry in sublist],
+                                 columns=['object_name', 'fragment_idx', 'method',
+                                          *[f'k_{i}' for i in range(2 * NUM_KEYPOINTS)]])
+    repeatability.to_csv('keypoint_repeatability.csv')
+    print(repeatability.sort_values(by='method'))
+
+    sufrace_repeatability = pd.DataFrame(data=[entry for _, sublist in data for entry in sublist],
+                                         columns=['object_name', 'method', 'fragment_1', 'fragment_2',
+                                                  *[f'k_{i}' for i in range(2 * NUM_KEYPOINTS)]])
+    sufrace_repeatability.to_csv('keypoint_surface_repeatability.csv')
+    print(sufrace_repeatability.sort_values(by='method'))
