@@ -20,7 +20,7 @@ def create_output_folders(folder_root):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default='weights\weights_A100_V3.pth')
+    parser.add_argument('--weights_path', default='weights\LW677.pth')
     args = parser.parse_intermixed_args()
 
     root = tkinter.Tk()

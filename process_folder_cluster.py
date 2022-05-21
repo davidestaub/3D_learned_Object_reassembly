@@ -361,7 +361,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
     method = args.keypoint_method
     processed_path = os.path.join(args.path, folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{method}.{i}.npy')
-    if args.descriptor_method.find("pillar"):
+    if not "pillar" in args.descriptor_method:
         kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
         kpts_desc_path_inverted = os.path.join(processed_path,'keypoint_descriptors_inverted', f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
     else:

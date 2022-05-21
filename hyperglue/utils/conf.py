@@ -3,7 +3,7 @@ folder_conf = {
 }
 
 data_conf = {
-    'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
+    'desc': 'pillar', # [fpfh, pillar, fpfh_pillar]
     'kpts': 'hybrid', # [hybrid, sd]
     'gt_match_thresh': 0.0,
 }
@@ -13,10 +13,10 @@ model_conf = {
     'descriptor_dim': 36, # the descriptor dimension, must be dividable by num heads!
     'num_heads': 6, # num of heads
     'sep_encoder': True, #sepparate encoders
-    'keypoint_encoder': [32, 64, 128, 256], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
-    'GNN_layers': 3,
+    'keypoint_encoder': [8, 16, 32, 64], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
+    'GNN_layers': 4,
     'sinkhorn_iterations': 321,
-    'match_threshold': 0.245,
+    'match_threshold': 0.3,
     'nll_weight': 1000.,
     'nll_balancing': 0.96,
 }
