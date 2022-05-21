@@ -484,7 +484,11 @@ def build_model(weights, model_config):
     model = StickyBalls(model_config)
 
     if weights:
-        model.load_state_dict(torch.load(weights))
+        if torch.cuda.is_available():
+            model.load_state_dict(torch.load(weights))
+        else:
+            model.load_state_dict(torch.load(weights, map_location=torch.device('cpu')))
+
         model.bin_score = torch.nn.Parameter(torch.tensor(0.))
     return model
 

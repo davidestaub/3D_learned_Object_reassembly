@@ -20,14 +20,17 @@ def create_output_folders(folder_root):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default='weights\LW677.pth')
+    parser.add_argument('--weights_path', default=os.path.join('weights', 'LW677.pth'))
+    parser.add_argument('--data_dir')
     args = parser.parse_intermixed_args()
 
-    root = tkinter.Tk()
-    root.withdraw()
-    root = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),
-                                   title='Please select the parent directory of the fractured object folders')
-
+    if not args.data_dir:
+        root = tkinter.Tk()
+        root.withdraw()
+        root = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),
+                                       title='Please select the parent directory of the fractured object folders')
+    else:
+        root = args.data_dir
     # create the necessary config and create the model and dataset
     config_all = {**conf.model_conf, **conf.data_conf, **conf.train_conf}
     model = build_model(args.weights_path, config_all)
