@@ -1,13 +1,15 @@
+import sys
+sys.settrace
 import argparse
 from copy import deepcopy
 import os
 from glob import glob
 from typing import List
 from sklearn.decomposition import PCA
+sys.path.append(os.getcwd())
 from tools.tools import dot_product, length, polyfit3d, mesh_faces_to_triangles
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.transformation import centering_centroid
-from tools import pfh
 import numpy as np
 import open3d as o3d
 import pyshot
@@ -279,13 +281,13 @@ def main():
     parser.add_argument("--data_dir", type=str, default='')
 
     # Args for SHOT descriptors.
-    parser.add_argument("--radius", type=float, default=500)
+    parser.add_argument("--radius", type=float, default=100)
     parser.add_argument("--local_rf_radius", type=float, default=100)
-    parser.add_argument("--min_neighbors", type=int, default=16)
+    parser.add_argument("--min_neighbors", type=int, default=8)
     parser.add_argument("--n_bins", type=int, default=16)
     parser.add_argument("--double_volumes_sectors", action='store_true')
-    parser.add_argument("--use_interpolation",default=False, action='store_true')
-    parser.add_argument("--use_normalization", default=True, action='store_true')
+    parser.add_argument("--use_interpolation", action='store_true')
+    parser.add_argument("--use_normalization", action='store_true')
     args = parser.parse_args()
 
     args.local_rf_radius = args.radius if args.local_rf_radius is None else args.local_rf_radius
@@ -297,8 +299,6 @@ def main():
         print(f)
         if os.path.isdir(f):
             process_folder(f, args)
-
-    
 
 if __name__ == '__main__':
     main()

@@ -43,7 +43,7 @@ class AverageMetric:
             return self._sum / self._num_examples
 
 
-def MLP(channels: List[int], do_bn: bool = True, dropout: bool = False, activation='relu') -> nn.Module:
+def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
     """ Multi-layer perceptron implemented as a 1D Convolution with kernel size of 1"""
     n = len(channels)
     layers = []
@@ -52,11 +52,7 @@ def MLP(channels: List[int], do_bn: bool = True, dropout: bool = False, activati
         if i < (n - 1):
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
-            if activation == 'relu':
-                relu_layer = nn.ReLU()
-                layers.append(relu_layer)
-            if dropout:
-                layers.append(nn.Dropout(0.1))
+            layers.append(nn.ReLU())
     return nn.Sequential(*layers)
 
 
@@ -68,10 +64,7 @@ class KeypointEncoder(nn.Module):
         super().__init__()
         self.use_scores = conf.train_conf['use_sd_score']
         self.input_size = 4 if self.use_scores else 3
-        self.encoder = MLP(channels=[self.input_size] + layers + [feature_dim],
-                           do_bn=do_bn,
-                           dropout=dropout,
-                           activation=activation)
+        self.encoder = MLP(channels=[self.input_size] + layers + [feature_dim], do_bn= do_bn,)
         nn.init.constant_(self.encoder[-1].bias, 0.0)
 
     def forward(self, kpts, scores):

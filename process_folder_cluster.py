@@ -474,8 +474,7 @@ def process_folder(folder_path, args):
     
     # delete unecessary files again
     try:
-        shutil.rmtree(os.path.join(args.path, folder_path,
-                      'processed', 'descriptors_all_points'))
+        shutil.rmtree(os.path.join(args.path, folder_path, 'processed', 'descriptors_all_points'))
     except:
         pass
 
@@ -483,9 +482,7 @@ def process_folder(folder_path, args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Spawn jobs for blender_auto_fracture_cluster.py"
-    )
+    parser = argparse.ArgumentParser(description="Spawn jobs for blender_auto_fracture_cluster.py")
     parser.add_argument("--path", type=str)
     parser.add_argument("--keypoint_method", type=str,default='hybrid', choices=['SD', 'sticky', 'hybrid'])
     parser.add_argument("--descriptor_method", type=str,default='fpfh', choices=['fpfh', 'pillar', 'fpfh_pillar'])
