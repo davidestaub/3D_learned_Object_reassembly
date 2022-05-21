@@ -357,22 +357,27 @@ def get_descriptors(vertices, normals, args):
         return pillar_norm, pillar_inv
 
 
-def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path, npoints, save=True):
+
+
+def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path, npoints, keypoints_only=False):
     method = args.keypoint_method
     processed_path = os.path.join(args.path, folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{method}.{i}.npy')
+
+    # Check if the keypoints are calculated already.
+    os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
+    if keypoints_only and os.path.exists(keypoint_path):
+        keypoints = np.load(keypoint_path)
+        return keypoints
+
     if args.descriptor_method.find("pillar"):
         kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
         kpts_desc_path_inverted = os.path.join(processed_path,'keypoint_descriptors_inverted', f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
     else:
         kpts_desc_path_normal = os.path.join(processed_path, 'pillar_keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
         kpts_desc_path_inverted = os.path.join(processed_path,'pillar_keypoint_descriptors_inverted', f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
-
-    if save:
-        os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
-        os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
-        os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)
-
+    os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
+    os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)
     if os.path.exists(kpts_desc_path_normal) and os.path.exists(kpts_desc_path_inverted):
         keypoints = np.load(keypoint_path)
         return keypoints
@@ -389,8 +394,8 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
     else:
         raise NotImplementedError
 
-    if save:
-        np.save(keypoint_path, keypoints)
+    np.save(keypoint_path, keypoints)
+    if not keypoints_only:
         kpt_desc_normal = desc_normal[keypoint_idxs]
         np.save(kpts_desc_path_normal, kpt_desc_normal)
         if args.keypoint_method == 'SD' or (args.keypoint_method == 'hybrid' and args.descriptor_method != "pillar"):

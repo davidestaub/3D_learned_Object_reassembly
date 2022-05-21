@@ -1,4 +1,7 @@
 import sys
+
+from process_folder_cluster import get_hybrid_keypoints
+
 sys.settrace
 import argparse
 from copy import deepcopy
@@ -157,9 +160,9 @@ def get_descriptors(i, vertices, faces, args, folder_path):
                                    f'descriptors_all_points_{method}.{i}.txt')
     os.makedirs(os.path.dirname(descriptor_path), exist_ok=True)
 
-    if os.path.exists(descriptor_path):
-        descriptors = np.load(descriptor_path)
-        return descriptors
+    # if os.path.exists(descriptor_path):
+    #     descriptors = np.load(descriptor_path, allow_pickle=True)
+    #     return descriptors
     if method == 'shot':
         descriptors = pyshot.get_descriptors(vertices, faces,
                                              radius=args.radius,
@@ -197,19 +200,25 @@ def get_keypoints(i, vertices, normals, descriptors, args, folder_path):
         np.save(keypoint_path, keypoints)
         np.save(keypoint_descriptors_path, keypoint_descriptors)
         return keypoints, keypoint_descriptors
-    if args.keypoint_method == 'SD':
+    elif args.keypoint_method == 'SD':
         keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.01)
         keypoint_descriptors = descriptors[keypoint_idxs]
         np.save(keypoint_path, keypoints)
         np.save(keypoint_descriptors_path, keypoint_descriptors)
         return keypoints, keypoint_descriptors
-    if args.keypoint_method == 'harris':
+    elif args.keypoint_method == 'harris':
         keypoint_idxs = get_harris_keypoints(vertices)
         keypoints = vertices[keypoint_idxs]
         keypoint_descriptors = descriptors[keypoint_idxs]
         np.save(keypoint_path, keypoints)
         np.save(keypoint_descriptors_path, keypoint_descriptors)
-        return keypoints, keypoint_descriptors   
+        return keypoints, keypoint_descriptors
+    elif args.keypoint_method == 'hybrid':
+        keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 12, 512)
+        keypoint_descriptors = descriptors[keypoint_idxs]
+        np.save(keypoint_path, keypoints)
+        np.save(keypoint_descriptors_path, keypoint_descriptors)
+        return keypoints, keypoint_descriptors
     else:
         raise NotImplementedError
 
@@ -275,7 +284,7 @@ def process_folder(folder_path, args):
 def main():
     parser = argparse.ArgumentParser("generate_iss_keypoints_and_shot_descriptors")
 
-    parser.add_argument("--keypoint_method", type=str, default='SD', choices=['iss', 'SD', 'harris'])
+    parser.add_argument("--keypoint_method", type=str, default='SD', choices=['iss', 'SD', 'harris', 'hybrid'])
     parser.add_argument("--descriptor_method", type=str, default='shot', choices=['shot'])
 
     parser.add_argument("--data_dir", type=str, default='')
