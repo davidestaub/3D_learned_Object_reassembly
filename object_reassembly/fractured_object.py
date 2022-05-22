@@ -19,7 +19,7 @@ np.random.seed(42)
 
 class FracturedObject(object):
 
-    def __init__(self, path):
+    def __init__(self, path, graph_matching_method):
         self.name = os.path.basename(path)
         self.path = path
         self.fragments_orig: Dict[int, Mesh] = {}
@@ -34,6 +34,8 @@ class FracturedObject(object):
         self.transf = OrderedDict()  # key: (A,B), value: (R,t), apply R(A)+t to match A to B
         self.constraints = None  # List of triplet constraints (a, b, c)
         self.N = -1
+        assert graph_matching_method in ['mst', 'original']
+        self.graph_matching_method = graph_matching_method
 
     # load fragment pointclouds and keypoints
     def load_object(self):
@@ -60,11 +62,11 @@ class FracturedObject(object):
 
         for kpts in os.listdir(new_path):
             frag_no = int(kpts.rsplit(sep=".")[1])
-            print(frag_no)
-            print(new_path + kpts)
-            print(np.load(new_path + kpts))
+            # print(frag_no)
+            # print(new_path + kpts)
+            # print(np.load(new_path + kpts))
             npy_kpts = np.load(new_path + kpts)[:, 0:3]
-            print(npy_kpts)
+            # print(npy_kpts)
             self.kpts_orig[frag_no] = Pointcloud(npy_kpts)
             self.kpts[frag_no] = Pointcloud(npy_kpts)
 
@@ -79,43 +81,53 @@ class FracturedObject(object):
         new_path = self.path + "/processed/matching/" + self.name + "_matching_matrix.npy"
 
         self.fragment_matches_gt = np.load(new_path).astype(bool)
-        new_path = self.path + "/processed/matching/"
+        keypoints_matchings_folder = os.path.join(self.path, 'predictions')
 
         if gt_from_closest:
             self.gt_from_closest()
         else:
-            for matches in os.listdir(new_path):
-                print(new_path)
+            for matches in os.listdir(keypoints_matchings_folder):
+                # print(keypoints_matchings_folder)
 
-                if matches.endswith(".npz"):
-                    fragment0 = int(matches.rsplit(sep="_")[-2])
-                    fragment1 = int(matches.rsplit(sep=".")[-2][-1])
-                    self.kpt_matches_gt[(fragment0, fragment1)] = np.load(new_path + matches)
+                # if matches.endswith(".npz"):
+                #     fragment0 = int(matches.rsplit(sep="_")[-2])
+                #     fragment1 = int(matches.rsplit(sep=".")[-2][-1])
+                #     self.kpt_matches_gt[(fragment0, fragment1)] = np.load(new_path + matches)
 
                 if matches.endswith(".npy"):
-                    print("found npy")
+                    # print("found npy")
                     # idk if this is good
                     if "m0" in matches:
-                        fragment0 = int(matches.rsplit(sep="_")[-3])
-                        fragment1 = int(matches.rsplit(sep="_")[-2])
-                        from_frag0_to_frag1 = np.load(new_path + matches)
+                        try:
+                            fragment0 = int(matches.rsplit(sep="_")[-3])
+                            fragment1 = int(matches.rsplit(sep="_")[-2])
+                        except:
+                            fragment0 = int(matches.rsplit(sep="_")[-4])
+                            fragment1 = int(matches.rsplit(sep="_")[-3])
+
+                        from_frag0_to_frag1 = np.load(os.path.join(keypoints_matchings_folder, matches))
+                        # Array is of shape (1, NUM_KEYPOINTS), let's make it (NUM_KEYPOINTS,).
+                        from_frag0_to_frag1 = np.squeeze(from_frag0_to_frag1)
 
                         tuple_1 = []
                         tuple_2 = []
-                        print(from_frag0_to_frag1)
-                        for i in range(0, len(from_frag0_to_frag1)):
-                            if from_frag0_to_frag1[i] != -1:
-                                tuple_1.append(i)
-                                tuple_2.append(from_frag0_to_frag1[i])
+                        # print(from_frag0_to_frag1)
 
-                        tuple_1 = np.array(tuple_1)
-                        tuple_2 = np.array(tuple_2)
-                        print(tuple_1)
-                        print(tuple_2)
-                        self.kpt_matches_gt[(fragment0, fragment1)] = (tuple_1, tuple_2)
-                        print(fragment0, fragment1)
-                        print(type(tuple_1))
-                        print(type(tuple_2))
+                        # Only take fragment pairs that have at least N points matched.
+                        if (from_frag0_to_frag1 != -1).sum() >= 4:
+                            for i in range(0, len(from_frag0_to_frag1)):
+                                if from_frag0_to_frag1[i] != -1:
+                                    tuple_1.append(i)
+                                    tuple_2.append(from_frag0_to_frag1[i])
+
+                            tuple_1 = np.array(tuple_1)
+                            tuple_2 = np.array(tuple_2)
+                            # print(tuple_1)
+                            # print(tuple_2)
+                            self.kpt_matches_gt[(fragment0, fragment1)] = (tuple_1, tuple_2)
+                            # print(fragment0, fragment1)
+                            # print(type(tuple_1))
+                            # print(type(tuple_2))
                         # self.kpt_matches_gt[(fragment0, fragment1)] = np.load(new_path + matches)
 
     # construct random transformation
@@ -174,8 +186,8 @@ class FracturedObject(object):
 
                 if use_gt:
                     if self.kpt_matches_gt[comb] is not None:
-                        print(comb)
-                        print(self.kpt_matches_gt[comb])
+                        # print(comb)
+                        # print(self.kpt_matches_gt[comb])
                         A_gt_idx, B_gt_idx = self.kpt_matches_gt[comb]
                         for i in A_gt_idx:
                             A_gt_pair.append(self.kpts_orig[comb[0]].data['points'][i])
@@ -231,7 +243,7 @@ class FracturedObject(object):
                         print("Valid T estimated, " + str(np.sum(inliers)) + "/" + str(len(A_rp_pair)) + " inliers")
                         R_mat = out[:, :3]
                         t = out[:, 3]
-                        print(out)
+                        # print(out)
                         R = Rotation.from_matrix(R_mat)
                         self.transf[comb] = (R, t)
                         nb_non_matches += 1
@@ -290,12 +302,12 @@ class FracturedObject(object):
         self.constraints = []
         fragments = range(len(self.fragments.keys()))
         comb_triplewise = list(permutations(fragments, 3))
-        print(comb_triplewise)
+        # print(comb_triplewise)
         for i in range(0, len(comb_triplewise)):
             first = comb_triplewise[i][0]
             second = comb_triplewise[i][1]
             third = comb_triplewise[i][2]
-            print(first, second, third)
+            # print(first, second, third)
             index_12 = (first, second)
             index_23 = (second, third)
             index_13 = (first, third)
@@ -305,7 +317,7 @@ class FracturedObject(object):
                 T_12 = transform_from_rotm_tr(self.transf[index_12])
                 T_31 = transform_from_rotm_tr(self.transf[(third, first)])
                 T_32 = transform_from_rotm_tr(self.transf[(third, second)])
-                print(T_32, T_31, T_12)
+                # print(T_32, T_31, T_12)
 
                 T_32_est = T_12 @ T_31
 
@@ -326,7 +338,7 @@ class FracturedObject(object):
                     print("NO Match")
         print(self.constraints)
 
-    def find_final_transforms(self):
+    def graph_matching_original(self):
         assert self.constraints is not None, f"Perform triplet matching."
 
         # Solve optimization problem.
@@ -349,11 +361,42 @@ class FracturedObject(object):
             if z:
                 a, b = idx_to_pair[i]
                 vertices[a] += [b]
+        return vertices
+
+    def graph_matching_mst(self):
+        # Minimum spanning tree with number of matching keypoints as weights.
+        # Does not use triplet matching.
+        edges = []
+        for (a, b), (kpt_matches_a, kpt_matches_b) in self.kpt_matches_gt.items():
+            edges.append((len(kpt_matches_a), a, b))
+        edges = sorted(edges, reverse=True)
+        cluster = list(range(self.N))
+        vertices: List[List[int]] = [[] for _ in self.fragments]
+        for _, a, b in edges:
+            if cluster[a] == cluster[b]:
+                continue
+            # connect b to a
+            vertices[a].append(b)
+            vertices[b].append(a)
+            cluster_b = cluster[b]
+            for i in range(self.N):
+                if cluster[i] == cluster_b:
+                    cluster[i] = cluster[a]
+        return vertices
+
+    def find_final_transforms(self):
+        if self.graph_matching_method == 'original':
+            vertices = self.graph_matching_original()
+        elif self.graph_matching_method == 'mst':
+            vertices = self.graph_matching_mst()
+        else:
+            raise ValueError(f'No such graph matching method: {self.graph_matching_method}')
 
         for i, neighbors in enumerate(vertices):
             print(f"{i}: {neighbors}")
 
-        visited = [False for _ in self.fragments]
+        # Traverse the graph to produce final transforms.
+        visited = [False for _ in range(self.N)]
         self.final_transforms: Dict[int, (np.array, np.array)] = {}
 
         num_components = 0
@@ -383,7 +426,7 @@ class FracturedObject(object):
                 self.kpts[idx].transform(T)
                 self.fragments[idx].transform(T)
             else:
-                print(f"Matching graph is disconnected. Fragment {idx} has no final transformation.")
+                print(f"Fragment {idx} has no final transformation.")
 
         # Reverse the initial random transformation of the starting fragment,
         # so the object stands neatly in the middle.
@@ -401,7 +444,7 @@ class FracturedObject(object):
         combinations = list(permutations(fragments, 2))
 
         for comb in combinations:
-            if self.fragment_matches_gt[comb[0], comb[1]]:
+            if self.fragment_matches_gt[comb[0], comb[1]]:  # TODO: it uses ground truth!!!!
                 keypoints0 = np.array(self.kpts_orig[comb[0]].data['points'])
                 keypoints1 = np.array(self.kpts_orig[comb[1]].data['points'])
                 dists = cdist(keypoints0, keypoints1)
@@ -518,7 +561,6 @@ class Procrustes:
     @property
     def params(self):
         return self._transform
-
 
 
 def transform_from_rotm_tr(transformation_pair):

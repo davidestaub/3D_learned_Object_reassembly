@@ -11,8 +11,8 @@ from fractured_object import FracturedObject
 here = os.path.dirname(os.path.abspath(__file__))
 path = "data_from_pred/"
 
-visualize = True
-vis_idx = (3, 4)
+visualize = False #True
+vis_idx = (1, 3)
 
 
 def full_reassembly(obj):
@@ -33,6 +33,8 @@ def pairwise_reassembly(obj):
     obj.apply_random_transf()
     print(obj.kpt_matches_gt)
     for key in obj.kpt_matches_gt:
+        if vis_idx and sorted(key) != sorted(vis_idx):
+            continue
         A = key[0]
         B = key[1]
         matches_AB = obj.kpt_matches_gt[key]
@@ -54,6 +56,7 @@ def pairwise_reassembly(obj):
                 B: obj.fragments[B]
             }
             if visualize or (A, B) == vis_idx or (B, A) == vis_idx:
+                print(f"Visualizing {A, B}, scrambled.")
                 compas_show(keypoints, fragments, line_list)
             obj.find_transformations()
             obj.apply_transf(A, B)
@@ -72,10 +75,9 @@ def pairwise_reassembly(obj):
                 B: obj.fragments[B]
             }
             if visualize or (A, B) == vis_idx or (B, A) == vis_idx:
+                print(f"Visualizing {A, B}, matched.")
                 compas_show(keypoints, fragments, line_list)
 
-    print("Hello")
-    print(obj.transf)
 
 
 if __name__ == "__main__":
@@ -91,8 +93,8 @@ if __name__ == "__main__":
     else:
         data_dir = args.data_dir
 
-    obj = FracturedObject(path=data_dir)
+    obj = FracturedObject(path=data_dir, graph_matching_method='mst')
     obj.load_object()
     obj.load_gt()
-    full_reassembly(obj)
-    # pairwise_reassembly(obj)
+    # full_reassembly(obj)
+    pairwise_reassembly(obj)
