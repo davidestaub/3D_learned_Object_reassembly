@@ -17,18 +17,22 @@ def plot_dists(dists, df, method, ax):
 
 def plot_cumulative_dists(dists, df, method, ax, title=''):
     data = dists[df['method'] == method].reshape(-1)
-    ax.hist(data,
+    n, bins, patch = ax.hist(data,
             bins=np.linspace(0, np.nanmax(dists), 500),
             density=True,
             cumulative=True,
             histtype='step',
             label=method)
+    bin_size = bins[1] - bins[0]
+    idx_1 = np.argmax(bins > 1.0)
+    auc = (bin_size * n[:idx_1]).sum()
     ax.yaxis.set_major_formatter(PercentFormatter(1))
     ax.set_xlim((0, 1.0))
     # ax.set_ylim((0, 0.07))
     ax.set_xlabel('Distance')
-    ax.set_ylabel('# points')
+    ax.set_ylabel('Cumulative % of points')
     ax.set_title(title)
+    return patch[0], f'{method}, AUC={auc:.2}'
 
 
 def plot_surface():
@@ -41,14 +45,15 @@ def plot_surface():
     fig = plt.figure(figsize=(6, 12))
     axes = fig.subplots(len(methods), 1, sharex=True)
     [plot_dists(dists, df, method, ax) for method, ax in zip(methods, axes)]
-    plt.savefig('keypoint_surface_repeatability.png')
+    plt.savefig('keypoint_surface_repeatability.svg')
     fig.show()
 
-    fig = plt.figure(figsize=(6, 4))
-    [plot_cumulative_dists(dists, df, method, fig.gca()) for method in methods]
-    fig.gca().legend(loc='lower right')
+    fig = plt.figure(figsize=(4, 4))
+    patches, labels = zip(*([plot_cumulative_dists(dists, df, method, fig.gca(), 'Surface keypoint adjacency') for method in methods]))
+    fig.gca().legend(handles=patches, labels=labels, loc='lower right')
     plt.grid(visible=True)
-    plt.savefig('keypoint_surface_repeatability_cumulative.png')
+    plt.subplots_adjust(left=0.2, right=0.95, top=0.93)
+    plt.savefig('keypoint_surface_repeatability_cumulative.svg', bbox_inches='tight')
     fig.show()
 
     r = 0.05
@@ -71,14 +76,15 @@ def plot():
     fig = plt.figure(figsize=(6, 12))
     axes = fig.subplots(len(methods), 1, sharex=True)
     [plot_dists(dists, df, method, ax) for method, ax in zip(methods, axes)]
-    plt.savefig('keypoint_repeatability.png')
+    plt.savefig('keypoint_repeatability.svg')
     fig.show()
 
-    fig = plt.figure(figsize=(6, 4))
-    [plot_cumulative_dists(dists, df, method, fig.gca()) for method in methods]
-    fig.gca().legend(loc='lower right')
+    fig = plt.figure(figsize=(4, 4))
+    patches, labels = zip(*([plot_cumulative_dists(dists, df, method, fig.gca(), 'Keypoint repeatability') for method in methods]))
+    fig.gca().legend(handles=patches, labels=labels, loc='lower right')
     plt.grid(visible=True)
-    plt.savefig('keypoint_repeatability_cumulative.png')
+    plt.subplots_adjust(left=0.2, right=0.95, top=0.93)
+    plt.savefig('keypoint_repeatability_cumulative.svg', bbox_inches='tight')
     fig.show()
 
     r = 0.05
@@ -93,3 +99,4 @@ def plot():
 
 if __name__ == '__main__':
     plot_surface()
+    plot()
