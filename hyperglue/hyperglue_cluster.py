@@ -52,7 +52,6 @@ def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
         if i < (n - 1):
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
-            layers.append(nn.ReLU())
     return nn.Sequential(*layers)
 
 
@@ -60,7 +59,7 @@ class KeypointEncoder(nn.Module):
     """ Encoding of the keypoint coordinates and optionally its saliency score to a chosen feature
         dimension via MLP"""
 
-    def __init__(self, feature_dim: int, layers: List[int], do_bn=True, dropout=True, activation='relu') -> None:
+    def __init__(self, feature_dim: int, layers: List[int], do_bn=True) -> None:
         super().__init__()
         self.use_scores = conf.train_conf['use_sd_score']
         self.input_size = 4 if self.use_scores else 3
@@ -168,7 +167,7 @@ class StickyBalls(nn.Module):
             self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
             self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
 
-        self.gnn = AttentionalGNN(feature_dim=self.f_dim, layer_names=['self', 'cross'] * self.config['GNN_layers'])
+        self.gnn = AttentionalGNN(feature_dim = self.f_dim, layer_names = ['self', 'cross'] * self.config['GNN_layers'])
 
         self.final_proj = nn.Conv1d(self.f_dim, self.f_dim, kernel_size=1, bias=True)
 
