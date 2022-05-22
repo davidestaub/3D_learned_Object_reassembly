@@ -18,7 +18,7 @@ def handle_folder(object_folder):
 
     # go back if already processed
     if os.path.exists(os.path.join(folder_path, 'log.txt')):
-        return
+        pass
 
     # delete the premade cleaned and subdv folder
     try:
@@ -63,29 +63,44 @@ def handle_folder(object_folder):
             # explode them to sepparate loose parts
             exploded_meshes = mesh_explode(mesh)
             if len(exploded_meshes) > 1:
-                log.append("The object:     " + filename + " had " +
-                           str(len(exploded_meshes)) + " loose parts!\n")
+                log.append("The object:     " + filename + " had " + str(len(exploded_meshes)) + " loose parts!\n")
 
             # save all the individual objects
             for ex_mesh in exploded_meshes:
+                downsample = False
                 # delete tiny pieces
-                if len(list(ex_mesh.vertices())) < 1000:
+                num_vertices = len(list(ex_mesh.vertices())) 
+                if num_vertices < 1000:
                     log.append(f'Deleted a small fragment of shard: {shard_counter}\n')
                     continue
+
+                vertices = np.array([ex_mesh.vertex_coordinates(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
+                normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
+                
+                pcd = o3d.geometry.PointCloud()
+                pcd.normals = o3d.utility.Vector3dVector(normals)
+                pcd.points= o3d.utility.Vector3dVector(vertices)
+
+                if num_vertices> 1e4:
+                    downsample = True
+                    rate = 1e4/num_vertices                   
+                    pcd = pcd.random_down_sample(rate)
 
                 # save to new file
                 name = object_folder + "_cleaned." + str(piece_counter)
                 FILE_PCD = os.path.join(folder_path, 'cleaned', name + ".pcd")
                 FILE_OBJ = os.path.join(folder_path, 'cleaned', name + ".obj")
-                ex_mesh.to_obj(FILE_OBJ)
-                piece_counter += 1
-                vertices = np.array([ex_mesh.vertex_coordinates(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
-                normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
-                # create a pointcloud and save as pcd file with o3d 
-                pcd = o3d.geometry.PointCloud()
-                pcd.normals = o3d.utility.Vector3dVector(normals)
-                pcd.points= o3d.utility.Vector3dVector(vertices)
+
+                if not downsample:
+                    ex_mesh.to_obj(FILE_OBJ)
+                else:
+                    new_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
+                    o3d.io.write_triangle_mesh(FILE_OBJ, new_mesh)
+                
                 o3d.io.write_point_cloud(FILE_PCD, pcd)
+                piece_counter += 1
+
+                
 
 
             shard_counter += 1
@@ -99,5 +114,6 @@ def handle_folder(object_folder):
 
 if __name__ == '__main__':
     folders = os.listdir(dataroot)
+    
     with Pool(4) as p:
         p.map(handle_folder, folders)

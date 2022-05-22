@@ -1,5 +1,5 @@
 data_conf = {
-    'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
+    'desc': 'pillar', # [fpfh, pillar, fpfh_pillar]
     'kpts': 'hybrid', # [hybrid, sd]
     'gt_match_thresh': 0.0
 }
@@ -11,7 +11,7 @@ model_conf = {
     'sep_encoder': True, #sepparate encoders
     'keypoint_encoder': [8, 16, 32, 64], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
     'GNN_layers': 3,
-    'sinkhorn_iterations': 321,
+    'sinkhorn_iterations': 320,
     'match_threshold': 0.28,
     'nll_weight': 1000.,
     'nll_balancing': 0.96,

@@ -2,7 +2,7 @@ import argparse, os
 from tqdm import tqdm
 from hyperglue_cluster import build_model, batch_to_device
 from dataset import DatasetPredict
-from utils import conf
+from utils import conf_sp706 as conf
 import numpy as np
 import tkinter
 from tkinter import filedialog
@@ -20,19 +20,19 @@ def create_output_folders(folder_root):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('weights', 'LW677.pth'))
+    parser.add_argument('--weights_path', default=os.path.join('weights', 'SP706.pth'))
     parser.add_argument('--data_dir')
     args = parser.parse_intermixed_args()
 
     if not args.data_dir:
         root = tkinter.Tk()
         root.withdraw()
-        root = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),
-                                       title='Please select the parent directory of the fractured object folders')
+        root = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),title='Please select the parent directory of the fractured object folders')
     else:
         root = args.data_dir
     # create the necessary config and create the model and dataset
     config_all = {**conf.model_conf, **conf.data_conf, **conf.train_conf}
+    print(conf.train_conf)
     model = build_model(args.weights_path, config_all)
     dataset = DatasetPredict(root, config_all)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'

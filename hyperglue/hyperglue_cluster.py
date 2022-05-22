@@ -52,6 +52,7 @@ def MLP(channels: List[int], do_bn: bool = True) -> nn.Module:
         if i < (n - 1):
             if do_bn:
                 layers.append(nn.BatchNorm1d(channels[i]))
+            layers.append(nn.ReLU())
     return nn.Sequential(*layers)
 
 
@@ -59,9 +60,9 @@ class KeypointEncoder(nn.Module):
     """ Encoding of the keypoint coordinates and optionally its saliency score to a chosen feature
         dimension via MLP"""
 
-    def __init__(self, feature_dim: int, layers: List[int], do_bn=True) -> None:
+    def __init__(self, feature_dim: int, layers: List[int], do_bn=True, use_scores: bool = False) -> None:
         super().__init__()
-        self.use_scores = conf.train_conf['use_sd_score']
+        self.use_scores = use_scores
         self.input_size = 4 if self.use_scores else 3
         self.encoder = MLP(channels=[self.input_size] + layers + [feature_dim], do_bn= do_bn,)
         nn.init.constant_(self.encoder[-1].bias, 0.0)
@@ -80,7 +81,6 @@ class NeighborhoodEncoder(nn.Module):
     def __init__(self, dim_in: int, dim_out: int):
         super().__init__()
         self.indim = dim_in
-        self.batch_size = conf.train_conf['batch_size']
         # linear projection bn and relu
         self.lin = nn.Linear(dim_in, dim_out, bias=False)
         self.bn = nn.BatchNorm1d(dim_out)
@@ -133,10 +133,10 @@ class AttentionalPropagation(nn.Module):
 
 
 class AttentionalGNN(nn.Module):
-    def __init__(self, feature_dim: int, layer_names: List[str]) -> None:
+    def __init__(self, feature_dim: int, layer_names: List[str], num_heads) -> None:
         super().__init__()
         self.layers = nn.ModuleList([
-            AttentionalPropagation(feature_dim, conf.model_conf['num_heads'])
+            AttentionalPropagation(feature_dim, num_heads)
             for _ in range(len(layer_names))])
         self.names = layer_names
 
@@ -161,13 +161,13 @@ class StickyBalls(nn.Module):
         if self.config['pillar']:
             self.penc0 = NeighborhoodEncoder(dim_in=10 * 10, dim_out=self.f_dim)
             self.penc1 = NeighborhoodEncoder(dim_in=10 * 10, dim_out=self.f_dim) if self.sepenc else self.penc0
-            self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
-            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
+            self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'], use_scores=config['use_sd_score'])
+            self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'], use_scores=config['use_sd_score']) if self.sepenc else self.kenc0
         else:
             self.kenc0 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder'])
             self.kenc1 = KeypointEncoder(self.f_dim, self.config['keypoint_encoder']) if self.sepenc else self.kenc0
 
-        self.gnn = AttentionalGNN(feature_dim = self.f_dim, layer_names = ['self', 'cross'] * self.config['GNN_layers'])
+        self.gnn = AttentionalGNN(feature_dim=self.f_dim, layer_names=['self', 'cross'] * self.config['GNN_layers'], num_heads=config['num_heads'])
 
         self.final_proj = nn.Conv1d(self.f_dim, self.f_dim, kernel_size=1, bias=True)
 
@@ -514,7 +514,7 @@ if __name__ == '__main__':
                config={**model_conf, **train_conf, **data_conf},
                settings=wandb.Settings(start_method='thread'))
     config = wandb.config
-    myGlue = build_model(None, config)
+    myGlue = build_model(config['weights'], config)
     wandb.watch(myGlue)
 
     train_model(root, myGlue, config)
