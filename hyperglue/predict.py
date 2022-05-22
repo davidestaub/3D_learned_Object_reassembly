@@ -20,7 +20,7 @@ def create_output_folders(folder_root):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('weights', 'SP706.pth'))
+    parser.add_argument('--weights_path', default=os.path.join('weights', 'small.pth'))
     parser.add_argument('--data_dir')
     args = parser.parse_intermixed_args()
 
