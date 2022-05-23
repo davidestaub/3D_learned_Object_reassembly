@@ -14,7 +14,7 @@ model_conf = {
     'num_heads': 6, # num of heads
     'sep_encoder': True, #sepparate encoders
     'keypoint_encoder': [8, 16, 32, 64], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
-    'GNN_layers': 4,
+    'GNN_layers': 3,
     'sinkhorn_iterations': 321,
     'match_threshold': 0.3,
     'nll_weight': 1000.,
@@ -29,7 +29,7 @@ train_conf = {
     'lr':0.0085,  # learning rate
     'lr_schedule': {'type': 'exp', 'start': 10e3, 'exp_div_10': 2e5},
     'overfit': False,
-    'use_sd_score': True,
+    'use_sd_score': False,
     'match_inverted': False,
     'train_fraction': 0.9,
     'normalize_data': True, # normalizing the pointcloud

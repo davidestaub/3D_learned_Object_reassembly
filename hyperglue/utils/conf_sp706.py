@@ -1,5 +1,5 @@
 data_conf = {
-    'desc': 'pillar', # [fpfh, pillar, fpfh_pillar]
+    'desc': 'fpfh', # [fpfh, pillar, fpfh_pillar]
     'kpts': 'hybrid', # [hybrid, sd]
     'gt_match_thresh': 0.0
 }

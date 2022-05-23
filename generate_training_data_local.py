@@ -8,7 +8,7 @@ if __name__ == '__main__':
     parser.add_argument("--data_dir", type=str, default=None)
     args = parser.parse_args()
 
-    args.data_dir = os.path.join('.', 'object_fracturing', 'data')
+    args.data_dir = os.path.join('.', 'report', 'data')
 
     print(f'Data dir: {args.data_dir}')
     # set to the part which should be generatred
@@ -23,8 +23,8 @@ if __name__ == '__main__':
                 "--path",
                 folder,
                 "--descriptor_method",
-                "fpfh",
+                "pillar",
                 "--keypoint_method",
-                "iss"
+                "hybrid"
             ]
         )

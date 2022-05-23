@@ -51,7 +51,7 @@ def fpfh_pillar_encoder(pcd, normals, sample_size = 10):
 
     return np.array(pillars_norm), np.array(pillars_inv)
 
-def pillar_encoder(kpts, pcd, sample_size = 10):
+def pillar_encoder(kpts, pcd, sample_size = 10, dist_thresh=0.01):
     pcd = np.array(pcd)
     # downsample to x y coordinates
     #kpts_2d = kpts[:,:2]
@@ -64,11 +64,14 @@ def pillar_encoder(kpts, pcd, sample_size = 10):
     
     # calculate features
     features = []
-    for pillar in pillars:
+    for i, pillar in enumerate(pillars):
         feature = []
         pillar_center = np.mean(pillar, axis=0)
         pillar_kpt = pillar[0]
-        for point in pillar:
+        for j, point in enumerate(pillar):
+            #if dist[i,j] > dist_thresh:
+            #    feature.append([0]*10)
+            #else:
             feature.append(np.concatenate((point,point-pillar_center,[norm(point)],point-pillar_kpt)))
         features.append(feature)
 
@@ -363,15 +366,14 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
     method = args.keypoint_method
     processed_path = os.path.join(args.path, folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{method}.{i}.npy')
-    if not "pillar" in args.descriptor_method:
-
-    # Check if the keypoints are calculated already.
+    
     os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
+   
     if keypoints_only and os.path.exists(keypoint_path):
         keypoints = np.load(keypoint_path)
         return keypoints
         
-    if args.descriptor_method.find("pillar"):
+    if not "pillar" in args.descriptor_method:
         kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
         kpts_desc_path_inverted = os.path.join(processed_path,'keypoint_descriptors_inverted', f'keypoint_descriptors_{method}_{args.descriptor_method}.{i}.npy')
     else:
