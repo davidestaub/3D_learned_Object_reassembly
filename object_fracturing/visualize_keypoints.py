@@ -47,37 +47,23 @@ if __name__ == '__main__':
     print(file, idx)
 
     # extract the corresponding filename
+    kpts_mode = 'hybrid'
     kpts_file = f'keypoints_{kpts_mode}.{idx}.npy'
-    kpts_sticky = np.load(os.path.join(KPTS_IN, kpts_file))[:,:3]
-    kpts_sticky = o3d.geometry.PointCloud()
-    kpts_sticky.points= o3d.utility.Vector3dVector(kpts_sticky)
-    compas_kpts_sticky = Pointcloud(kpts_sticky.points)
+    kpts = np.load(os.path.join(KPTS_IN, kpts_file))[:,:3]
+    kpts_pcd = o3d.geometry.PointCloud()
+    kpts_pcd.points= o3d.utility.Vector3dVector(kpts)
+    compas_kpts= Pointcloud(kpts_pcd.points)
 
 
-    fragment_pcd = o3d.io.read_point_cloud(os.path.join(CLEANED, file))
-    fragment_pcd.paint_uniform_color([0.1, 0.1, 0.1])
-    center = fragment_pcd.get_center()
-    fragment_pcd.translate([0,0,0], relative=False)
-
-    '''    
-        vis = o3d.visualization.Visualizer()
-        vis.create_window()
-        opt = vis.get_render_option()
-        opt.background_color = np.asarray([0.6, 0.6, 0.6])
-        ctr = vis.get_view_control()
-        ctr.change_field_of_view(step=30)
-
-        vis.add_geometry(fragment_pcd)
-        vis.add_geometry(pcd_kpts)
-        vis.run()
-        vis.destroy_window()
-    '''
+    center = o3d.io.read_point_cloud(os.path.join(CLEANED, file)).get_center()
 
     viewer = App(show_grid=False, viewmode='lighted')
     compas_mesh = Mesh().from_obj(os.path.join(CLEANED, file.replace('pcd', 'obj')))
     t = Translation().from_vector(center)
     t.invert()
+    color_kasia = [254/255, 74/255, 25/255]
+
     mesh_transform_numpy(compas_mesh, t)
-    viewer.add(compas_kpts_sticky, color=[1,0,0])
-    viewer.add(compas_mesh, facecolor=[0.4,0.4,0.4])
+    viewer.add(compas_kpts, color=color_kasia)
+    viewer.add(compas_mesh, facecolor=[0.6,0.6,0.6])
     viewer.show()

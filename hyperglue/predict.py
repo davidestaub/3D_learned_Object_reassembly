@@ -2,7 +2,7 @@ import argparse, os
 from tqdm import tqdm
 from hyperglue_cluster import build_model, batch_to_device
 from dataset import DatasetPredict
-from utils import conf_sp706 as conf
+from utils import conf as conf
 import numpy as np
 import tkinter
 from tkinter import filedialog
@@ -20,7 +20,7 @@ def create_output_folders(folder_root):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('weights', 'small.pth'))
+    parser.add_argument('--weights_path', default=os.path.join('weights', 'VS737.tar'))
     parser.add_argument('--data_dir')
     args = parser.parse_intermixed_args()
 
