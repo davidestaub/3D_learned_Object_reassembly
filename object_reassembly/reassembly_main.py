@@ -11,8 +11,8 @@ from fractured_object import FracturedObject
 here = os.path.dirname(os.path.abspath(__file__))
 path = "data_from_pred/"
 
-visualize = False #True
-vis_idx = (1, 3)
+visualize = True #True
+#vis_idx = (1, 3)
 
 
 def full_reassembly(obj):
@@ -33,12 +33,14 @@ def pairwise_reassembly(obj):
     obj.apply_random_transf()
     print(obj.kpt_matches_gt)
     for key in obj.kpt_matches_gt:
-        if vis_idx and sorted(key) != sorted(vis_idx):
-            continue
+        print("current matching pair = ", key)
+        #if vis_idx and sorted(key) != sorted(vis_idx):
+           # continue
         A = key[0]
         B = key[1]
         matches_AB = obj.kpt_matches_gt[key]
         if matches_AB:
+            print("Matched ",A, " and ", B)
             A_indices = matches_AB[0]
             B_indices = matches_AB[1]
             assert len(A_indices) == len(B_indices), "unequal length"
@@ -55,7 +57,7 @@ def pairwise_reassembly(obj):
                 A: obj.fragments[A],
                 B: obj.fragments[B]
             }
-            if visualize or (A, B) == vis_idx or (B, A) == vis_idx:
+            if visualize:
                 print(f"Visualizing {A, B}, scrambled.")
                 compas_show(keypoints, fragments, line_list)
             obj.find_transformations()
@@ -74,9 +76,11 @@ def pairwise_reassembly(obj):
                 A: obj.fragments[A],
                 B: obj.fragments[B]
             }
-            if visualize or (A, B) == vis_idx or (B, A) == vis_idx:
+            if visualize:
                 print(f"Visualizing {A, B}, matched.")
                 compas_show(keypoints, fragments, line_list)
+        else:
+            print("not matched")
 
 
 
@@ -96,5 +100,5 @@ if __name__ == "__main__":
     obj = FracturedObject(path=data_dir, graph_matching_method='mst')
     obj.load_object()
     obj.load_gt()
-    # full_reassembly(obj)
-    pairwise_reassembly(obj)
+    full_reassembly(obj)
+    #pairwise_reassembly(obj)

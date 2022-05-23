@@ -79,14 +79,19 @@ class FracturedObject(object):
         print("Loading ground truth matches of object " + self.name + "...")
 
         new_path = self.path + "/processed/matching/" + self.name + "_matching_matrix.npy"
+        print(new_path)
 
         self.fragment_matches_gt = np.load(new_path).astype(bool)
         keypoints_matchings_folder = os.path.join(self.path, 'predictions')
+
+        #Trying to fix it
+        keypoints_matchings_folder = self.path + "/processed/matching/"
 
         if gt_from_closest:
             self.gt_from_closest()
         else:
             for matches in os.listdir(keypoints_matchings_folder):
+                print("Loading matches ", matches)
                 # print(keypoints_matchings_folder)
 
                 # if matches.endswith(".npz"):
