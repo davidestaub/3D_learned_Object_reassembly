@@ -86,7 +86,8 @@ class FracturedObject(object):
 
         #Trying to fix it
         keypoints_matchings_folder = self.path + "/processed/matching/"
-
+        keypoints_matchings_folder = os.path.join(self.path, 'predictions')
+        
         if gt_from_closest:
             self.gt_from_closest()
         else:

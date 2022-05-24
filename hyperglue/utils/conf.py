@@ -15,7 +15,7 @@ model_conf = {
     'sep_encoder': True, #sepparate encoders
     'keypoint_encoder': [8, 16, 32, 64], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
     'GNN_layers': 3,
-    'sinkhorn_iterations': 321,
+    'sinkhorn_iterations': 1000,
     'match_threshold': 0.3,
     'nll_weight': 1000.,
     'nll_balancing': 0.96,
@@ -32,5 +32,5 @@ train_conf = {
     'use_sd_score': False,
     'match_inverted': False,
     'train_fraction': 0.9,
-    'normalize_data': True, # normalizing the pointcloud
+    'normalize_data': False, # normalizing the pointcloud
 }

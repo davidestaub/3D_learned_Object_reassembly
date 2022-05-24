@@ -1,4 +1,5 @@
 import argparse, os
+import shutil
 from tqdm import tqdm
 from hyperglue_cluster import build_model, batch_to_device
 from dataset import DatasetPredict
@@ -16,7 +17,6 @@ def create_output_folders(folder_root):
         if "prediction" in folder:
             continue
         os.makedirs(os.path.join(folder_root, folder, 'predictions'), exist_ok=True)
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -49,7 +49,11 @@ if __name__ == '__main__':
         name = item['pair_name']
         basename = '_'.join(name.split('_')[:-2])
         name_pair = '_'.join(['prediction'] + name.split('_')[-2:])
-        m0 = pred["matches0"].cpu()
-        m1 = pred["matches1"].cpu()
-        np.save(os.path.join(root, basename,'predictions', f'{name_pair}_m0.npy'), m0)
-        np.save(os.path.join(root, basename,'predictions', f'{name_pair}_m1.npy'), m1)
+        basepath = os.path.join(root, basename,'predictions')
+        m0 = pred["matches0"].cpu().squeeze()
+        m1 = pred["matches1"].cpu().squeeze()
+        if os.path.exists(basepath):
+            shutil.rmtree(basepath)
+        os.mkdir(basepath)
+        np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
+        np.save(os.path.join(basepath, f'{name_pair}_m1.npy'), m1)
