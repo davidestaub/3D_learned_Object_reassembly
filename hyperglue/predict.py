@@ -52,8 +52,5 @@ if __name__ == '__main__':
         basepath = os.path.join(root, basename,'predictions')
         m0 = pred["matches0"].cpu().squeeze()
         m1 = pred["matches1"].cpu().squeeze()
-        if os.path.exists(basepath):
-            shutil.rmtree(basepath)
-        os.mkdir(basepath)
         np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
         np.save(os.path.join(basepath, f'{name_pair}_m1.npy'), m1)

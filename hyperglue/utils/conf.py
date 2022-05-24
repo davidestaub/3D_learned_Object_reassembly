@@ -16,7 +16,7 @@ model_conf = {
     'keypoint_encoder': [8, 16, 32, 64], # intermediate mlp dimensions. The first is automatically set to 4, last to descriptor_dim
     'GNN_layers': 3,
     'sinkhorn_iterations': 1000,
-    'match_threshold': 0.3,
+    'match_threshold': 0.5,
     'nll_weight': 1000.,
     'nll_balancing': 0.96,
 }
