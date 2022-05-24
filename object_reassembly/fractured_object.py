@@ -82,7 +82,7 @@ class FracturedObject(object):
         print(new_path)
 
         self.fragment_matches_gt = np.load(new_path).astype(bool)
-        keypoints_matchings_folder = os.path.join(self.path, 'predictions')
+        #keypoints_matchings_folder = os.path.join(self.path, 'predictions' )
 
         #Trying to fix it
         keypoints_matchings_folder = self.path + "/processed/matching/"
@@ -268,7 +268,7 @@ class FracturedObject(object):
                         print("mse naive: {}".format(mse_naive))
 
                         # estimate with RANSAC
-                        ransac = RansacEstimator(min_samples=3, residual_threshold=(0.01), max_trials=100, )
+                        ransac = RansacEstimator(min_samples=3, residual_threshold=(0.01), max_trials=1000, )
                         ret = ransac.fit(Procrustes(), [ptsA, ptsB])
                         transform_ransac = ret["best_params"]
                         inliers_ransac = ret["best_inliers"]
@@ -671,6 +671,7 @@ class RansacEstimator:
             "best_params": model.params,
             "best_inliers": best_inliers,
         }
+        print("best num inliers: ", best_num_inliers)
         return ret
 
 

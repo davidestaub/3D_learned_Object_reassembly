@@ -9,7 +9,7 @@ from compas_vis import compas_show
 from fractured_object import FracturedObject
 
 here = os.path.dirname(os.path.abspath(__file__))
-path = "data_from_pred/"
+path = "data_from_pred"
 
 visualize = True #True
 #vis_idx = (1, 3)
@@ -100,5 +100,5 @@ if __name__ == "__main__":
     obj = FracturedObject(path=data_dir, graph_matching_method='mst')
     obj.load_object()
     obj.load_gt()
-    full_reassembly(obj)
-    #pairwise_reassembly(obj)
+    #full_reassembly(obj)
+    pairwise_reassembly(obj)
