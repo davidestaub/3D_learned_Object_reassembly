@@ -6,7 +6,6 @@ object_fracturing/blender_scripts
 object_fracturing/real_objects
 object_fracturing/data
 object_fracturing/data_zip
-report/
 __pycache__
 .idea
 output*
