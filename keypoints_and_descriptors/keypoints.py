@@ -260,7 +260,7 @@ def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path
     elif args.keypoint_method == 'iss':
         assert keypoints_only
         keypoints = get_iss_keypoints(vertices)
-        keypoints_idxs = None
+        keypoint_idxs = None
     else:
         raise NotImplementedError
 

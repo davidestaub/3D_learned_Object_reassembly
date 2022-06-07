@@ -11,6 +11,7 @@ import numpy as np
 import open3d as o3d
 import pandas as pd
 from open3d.cpu.pybind.geometry import PointCloud
+from scipy.spatial import KDTree
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
@@ -22,13 +23,16 @@ np.random.seed(42)
 angles = np.random.uniform(low=0, high=2 * math.pi, size=(3,))
 ROTATION = PointCloud().get_rotation_matrix_from_xyz(angles)
 REVERSE_ROTATION = PointCloud().get_rotation_matrix_from_xyz(-angles)
-KEYPOINT_METHODS = ['SD', 'sticky', 'hybrid']  # , 'harris']
+KEYPOINT_METHODS = ['SD', 'sticky', 'hybrid', 'iss']  # , 'harris']
 NUM_KEYPOINTS = 512
 
 
 def calculate_score(keypoints1, keypoints2):
-    dists = cdist(keypoints1, keypoints2)
-    closest = np.concatenate([np.min(dists, axis=0), np.min(dists, axis=1)])
+    tree = KDTree(keypoints1)
+    dists_to_closest1, _ = tree.query(keypoints2)
+    tree = KDTree(keypoints2)
+    dists_to_closest2, _ = tree.query(keypoints1)
+    closest = np.concatenate([dists_to_closest1, dists_to_closest2])
     return closest
 
 
@@ -41,7 +45,7 @@ def evaluate_repeatability(fragment_idx, pcd, keypoints, args, method, folder_pa
     keypoints_rotated = get_keypoints(fragment_idx, np.array(pcd_rotated.points), np.array(pcd_rotated.normals),
                                       args=args, desc_normal=None, desc_inv=None, folder_path=folder_path,
                                       npoints=NUM_KEYPOINTS,
-                                      keypoints_only=True)
+                                      keypoints_only=True, tag='rotated')
 
     kpts_pcd = PointCloud(o3d.utility.Vector3dVector(keypoints[:, :3]))
     kpts_pcd_rotated = PointCloud(o3d.utility.Vector3dVector(keypoints_rotated[:, :3]))
@@ -52,14 +56,26 @@ def evaluate_repeatability(fragment_idx, pcd, keypoints, args, method, folder_pa
     return closest
 
 
-def evaluate_surface_repeatability(fragments, keypoints, folder_path):
+def evaluate_surface_repeatability(fragments: List[o3d.geometry.PointCloud], keypoints, folder_path, method):
     matching_matrix = get_fragment_matchings(fragments, folder_path)
 
     data = []
     # Iterate over matching pairs.
     for a, b in zip(*np.nonzero(matching_matrix)):
+        a_rotated = copy.deepcopy(fragments[a]).rotate(ROTATION, center=(0, 0, 0))
+        b_rotated = copy.deepcopy(fragments[b]).rotate(ROTATION, center=(0, 0, 0))
+
+        args.keypoint_method = method
+        keypoints_a = get_keypoints(a, np.array(a_rotated.points), np.array(a_rotated.normals),
+                                    args=args, desc_normal=None, desc_inv=None, folder_path=folder_path,
+                                    npoints=NUM_KEYPOINTS,
+                                    keypoints_only=True, tag='rotated')
+        keypoints_b = get_keypoints(b, np.array(b_rotated.points), np.array(b_rotated.normals),
+                                    args=args, desc_normal=None, desc_inv=None, folder_path=folder_path,
+                                    npoints=NUM_KEYPOINTS,
+                                    keypoints_only=True, tag='rotated')
         if a < b:  # Only once per pair.
-            data.append((a, b, *calculate_score(keypoints[a], keypoints[b])))
+            data.append((a, b, *calculate_score(keypoints_a, keypoints_b)))
 
     return data
 
@@ -83,24 +99,30 @@ def process_folder(args, folder_path):
         all_keypoints[method] = []
         for i, f in enumerate(fragment_pcds):
             args.keypoint_method = method
-            all_keypoints[method].append(
-                get_keypoints(i, np.array(f.points), np.array(f.normals),
-                              args=args, desc_normal=None, desc_inv=None,
-                              folder_path=folder_path, npoints=NUM_KEYPOINTS, keypoints_only=True)
-            )
+            keypoints = get_keypoints(i, np.array(f.points), np.array(f.normals), args=args, desc_normal=None,
+                                      desc_inv=None, folder_path=folder_path, npoints=NUM_KEYPOINTS,
+                                      keypoints_only=True)
+            all_keypoints[method].append(keypoints)
 
     # object name, fragment, method, distances
     data_repeatability = []
     for i, pcd in enumerate(fragment_pcds):
         for method in KEYPOINT_METHODS:
             distances = evaluate_repeatability(i, pcd, all_keypoints[method][i], args, method, folder_path)
+            if method == 'iss':
+                missing = 2 * NUM_KEYPOINTS - distances.shape[0]
+                distances = np.pad(distances, (0, missing), mode='constant', constant_values=np.nan)
             data_repeatability.append((object_name, i, method, *distances))
 
     # object name, method, fragment_1, fragment_2, distances
     surface_repeatability = []
     for method in KEYPOINT_METHODS:
-        data = evaluate_surface_repeatability(fragment_pcds, all_keypoints[method], folder_path)
+        data = evaluate_surface_repeatability(fragment_pcds, all_keypoints[method], folder_path, method)
+        print(f"folder {folder_path} has {len(data)} pairs.")
         for entry in data:
+            if method == 'iss':
+                missing = 2 + 2 * NUM_KEYPOINTS - len(entry)
+                entry += missing * (np.nan,)
             surface_repeatability.append((object_name, method, *entry))
 
     return data_repeatability, surface_repeatability
@@ -111,17 +133,19 @@ if __name__ == "__main__":
         description="Evaluate repeatability and different fragment matching of keypoints."
     )
     parser.add_argument("--path", type=str)
-    parser.add_argument("--keypoint_method", type=str, default='hybrid', choices=['SD', 'sticky', 'hybrid'])
     parser.add_argument("--descriptor_method", type=str, default='fpfh', choices=['fpfh', 'pillar', 'fpfh_pillar'])
     args = parser.parse_args()
 
     paths = [os.path.abspath(os.path.join(args.path, folder)) for folder in os.listdir(args.path)]
     fn = functools.partial(process_folder, args)
-    with Pool() as p:
-        # Data is [NUM_PROCS, 2, NUM_FRAGS * NUM_METHODS]
-        data = list(tqdm(p.imap(fn, paths), total=len(paths)))
-    # for p in paths:
-    #     data = process_folder(args, p)
+    num_cpus = min(len(paths), 4)
+    # with Pool(num_cpus) as p:
+    #     # Data is [NUM_PROCS, 2, NUM_FRAGS * NUM_METHODS]
+    #     data = list(tqdm(p.imap(fn, paths), total=len(paths)))
+
+    data = []
+    for p in paths:
+        data += [process_folder(args, p)]
 
 
     repeatability = pd.DataFrame(data=[entry for sublist, _ in data for entry in sublist],
