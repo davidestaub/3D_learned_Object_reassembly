@@ -14,13 +14,12 @@ import torch
 def create_output_folders(folder_root):
     """Creates necessary folders for the model prediction"""
     for folder in os.listdir(folder_root):
-        if "prediction" in folder:
-            continue
-        os.makedirs(os.path.join(folder_root, folder, 'predictions'), exist_ok=True)
+        shutil.rmtree(os.path.join(folder_root, folder, 'predictions'), ignore_errors=True)        
+        os.makedirs(os.path.join(folder_root, folder, 'predictions'))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('weights', 'VS737.tar'))
+    parser.add_argument('--weights_path', default=os.path.join('hyperglue','weights', 'small.pth'))
     parser.add_argument('--data_dir')
     args = parser.parse_intermixed_args()
 
@@ -52,5 +51,15 @@ if __name__ == '__main__':
         basepath = os.path.join(root, basename,'predictions')
         m0 = pred["matches0"].cpu().squeeze()
         m1 = pred["matches1"].cpu().squeeze()
-        np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
-        np.save(os.path.join(basepath, f'{name_pair}_m1.npy'), m1)
+        matches = np.zeros(len(m0))
+        for i, match in enumerate(m0):
+            if i == m1[match]:
+                matches[i] = match
+            else:
+                matches[i] = -1
+
+        sm = sum(matches > -1)
+        print(sm)
+        #s0, s1 = sum(m0>-1), sum(m1>-1)
+        if sm >= 6:
+            np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
