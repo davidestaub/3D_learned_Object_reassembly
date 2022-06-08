@@ -35,9 +35,11 @@ def compas_show(keypoints: Dict[int, Pointcloud] = None, fragments=None, lines=N
     for i, (name, c) in enumerate(colors):
         print(f"{i}: {name}, {c}")
 
-    viewer = App()
-    add_to_viewer(keypoints, viewer, colors=colors)
-    add_to_viewer(fragments, viewer, colors=colors)
+    viewer = App(show_grid=False)
+    if keypoints:
+        add_to_viewer(keypoints, viewer, colors=colors)
+    if fragments:
+        add_to_viewer(fragments, viewer, colors=colors)
 
     line_color = Color.green()
     line_color.a = 0.8 * line_color.a

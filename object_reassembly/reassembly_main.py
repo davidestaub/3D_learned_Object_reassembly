@@ -25,7 +25,7 @@ def full_reassembly(obj):
     obj.find_final_transforms()
 
     if visualize:
-        compas_show(obj.kpts, obj.fragments)
+        compas_show(fragments=obj.fragments)
 
 
 def pairwise_reassembly(obj):
@@ -87,6 +87,7 @@ def pairwise_reassembly(obj):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir')
+    parser.add_argument('--pairwise', action='store_true')
     args = parser.parse_intermixed_args()
 
     if not args.data_dir:
@@ -100,5 +101,7 @@ if __name__ == "__main__":
     obj = FracturedObject(path=data_dir, graph_matching_method='mst')
     obj.load_object()
     obj.load_gt()
-    full_reassembly(obj)
-    #pairwise_reassembly(obj)
+    if not args.pairwise:
+        full_reassembly(obj)
+    else:
+        pairwise_reassembly(obj)
