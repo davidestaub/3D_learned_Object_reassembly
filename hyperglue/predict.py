@@ -51,6 +51,11 @@ if __name__ == '__main__':
         basepath = os.path.join(root, basename,'predictions')
         m0 = pred["matches0"].cpu().squeeze()
         m1 = pred["matches1"].cpu().squeeze()
+
+        np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
+        np.save(os.path.join(basepath, f'{name_pair}_m1.npy'), m1)
+
+        '''        
         matches = np.zeros(len(m0))
         for i, match in enumerate(m0):
             if i == m1[match]:
@@ -63,3 +68,4 @@ if __name__ == '__main__':
         #s0, s1 = sum(m0>-1), sum(m1>-1)
         if sm >= 6:
             np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
+            '''
