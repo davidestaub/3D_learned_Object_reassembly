@@ -34,8 +34,6 @@ def pairwise_reassembly(obj):
     print(obj.kpt_matches_gt)
     for key in obj.kpt_matches_gt:
         print("current matching pair = ", key)
-        #if vis_idx and sorted(key) != sorted(vis_idx):
-           # continue
         A = key[0]
         B = key[1]
         matches_AB = obj.kpt_matches_gt[key]

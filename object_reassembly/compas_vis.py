@@ -69,7 +69,3 @@ def compas_show(keypoints: Dict[int, Pointcloud] = None, fragments=None, lines=N
     viewer.view.camera.distance = dist
     viewer.show()
 
-
-def compas_show_matches():
-    # TODO: implement
-    pass

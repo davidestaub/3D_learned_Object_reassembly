@@ -47,7 +47,6 @@ class FracturedObject(object):
         print("Loading fragment meshes of object " + self.name + "...")
 
         for fragment in os.listdir(new_path):
-
             if fragment.endswith('.obj'):
                 frag_no = int(fragment.rsplit(sep=".")[1])
                 self.fragments_orig[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
@@ -88,16 +87,8 @@ class FracturedObject(object):
         else:
             for matches in os.listdir(keypoints_matchings_folder):
                 print("Loading matches ", matches)
-                # print(keypoints_matchings_folder)
-
-                # if matches.endswith(".npz"):
-                #     fragment0 = int(matches.rsplit(sep="_")[-2])
-                #     fragment1 = int(matches.rsplit(sep=".")[-2][-1])
-                #     self.kpt_matches_gt[(fragment0, fragment1)] = np.load(new_path + matches)
 
                 if matches.endswith(".npy"):
-                    # print("found npy")
-                    # idk if this is good
                     if "m0" in matches:
                         try:
                             fragment0 = int(matches.rsplit(sep="_")[-3])
@@ -107,12 +98,10 @@ class FracturedObject(object):
                             fragment1 = int(matches.rsplit(sep="_")[-3])
 
                         from_frag0_to_frag1 = np.load(os.path.join(keypoints_matchings_folder, matches))
-                        # Array is of shape (1, NUM_KEYPOINTS), let's make it (NUM_KEYPOINTS,).
                         from_frag0_to_frag1 = np.squeeze(from_frag0_to_frag1)
 
                         tuple_1 = []
                         tuple_2 = []
-                        # print(from_frag0_to_frag1)
 
                         # Only take fragment pairs that have at least N points matched.
                         if (from_frag0_to_frag1 != -1).sum() >= 4:
@@ -123,13 +112,7 @@ class FracturedObject(object):
 
                             tuple_1 = np.array(tuple_1)
                             tuple_2 = np.array(tuple_2)
-                            # print(tuple_1)
-                            # print(tuple_2)
                             self.kpt_matches_gt[(fragment0, fragment1)] = (tuple_1, tuple_2)
-                            # print(fragment0, fragment1)
-                            # print(type(tuple_1))
-                            # print(type(tuple_2))
-                        # self.kpt_matches_gt[(fragment0, fragment1)] = np.load(new_path + matches)
 
     # construct random transformation
     def create_random_pose(self):
@@ -187,8 +170,6 @@ class FracturedObject(object):
 
                 if use_gt:
                     if self.kpt_matches_gt[comb] is not None:
-                        # print(comb)
-                        # print(self.kpt_matches_gt[comb])
                         A_gt_idx, B_gt_idx = self.kpt_matches_gt[comb]
                         for i in A_gt_idx:
                             A_gt_pair.append(self.kpts_orig[comb[0]].data['points'][i])
@@ -234,48 +215,32 @@ class FracturedObject(object):
                         print("No valid solution for T -> creating NaN R, T")
                         self.transf[comb] = (None, None)
                         nb_non_matches += 1
-                elif find_t_method == "RANSAC":
-                    retval, out, inliers = estimateAffine3D(ptsA, ptsB, confidence=0.99)
-                    if not retval:
-                        print("Transformation estimation unsuccessful -> creating NaN R, T")
-                        self.transf[comb] = (None, None)
-                        nb_non_matches += 1
-                    else:
-                        print("Valid T estimated, " + str(np.sum(inliers)) + "/" + str(len(A_rp_pair)) + " inliers")
-                        R_mat = out[:, :3]
-                        t = out[:, 3]
-                        # print(out)
-                        R = Rotation.from_matrix(R_mat)
-                        self.transf[comb] = (R, t)
-                        nb_non_matches += 1
-                        match_pairwise[idx] = 1
 
                 elif find_t_method == "RANSAC_RIGID":
+
+                    #minimum number of samples to get a transformation is 3 (per fragment) we use 4 because it helps get better transformations
                     min_number_pairs = 4
+
+                    #Return NONE transformation if number of keypoint correspondences is not sufficient
                     if len(A_rp_pair) < min_number_pairs:
                         print("Not enough keypoint pairs, returning NAN transformation")
                         self.transf[comb] = (None, None)
                         nb_non_matches += 1
                     else:
-                        naive_model = Procrustes()
-                        naive_model.estimate(ptsA, ptsB)
-                        transform_naive = naive_model.params
-                        mse_naive = np.sqrt(naive_model.residuals(ptsA, ptsB).mean())
-                        print("mse naive: {}".format(mse_naive))
-
                         # estimate with RANSAC
                         ransac = RansacEstimator(min_samples=3, residual_threshold=0.01, max_trials=1000)
-
                         ret = ransac.fit(Procrustes(), [ptsA, ptsB])
                         transform_ransac = ret["best_params"]
                         inliers_ransac = ret["best_inliers"]
+
+                        #Get mean squared error of euclidean distance
                         mse_ransac = np.sqrt(Procrustes(transform_ransac).residuals(ptsA, ptsB).mean())
+                        mse_ransac_inliers = np.sqrt(Procrustes(transform_ransac).residuals(ptsA[inliers_ransac], ptsB[inliers_ransac]).mean())
                         print("mse ransac all: {}".format(mse_ransac))
-                        mse_ransac_inliers = np.sqrt(
-                            Procrustes(transform_ransac).residuals(ptsA[inliers_ransac], ptsB[inliers_ransac]).mean())
                         print("Number of ransac inliers: {}".format(sum(inliers_ransac)))
                         print("mse ransac inliers: {}".format(mse_ransac_inliers))
 
+                        #Get final transformation matrix
                         R_mat = transform_ransac[:3, :3]
                         t = transform_ransac[:3, 3]
                         self.transf[comb] = (R_mat, t)
@@ -287,8 +252,8 @@ class FracturedObject(object):
                     raise NotImplementedError
 
     def create_inverse_transformations_for_existing_pairs(self):
-        # For now I am just takinh the inverses, later we could also use m1 and notjust m0 files and compute these transformatinos like they do
-        # in the matlab script
+        """stores the transformatino from A -> B as the inverse transformation from B -> A.
+                """
         dict_inv = {}
         for key in self.transf:
             A = key[0]
@@ -305,12 +270,10 @@ class FracturedObject(object):
         self.constraints = []
         fragments = range(len(self.fragments.keys()))
         comb_triplewise = list(permutations(fragments, 3))
-        # print(comb_triplewise)
         for i in range(0, len(comb_triplewise)):
             first = comb_triplewise[i][0]
             second = comb_triplewise[i][1]
             third = comb_triplewise[i][2]
-            # print(first, second, third)
             index_12 = (first, second)
             index_23 = (second, third)
             index_13 = (first, third)
@@ -320,7 +283,6 @@ class FracturedObject(object):
                 T_12 = transform_from_rotm_tr(self.transf[index_12])
                 T_31 = transform_from_rotm_tr(self.transf[(third, first)])
                 T_32 = transform_from_rotm_tr(self.transf[(third, second)])
-                # print(T_32, T_31, T_12)
 
                 T_32_est = T_12 @ T_31
 
@@ -338,7 +300,6 @@ class FracturedObject(object):
                     print(f"TRIPLET MATCH: {(first, second, third)}")
                 else:
                     self.constraints += [(first, second, third)]
-                    print("NO Match")
         print(self.constraints)
 
     def graph_matching_original(self):
@@ -447,7 +408,7 @@ class FracturedObject(object):
         combinations = list(permutations(fragments, 2))
 
         for comb in combinations:
-            if self.fragment_matches_gt[comb[0], comb[1]]:  # TODO: it uses ground truth!!!!
+            if self.fragment_matches_gt[comb[0], comb[1]]:
                 keypoints0 = np.array(self.kpts_orig[comb[0]].data['points'])
                 keypoints1 = np.array(self.kpts_orig[comb[1]].data['points'])
                 dists = cdist(keypoints0, keypoints1)
@@ -461,50 +422,7 @@ class FracturedObject(object):
                 else:
                     self.kpt_matches_gt[(comb[0], comb[1])] = None
 
-    # def find_transformations_first3kpts(self):
-    #     for fragment0 in range(len(self.fragments) - 1):
-    #         for fragment1 in range(len(self.fragments) - 1):
-    #             if self.fragment_matches[fragment0][fragment1] and (fragment0, fragment1) in self.kpt_matches.keys():
-    #                 # pts0 = []
-    #                 # for match in self.kpt_matches[(fragment0, fragment1)][0:3]:
-    #                 #     pts0.append(self.fragments[fragment0].vertex[match])
-    #                 #
-    #                 # pts1 = []
-    #                 # for match in self.kpt_matches[(fragment1, fragment0)][0:3]:
-    #                 #     pts1.append(self.fragments[fragment1].vertex[match])
-    #
-    #                 pts0 = np.array(
-    #                     [self.keypoints[fragment0][idx] for idx in self.kpt_matches[(fragment0, fragment1)][0:3]])
-    #                 pts1 = np.array(
-    #                     [self.keypoints[fragment1][idx] for idx in self.kpt_matches[(fragment1, fragment0)][0:3]])
-    #
-    #                 # centroid0 = np.mean(pts0, axis=1)
-    #                 # centroid1 = np.mean(pts1, axis=1)
-    #                 #
-    #                 # centroid0 = centroid0.reshape(-1, 1)
-    #                 # centroid1 = centroid1.reshape(-1, 1)
-    #                 #
-    #                 # m0 = pts0 - centroid0
-    #                 # m1 = pts1 - centroid1
-    #                 #
-    #                 # H = m0 @ np.transpose(m1)
-    #                 # U, S, Vt = np.linalg.svd(H)
-    #                 # R = Vt.T @ U.T
-    #                 #
-    #                 # t = -R @ centroid0 + centroid1
-    #
-    #                 R, rmsd = Rotation.align_vectors(pts0, pts1)
-    #
-    #                 # insert random rotations for now:
-    #                 # theta_x = np.random.uniform(0, 2*np.pi)
-    #                 # theta_y = np.random.uniform(0, 2*np.pi)
-    #                 # theta_z = np.random.uniform(0, 2*np.pi)
-    #                 #
-    #                 # r = Rotation.from_euler_angles([theta_x, theta_y, theta_z])
-    #                 #
-    #                 # R = r.data["matrix"]
-    #
-    #                 self.transformations[(fragment0, fragment1)] = R
+
 
 
 class Procrustes:
@@ -567,6 +485,12 @@ class Procrustes:
 
 
 def transform_from_rotm_tr(transformation_pair):
+    """Get The 4x4 Homogeneous Transformation matrix from the Rotation matrix and a translation vector.
+            Args:
+              transformation_pair: A pair containing the 3x3 Rotation matrix and a 1x3 translation vector
+            Returns:
+              A Homogeneous 4x4 Transformation matrix
+            """
     rotation, translation = transformation_pair
     transform = np.eye(4)
     transform[:3, :3] = rotation
@@ -575,6 +499,13 @@ def transform_from_rotm_tr(transformation_pair):
 
 
 def compose_transforms(a, b):
+    """Get the chained transformation from two transformations.
+            Args:
+              a: First Transformation
+              b: Second Transformation
+            Returns:
+              The chained Transformatino TC = TA @ TB
+            """
     Ta = transform_from_rotm_tr(a)
     Tb = transform_from_rotm_tr(b)
 
@@ -612,12 +543,10 @@ class RansacEstimator:
             regression.
         Returns:
           A dictionary containing:
-            best_model: the model with the largest consensus set
-              and lowest residual error.
+            best_params: The transformation found from the best model.
             inliers: a boolean mask indicating the inlier subset
               of the data for the best model.
         """
-        best_model = None
         best_inliers = None
         best_num_inliers = 0
         best_residual_sum = np.inf
@@ -626,10 +555,9 @@ class RansacEstimator:
             data = [data]
         num_data, num_feats = data[0].shape
 
-        print(num_feats)
-
         if self.min_samples is None:
             self.min_samples = num_feats + 1
+
         if self.residual_threshold is None:
             if len(data) > 1:
                 data_idx = 1
@@ -669,7 +597,6 @@ class RansacEstimator:
             "best_params": model.params,
             "best_inliers": best_inliers,
         }
-        print("best num inliers: ", best_num_inliers)
         return ret
 
 
