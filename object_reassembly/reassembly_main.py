@@ -9,7 +9,7 @@ from compas_vis import compas_show
 from fractured_object import FracturedObject
 
 here = os.path.dirname(os.path.abspath(__file__))
-path = "data_from_pred/"
+path = "data_from_pred"
 
 visualize = True #True
 #vis_idx = (1, 3)
@@ -34,8 +34,6 @@ def pairwise_reassembly(obj):
     print(obj.kpt_matches_gt)
     for key in obj.kpt_matches_gt:
         print("current matching pair = ", key)
-        #if vis_idx and sorted(key) != sorted(vis_idx):
-           # continue
         A = key[0]
         B = key[1]
         matches_AB = obj.kpt_matches_gt[key]
@@ -104,3 +102,4 @@ if __name__ == "__main__":
         full_reassembly(obj)
     else:
         pairwise_reassembly(obj)
+
