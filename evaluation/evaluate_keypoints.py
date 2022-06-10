@@ -4,7 +4,6 @@ import functools
 import math
 import os
 from glob import glob
-from multiprocessing import Pool
 from typing import Dict, List
 
 import numpy as np
@@ -12,8 +11,6 @@ import open3d as o3d
 import pandas as pd
 from open3d.cpu.pybind.geometry import PointCloud
 from scipy.spatial import KDTree
-from scipy.spatial.distance import cdist
-from tqdm import tqdm
 
 from process_folder_cluster import get_keypoints, get_fragment_matchings
 
@@ -23,7 +20,13 @@ np.random.seed(42)
 angles = np.random.uniform(low=0, high=2 * math.pi, size=(3,))
 ROTATION = PointCloud().get_rotation_matrix_from_xyz(angles)
 REVERSE_ROTATION = PointCloud().get_rotation_matrix_from_xyz(-angles)
+
+angles_2 = np.random.uniform(low=0, high=2 * math.pi, size=(3,))
+ROTATION_2 = PointCloud().get_rotation_matrix_from_xyz(angles_2)
+REVERSE_ROTATION_2 = PointCloud().get_rotation_matrix_from_xyz(-angles_2)
+
 KEYPOINT_METHODS = ['SD', 'sticky', 'hybrid', 'iss']  # , 'harris']
+# KEYPOINT_METHODS = ['harris']
 NUM_KEYPOINTS = 512
 
 
@@ -36,27 +39,31 @@ def calculate_score(keypoints1, keypoints2):
     return closest
 
 
-def evaluate_repeatability(fragment_idx, pcd, keypoints, args, method, folder_path):
+def evaluate_repeatability(fragment_idx, pcd, args, method, folder_path):
     c = pcd.get_center()
     pcd = pcd.translate(-1 * c)
     pcd_rotated = copy.deepcopy(pcd).rotate(ROTATION, center=(0, 0, 0))
+    pcd_rotated_2 = copy.deepcopy(pcd).rotate(ROTATION_2, center=(0, 0, 0))
 
     args.keypoint_method = method
-    keypoints_rotated = get_keypoints(fragment_idx, np.array(pcd_rotated.points), np.array(pcd_rotated.normals),
-                                      args=args, desc_normal=None, desc_inv=None, folder_path=folder_path,
-                                      npoints=NUM_KEYPOINTS,
-                                      keypoints_only=True, tag='rotated')
-
-    kpts_pcd = PointCloud(o3d.utility.Vector3dVector(keypoints[:, :3]))
+    keypoints_rotated, _ = get_keypoints(fragment_idx, np.array(pcd_rotated.points), np.array(pcd_rotated.normals),
+                                      method=method, folder_path=folder_path,
+                                      npoints=NUM_KEYPOINTS, tag='rotated')
+    keypoints_rotated_2, _ = get_keypoints(fragment_idx, np.array(pcd_rotated_2.points), np.array(pcd_rotated_2.normals),
+                                        method=method, folder_path=folder_path,
+                                        npoints=NUM_KEYPOINTS, tag='rotated_2')
     kpts_pcd_rotated = PointCloud(o3d.utility.Vector3dVector(keypoints_rotated[:, :3]))
     kpts_pcd_rotated = kpts_pcd_rotated.rotate(REVERSE_ROTATION)
 
-    closest = calculate_score(kpts_pcd.points, kpts_pcd_rotated.points)
+    kpts_pcd_rotated_2 = PointCloud(o3d.utility.Vector3dVector(keypoints_rotated_2[:, :3]))
+    kpts_pcd_rotated_2 = kpts_pcd_rotated_2.rotate(REVERSE_ROTATION_2)
+
+    closest = calculate_score(kpts_pcd_rotated_2.points, kpts_pcd_rotated.points)
 
     return closest
 
 
-def evaluate_surface_repeatability(fragments: List[o3d.geometry.PointCloud], keypoints, folder_path, method):
+def evaluate_surface_repeatability(fragments: List[o3d.geometry.PointCloud], folder_path, method):
     matching_matrix = get_fragment_matchings(fragments, folder_path)
 
     data = []
@@ -66,16 +73,14 @@ def evaluate_surface_repeatability(fragments: List[o3d.geometry.PointCloud], key
         b_rotated = copy.deepcopy(fragments[b]).rotate(ROTATION, center=(0, 0, 0))
 
         args.keypoint_method = method
-        keypoints_a = get_keypoints(a, np.array(a_rotated.points), np.array(a_rotated.normals),
-                                    args=args, desc_normal=None, desc_inv=None, folder_path=folder_path,
-                                    npoints=NUM_KEYPOINTS,
-                                    keypoints_only=True, tag='rotated')
-        keypoints_b = get_keypoints(b, np.array(b_rotated.points), np.array(b_rotated.normals),
-                                    args=args, desc_normal=None, desc_inv=None, folder_path=folder_path,
-                                    npoints=NUM_KEYPOINTS,
-                                    keypoints_only=True, tag='rotated')
+        keypoints_a, _ = get_keypoints(a, np.array(a_rotated.points), np.array(a_rotated.normals),
+                                    method=method, folder_path=folder_path,
+                                    npoints=NUM_KEYPOINTS, tag='rotated')
+        keypoints_b, _ = get_keypoints(b, np.array(b_rotated.points), np.array(b_rotated.normals),
+                                    method=method, folder_path=folder_path,
+                                    npoints=NUM_KEYPOINTS, tag='rotated')
         if a < b:  # Only once per pair.
-            data.append((a, b, *calculate_score(keypoints_a, keypoints_b)))
+            data.append((a, b, *calculate_score(keypoints_a[:, :3], keypoints_b[:, :3])))
 
     return data
 
@@ -94,21 +99,11 @@ def process_folder(args, folder_path):
         file_path = os.path.join(args.path, folder_path, 'cleaned', f'{object_name}_cleaned.{i}.pcd')
         fragment_pcds.append(o3d.io.read_point_cloud(file_path))
 
-    all_keypoints: Dict[str, List[PointCloud]] = {}  # method: {idx: kpts}
-    for method in KEYPOINT_METHODS:
-        all_keypoints[method] = []
-        for i, f in enumerate(fragment_pcds):
-            args.keypoint_method = method
-            keypoints = get_keypoints(i, np.array(f.points), np.array(f.normals), args=args, desc_normal=None,
-                                      desc_inv=None, folder_path=folder_path, npoints=NUM_KEYPOINTS,
-                                      keypoints_only=True)
-            all_keypoints[method].append(keypoints)
-
     # object name, fragment, method, distances
     data_repeatability = []
     for i, pcd in enumerate(fragment_pcds):
         for method in KEYPOINT_METHODS:
-            distances = evaluate_repeatability(i, pcd, all_keypoints[method][i], args, method, folder_path)
+            distances = evaluate_repeatability(i, pcd, args, method, folder_path)
             if method == 'iss':
                 missing = 2 * NUM_KEYPOINTS - distances.shape[0]
                 distances = np.pad(distances, (0, missing), mode='constant', constant_values=np.nan)
@@ -117,7 +112,7 @@ def process_folder(args, folder_path):
     # object name, method, fragment_1, fragment_2, distances
     surface_repeatability = []
     for method in KEYPOINT_METHODS:
-        data = evaluate_surface_repeatability(fragment_pcds, all_keypoints[method], folder_path, method)
+        data = evaluate_surface_repeatability(fragment_pcds, folder_path, method)
         print(f"folder {folder_path} has {len(data)} pairs.")
         for entry in data:
             if method == 'iss':
@@ -146,7 +141,6 @@ if __name__ == "__main__":
     data = []
     for p in paths:
         data += [process_folder(args, p)]
-
 
     repeatability = pd.DataFrame(data=[entry for sublist, _ in data for entry in sublist],
                                  columns=['object_name', 'fragment_idx', 'method',

@@ -2,7 +2,7 @@ import os
 from copy import deepcopy
 
 import numpy as np
-import open3d.cpu.pybind.geometry
+import open3d as o3d
 from scipy.spatial import KDTree
 from scipy.spatial.distance import norm
 from sklearn.decomposition import PCA
@@ -10,7 +10,7 @@ from sklearn.decomposition import PCA
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.tools import polyfit3d
 from tools.transformation import centering_centroid
-import open3d as o3d
+
 
 def get_hybrid_keypoints(vertices, normals, n_neighbors, n_keypoints=512, sharp_percentage=0.6, mixture=0.7):
     c, sd = compute_smoothness_sd(vertices, normals, n_neighbors)
@@ -219,57 +219,40 @@ def get_iss_keypoints(vertices):
     return np.array(keypoints.points)
 
 
-def get_keypoints(i, vertices, normals, desc_normal, desc_inv, args, folder_path, npoints, keypoints_only=False, tag=''):
-    method = args.keypoint_method
+def get_keypoints(i, vertices, normals, method, folder_path, npoints=512, tag=''):
     if len(tag) > 0:
         tag += '_'
-    processed_path = os.path.join(args.path, folder_path, 'processed')
+    processed_path = os.path.join(folder_path, 'processed')
     keypoint_path = os.path.join(processed_path, 'keypoints', f'keypoints_{tag}{method}.{i}.npy')
+    keypoint_idxs_path = os.path.join(processed_path, 'keypoints', f'keypoint_idxs_{tag}{method}.{i}.npy')
 
     os.makedirs(os.path.dirname(keypoint_path), exist_ok=True)
 
-    if keypoints_only and os.path.exists(keypoint_path):
-        keypoints = np.load(keypoint_path)
-        return keypoints
+    if os.path.exists(keypoint_path) and os.path.exists(keypoint_idxs_path):
+        try:
+            keypoints = np.load(keypoint_path)
+            keypoint_idxs = np.load(keypoint_idxs_path)
+            return keypoints, keypoint_idxs
+        except Exception as e:
+            print("Keypoints could not be loaded. Computing...")
+            os.remove(keypoint_path)
+            os.remove(keypoint_idxs_path)
 
-    if not "pillar" in args.descriptor_method:
-        kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',
-                                             f'keypoint_descriptors_{tag}{method}_{args.descriptor_method}.{i}.npy')
-        kpts_desc_path_inverted = os.path.join(processed_path, 'keypoint_descriptors_inverted',
-                                               f'keypoint_descriptors_{tag}{method}_{args.descriptor_method}.{i}.npy')
-    else:
-        kpts_desc_path_normal = os.path.join(processed_path, 'pillar_keypoint_descriptors',
-                                             f'keypoint_descriptors_{tag}{method}_{args.descriptor_method}.{i}.npy')
-        kpts_desc_path_inverted = os.path.join(processed_path, 'pillar_keypoint_descriptors_inverted',
-                                               f'keypoint_descriptors_{tag}{method}_{args.descriptor_method}.{i}.npy')
-    os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
-    os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)
-    if os.path.exists(kpts_desc_path_normal) and os.path.exists(kpts_desc_path_inverted) and os.path.exists(keypoint_path):
-        keypoints = np.load(keypoint_path)
-        return keypoints
-
-    if args.keypoint_method == 'SD':
+    if method == 'SD':
         keypoints, keypoint_idxs = get_SD_keypoints(vertices, normals, r=0.1, nkeypoints=npoints)
-    elif args.keypoint_method == 'sticky':
+    elif method == 'sticky':
         keypoints, keypoint_idxs = get_pillar_keypoints(vertices, 12, npoints)
-    elif args.keypoint_method == 'hybrid':
+    elif method == 'hybrid':
         keypoints, keypoint_idxs = get_hybrid_keypoints(vertices, normals, 12, npoints)
-    elif args.keypoint_method == 'harris':
+    elif method == 'harris':
         keypoint_idxs = get_harris_keypoints(vertices, npoints)
         keypoints = vertices[keypoint_idxs]
-    elif args.keypoint_method == 'iss':
-        assert keypoints_only
+    elif method == 'iss':
         keypoints = get_iss_keypoints(vertices)
         keypoint_idxs = None
     else:
         raise NotImplementedError
 
     np.save(keypoint_path, keypoints)
-    if not keypoints_only:
-        kpt_desc_normal = desc_normal[keypoint_idxs]
-        np.save(kpts_desc_path_normal, kpt_desc_normal)
-        if args.keypoint_method == 'SD' or (args.keypoint_method == 'hybrid' and args.descriptor_method != "pillar"):
-            kpt_desc_invert = desc_inv[keypoint_idxs]
-            np.save(kpts_desc_path_inverted, kpt_desc_invert)
-
-    return keypoints
+    np.save(keypoint_idxs_path, keypoint_idxs)
+    return keypoints, keypoint_idxs

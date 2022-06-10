@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import open3d as o3d
 from scipy.spatial import KDTree
@@ -85,9 +87,7 @@ def pillar_encoder(kpts, pcd, sample_size=10):
     return np.array(features)
 
 
-def get_descriptors(vertices, normals, args):
-    method = args.descriptor_method
-
+def get_descriptors(vertices, normals, method: str):
     if method == 'fpfh':
         desc_norm, desc_inv = calculate_fpfh(vertices, normals)
         return desc_norm, desc_inv
@@ -99,3 +99,19 @@ def get_descriptors(vertices, normals, args):
     if method == "fpfh_pillar":
         pillar_norm, pillar_inv = fpfh_pillar_encoder(vertices, normals)
         return pillar_norm, pillar_inv
+
+
+def save_descriptors(descriptors, descriptors_inv, object_folder_path, keypoint_method, descriptor_method, fragment_id, tag=''):
+    if len(tag) > 0:
+        tag += '_'
+    processed_path = os.path.join(object_folder_path, 'processed')
+
+    kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',
+                                         f'keypoint_descriptors_{tag}{keypoint_method}_{descriptor_method}.{fragment_id}.npy')
+    os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
+    np.save(kpts_desc_path_normal, descriptors)
+    if descriptors_inv:
+        kpts_desc_path_inverted = os.path.join(processed_path, 'keypoint_descriptors_inverted',
+                                               f'keypoint_descriptors_{tag}{keypoint_method}_{descriptor_method}.{fragment_id}.npy')
+        os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)
+        np.save(kpts_desc_path_inverted, descriptors_inv)

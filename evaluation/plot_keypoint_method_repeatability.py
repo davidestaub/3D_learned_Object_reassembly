@@ -41,7 +41,7 @@ def plot(name, last_info_column, title):
     fig = plt.figure(figsize=(6, 12))
     axes = fig.subplots(len(methods), 1, sharex=True)
     [plot_dists(dists, df, method, ax) for method, ax in zip(methods, axes)]
-    plt.savefig(f'{name}.svg')
+    plt.savefig(f'{name}.pdf')
     fig.show()
 
     fig = plt.figure(figsize=(4, 4))
@@ -56,7 +56,7 @@ def plot(name, last_info_column, title):
     ax.legend(handles=patches, labels=labels, loc='upper left')
     plt.grid(visible=True)
     plt.subplots_adjust(left=0.2, right=0.95, top=0.93)
-    plt.savefig(f'{name}_cumulative.svg', bbox_inches='tight')
+    plt.savefig(f'{name}_cumulative.pdf', bbox_inches='tight')
     fig.show()
 
     r = 0.05

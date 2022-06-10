@@ -8,7 +8,7 @@ import numpy as np
 import open3d as o3d
 from scipy.sparse import save_npz, csr_matrix
 
-from keypoints_and_descriptors.descriptors import get_descriptors
+from keypoints_and_descriptors.descriptors import get_descriptors, save_descriptors
 from keypoints_and_descriptors.keypoints import get_keypoints
 from keypoints_and_descriptors.utils import get_fragment_matchings, get_keypoint_assignment
 
@@ -54,9 +54,18 @@ def process_folder(folder_path, args):
         frag_norm.append(normals)
 
     keypoints = []
+    full_object_folder_path = os.path.join(args.path.args, folder_path)
     for i in range(num_fragments):
-        desc_n, desc_inv = get_descriptors(frag_vert[i], frag_norm[i], args)
-        frag_kpts = get_keypoints(i, frag_vert[i], frag_norm[i], desc_n, desc_inv, args, folder_path, 512)
+        desc_n, desc_inv = get_descriptors(frag_vert[i], frag_norm[i], args.descriptor_method)
+        frag_kpts, keypoints_idxs = get_keypoints(i, frag_vert[i], frag_norm[i], args.keypoint_method,
+                                                  folder_path=full_object_folder_path, npoints=512)
+        kpts_desc_n = desc_n[keypoints_idxs]
+        if desc_inv:
+            kpts_desc_inv = desc_inv[keypoints_idxs]
+        else:
+            kpts_desc_inv = None
+        save_descriptors(kpts_desc_n, kpts_desc_inv, full_object_folder_path, args.keypoint_method,
+                         args.decriptor_method, fragment_id=i)
         keypoints.append(frag_kpts)
 
     # log for matches

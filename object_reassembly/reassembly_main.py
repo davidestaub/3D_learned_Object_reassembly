@@ -83,7 +83,6 @@ def pairwise_reassembly(obj):
             print("not matched")
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir')
@@ -94,7 +93,7 @@ if __name__ == "__main__":
         data_dir = tkinter.Tk()
         data_dir.withdraw()
         data_dir = filedialog.askdirectory(parent=data_dir, initialdir=os.getcwd(),
-                                           title='Please select the parent directory of the fractured object folders')
+                                           title='Please select the fractured object folder.')
     else:
         data_dir = args.data_dir
 

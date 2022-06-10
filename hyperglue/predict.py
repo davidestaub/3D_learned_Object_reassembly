@@ -1,43 +1,40 @@
-import argparse, os
+import argparse
+import os
 import shutil
-from tqdm import tqdm
-from hyperglue_cluster import build_model, batch_to_device
-from dataset import DatasetPredict
-from utils import conf as conf
-import numpy as np
 import tkinter
 from tkinter import filedialog
-import os
+
+import numpy as np
 import torch
+from tqdm import tqdm
+
+from dataset import DatasetPredict
+from hyperglue_cluster import build_model, batch_to_device
+from utils import conf as conf
 
 
 def create_output_folders(folder_root):
     """Creates necessary folders for the model prediction"""
     for folder in os.listdir(folder_root):
-        shutil.rmtree(os.path.join(folder_root, folder, 'predictions'), ignore_errors=True)        
+        shutil.rmtree(os.path.join(folder_root, folder, 'predictions'), ignore_errors=True)
         os.makedirs(os.path.join(folder_root, folder, 'predictions'))
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('hyperglue','weights', 'small.pth'))
-    parser.add_argument('--data_dir')
-    args = parser.parse_intermixed_args()
 
-    if not args.data_dir:
-        root = tkinter.Tk()
-        root.withdraw()
-        root = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),title='Please select the parent directory of the fractured object folders')
-    else:
-        root = args.data_dir
-    # create the necessary config and create the model and dataset
+def predict(weights_path, folder_path, single_object=False):
+    # Set single object to true if `folder_path` points directly to the object directory. Set it to False if it's a
+    # folder containing multiple object folders.
     config_all = {**conf.model_conf, **conf.data_conf, **conf.train_conf}
     print(conf.train_conf)
-    model = build_model(args.weights_path, config_all)
-    dataset = DatasetPredict(root, config_all)
+    model = build_model(weights_path, config_all)
+    dataset = DatasetPredict(folder_path, config_all, single_object)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model.to(device)
 
-    create_output_folders(root)
+    if single_object:
+        shutil.rmtree(os.path.join(folder_path, 'predictions'), ignore_errors=True)
+        os.makedirs(os.path.join(folder_path, 'predictions'))
+    else:
+        create_output_folders(folder_path)
 
     # predict each possible pair
     for item in tqdm(dataset, desc="Predict"):
@@ -48,24 +45,47 @@ if __name__ == '__main__':
         name = item['pair_name']
         basename = '_'.join(name.split('_')[:-2])
         name_pair = '_'.join(['prediction'] + name.split('_')[-2:])
-        basepath = os.path.join(root, basename,'predictions')
+        if single_object:
+            basepath = os.path.join(folder_path, 'predictions')
+        else:
+            basepath = os.path.join(folder_path , basename, 'predictions')
         m0 = pred["matches0"].cpu().squeeze()
         m1 = pred["matches1"].cpu().squeeze()
+        print(f"Num matches 0: {(m0 != -1).sum()}")
+        print(f"Num matches 1: {(m0 != -1).sum()}")
 
         np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
         np.save(os.path.join(basepath, f'{name_pair}_m1.npy'), m1)
 
-        '''        
-        matches = np.zeros(len(m0))
-        for i, match in enumerate(m0):
-            if i == m1[match]:
-                matches[i] = match
-            else:
-                matches[i] = -1
 
-        sm = sum(matches > -1)
-        print(sm)
-        #s0, s1 = sum(m0>-1), sum(m1>-1)
-        if sm >= 6:
-            np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
-            '''
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--weights_path', default=os.path.join('weights', 'small.pth'))
+    parser.add_argument('--data_dir')
+    args = parser.parse_intermixed_args()
+
+    if not args.data_dir:
+        root = tkinter.Tk()
+        root.withdraw()
+        root = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),
+                                       title='Please select the parent directory of the fractured object folders')
+    else:
+        root = args.data_dir
+    # create the necessary config and create the model and dataset
+
+    predict(args.weights_path, root)
+
+    # '''
+    # matches = np.zeros(len(m0))
+    # for i, match in enumerate(m0):
+    #     if i == m1[match]:
+    #         matches[i] = match
+    #     else:
+    #         matches[i] = -1
+    #
+    # sm = sum(matches > -1)
+    # print(sm)
+    # #s0, s1 = sum(m0>-1), sum(m1>-1)
+    # if sm >= 6:
+    #     np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
+    #     '''

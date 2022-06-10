@@ -1,5 +1,6 @@
 import os
 from collections import OrderedDict
+from glob import glob
 from itertools import permutations
 from typing import Dict, List
 
@@ -19,7 +20,7 @@ np.random.seed(42)
 
 class FracturedObject(object):
 
-    def __init__(self, path, graph_matching_method):
+    def __init__(self, path, graph_matching_method, keypoint_method='hybrid'):
         self.name = os.path.basename(path)
         self.path = path
         self.fragments_orig: Dict[int, Mesh] = {}
@@ -34,6 +35,7 @@ class FracturedObject(object):
         self.transf = OrderedDict()  # key: (A,B), value: (R,t), apply R(A)+t to match A to B
         self.constraints = None  # List of triplet constraints (a, b, c)
         self.N = -1
+        self.keypoint_method = keypoint_method
         assert graph_matching_method in ['mst', 'original']
         self.graph_matching_method = graph_matching_method
 
@@ -58,17 +60,13 @@ class FracturedObject(object):
         self.N = len(self.fragments)
         print("Loading keypoints of object " + self.name + "...")
 
-        new_path = self.path + "/processed/keypoints/"
-
-        for kpts in os.listdir(new_path):
-            frag_no = int(kpts.rsplit(sep=".")[1])
-            # print(frag_no)
-            # print(new_path + kpts)
-            # print(np.load(new_path + kpts))
-            npy_kpts = np.load(new_path + kpts)[:, 0:3]
-            # print(npy_kpts)
-            self.kpts_orig[frag_no] = Pointcloud(npy_kpts)
-            self.kpts[frag_no] = Pointcloud(npy_kpts)
+        keypoint_glob = os.path.join(self.path, "processed", "keypoints", f"keypoints_{self.keypoint_method}.*.npy")
+        keypoint_files = glob(keypoint_glob)
+        for i in range(keypoint_files):
+            keypoint_path = os.path.join(self.path, "processed", "keypoints", f"keypoints_{self.keypoint_method}.{i}.npy")
+            npy_kpts = np.load(keypoint_path)[:, 0:3]
+            self.kpts_orig[i] = Pointcloud(npy_kpts)
+            self.kpts[i] = Pointcloud(npy_kpts)
 
     def save_object(self, path):
         # TODO: implement
@@ -82,10 +80,7 @@ class FracturedObject(object):
         print(new_path)
 
         self.fragment_matches_gt = np.load(new_path).astype(bool)
-        keypoints_matchings_folder = os.path.join(self.path, 'predictions')
 
-        #Trying to fix it
-        keypoints_matchings_folder = self.path + "/processed/matching/"
         keypoints_matchings_folder = os.path.join(self.path, 'predictions')
         
         if gt_from_closest:
@@ -269,7 +264,7 @@ class FracturedObject(object):
                         print("mse naive: {}".format(mse_naive))
 
                         # estimate with RANSAC
-                        ransac = RansacEstimator(min_samples=3, residual_threshold=(0.01), max_trials=100, )
+                        ransac = RansacEstimator(min_samples=3, residual_threshold=0.01, max_trials=1000)
                         ret = ransac.fit(Procrustes(), [ptsA, ptsB])
                         transform_ransac = ret["best_params"]
                         inliers_ransac = ret["best_inliers"]
@@ -277,6 +272,7 @@ class FracturedObject(object):
                         print("mse ransac all: {}".format(mse_ransac))
                         mse_ransac_inliers = np.sqrt(
                             Procrustes(transform_ransac).residuals(ptsA[inliers_ransac], ptsB[inliers_ransac]).mean())
+                        print("Number of ransac inliers: {}".format(sum(inliers_ransac)))
                         print("mse ransac inliers: {}".format(mse_ransac_inliers))
 
                         R_mat = transform_ransac[:3, :3]
