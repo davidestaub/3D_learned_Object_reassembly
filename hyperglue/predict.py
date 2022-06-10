@@ -19,25 +19,9 @@ def create_output_folders(folder_root):
         os.makedirs(os.path.join(folder_root, folder, 'predictions'))
 
 
-<<<<<<< HEAD
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('weights', 'small.pth'))
-    parser.add_argument('--data_dir')
-    args = parser.parse_intermixed_args()
-
-    if not args.data_dir:
-        root = tkinter.Tk()
-        root.withdraw()
-        root = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),title='Please select the parent directory of the fractured object folders')
-    else:
-        root = args.data_dir
-    # create the necessary config and create the model and dataset
-=======
 def predict(weights_path, folder_path, single_object=False):
     # Set single object to true if `folder_path` points directly to the object directory. Set it to False if it's a
     # folder containing multiple object folders.
->>>>>>> 8315a6a5e17cfe2cad4f725d5bc75d59ef090fce
     config_all = {**conf.model_conf, **conf.data_conf, **conf.train_conf}
     print(conf.train_conf)
     model = build_model(weights_path, config_all)
