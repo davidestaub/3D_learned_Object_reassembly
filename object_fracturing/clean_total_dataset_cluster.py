@@ -62,13 +62,13 @@ def handle_folder(object_folder):
             # explode them to sepparate loose parts
             exploded_meshes = mesh_explode(mesh)
             if len(exploded_meshes) > 1:
-                log.append("The object:     " + filename + " had " +
-                           str(len(exploded_meshes)) + " loose parts!\n")
+                log.append("The object:     " + filename + " had " + str(len(exploded_meshes)) + " loose parts!\n")
 
             # save all the individual objects
             for ex_mesh in exploded_meshes:
                 # delete tiny pieces
-                if len(list(ex_mesh.vertices())) < 1000:
+                num_vertices = len(list(ex_mesh.vertices()))
+                if num_vertices < 1000:
                     log.append(f'Deleted a small fragment of shard: {shard_counter}\n')
                     continue
 
