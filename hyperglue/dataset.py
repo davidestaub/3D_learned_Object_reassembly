@@ -7,10 +7,10 @@ import torch
 import torch.utils.data as td
 from scipy.sparse import load_npz
 from sklearn.model_selection import train_test_split
-from hyperglue.utils.conf import *
+from utils.conf import *
 
 def pc_normalize(pc):
-    """normalizes a pointcloud by centering and unit scaling"""
+    """normalizes a pointcloud by centering"""
     centroid = np.mean(pc, axis=0)
     pc = pc - centroid
     return pc
@@ -272,6 +272,7 @@ class DatasetTrain(td.Dataset):
         # load descriptors
         des0 = np.load(desc_path_0)
         des1 = np.load(desc_path_1)
+
         #zero pad if needed
         if not self.pillar:
             diff =  model_conf['descriptor_dim'] - des0.shape[1]

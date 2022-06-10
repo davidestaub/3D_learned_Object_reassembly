@@ -1,15 +1,14 @@
 import argparse
 import os
 import shutil
+from model import build_model, batch_to_device
+from dataset import DatasetPredict
+from utils import conf as conf
+import numpy as np
 import tkinter
 from tkinter import filedialog
-
-import numpy as np
 import torch
 from tqdm import tqdm
-
-from dataset import DatasetPredict
-from hyperglue_cluster import build_model, batch_to_device
 from utils import conf as conf
 
 
@@ -60,7 +59,7 @@ def predict(weights_path, folder_path, single_object=False):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('weights', 'small.pth'))
+    parser.add_argument('--weights_path', default=os.path.join('weights', 'model_weights.pth'))
     parser.add_argument('--data_dir')
     args = parser.parse_intermixed_args()
 
@@ -74,18 +73,3 @@ if __name__ == '__main__':
     # create the necessary config and create the model and dataset
 
     predict(args.weights_path, root)
-
-    # '''
-    # matches = np.zeros(len(m0))
-    # for i, match in enumerate(m0):
-    #     if i == m1[match]:
-    #         matches[i] = match
-    #     else:
-    #         matches[i] = -1
-    #
-    # sm = sum(matches > -1)
-    # print(sm)
-    # #s0, s1 = sum(m0>-1), sum(m1>-1)
-    # if sm >= 6:
-    #     np.save(os.path.join(basepath, f'{name_pair}_m0.npy'), m0)
-    #     '''

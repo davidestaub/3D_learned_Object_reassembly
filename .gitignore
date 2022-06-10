@@ -17,6 +17,7 @@ object_reassembly/result.mp4
 object_reassembly/data
 object_reassembly/data_from_pred
 wandb/
+report/
 .vscode/
 /hyperglue/data_evaluation/
-report/
+

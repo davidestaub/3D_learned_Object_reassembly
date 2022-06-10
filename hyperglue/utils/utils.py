@@ -7,9 +7,35 @@ import torch.utils.data
 import wandb
 from matplotlib.colors import ListedColormap
 from torch._six import string_classes
+import random
 
+# colormap for weights and biases visualization
 colors = 'red blue orange green'.split()
 cmap = ListedColormap(colors, name='colors')
+
+
+def set_seed(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+
+class AverageMetric:
+    def __init__(self):
+        self._sum = 0
+        self._num_examples = 0
+
+    def update(self, tensor):
+        assert tensor.dim() == 1
+        tensor = tensor[~torch.isnan(tensor)]
+        self._sum += tensor.sum().item()
+        self._num_examples += len(tensor)
+
+    def compute(self):
+        if self._num_examples == 0:
+            return np.nan
+        else:
+            return self._sum / self._num_examples
 
 
 def map_tensor(input_, func):
@@ -39,7 +65,7 @@ def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int)
     """ Perform Differentiable Optimal Transport in Log-space for stability"""
     b, m, n = scores.shape
     one = scores.new_tensor(1)
-    ms, ns = (m*one).to(scores), (n*one).to(scores)
+    ms, ns = (m * one).to(scores), (n * one).to(scores)
 
     bins0 = alpha.expand(b, m, 1)
     bins1 = alpha.expand(b, 1, n)
@@ -74,8 +100,7 @@ def construct_match_matrix(x0, x1):
             if match != 0:
                 mat[match.long(), idx] = 1
         matrices.append(mat)
-    return(torch.cat(matrices, dim=1))
-
+    return (torch.cat(matrices, dim=1))
 
 
 def batch_to_device(batch, device, non_blocking=True):
@@ -91,10 +116,12 @@ def batch_to_device(batch, device, non_blocking=True):
     Returns:
       A map of tensors to the device
     """
+
     def _func(tensor):
         return tensor.to(device=device, non_blocking=non_blocking)
 
     return map_tensor(batch, _func)
+
 
 def arange_like(x, dim: int):
     """
@@ -120,33 +147,34 @@ def construct_match_vector(gt, pred):
     :return: A list of lists.
     """
 
-    mat = np.zeros((10, len(gt)+1))
+    mat = np.zeros((10, len(gt) + 1))
     for i in range(len(gt)):
         g = gt[i]
         p = pred[i]
         if g == p and g == -1:
-            mat[:, i] = 1 #blue
+            mat[:, i] = 1  # blue
         elif g == p and g != -1:
-            mat[:, i] = 3 # green
+            mat[:, i] = 3  # green
         elif g != p and g == -1:
-            mat[:, i] = 2 # orange
+            mat[:, i] = 2  # orange
         else:
-            mat[:, i] = 0 #red
+            mat[:, i] = 0  # red
 
     # add additional green entry to force matplotlib to show
     # all colors
-    mat[:,i+1] = 3
+    mat[:, i + 1] = 3
 
     return mat.tolist()
+
 
 def plot_matching_vector(data, pred):
     """Generates a matching vector and their respective ground truth for both fragments"""
 
     fig, axs = plt.subplots(2, 1, figsize=(10, 2))
     gt0 = data['gt_matches0'].cpu().detach().numpy()[0]
-    pred0= pred['matches0'].cpu().detach().numpy()[0]
+    pred0 = pred['matches0'].cpu().detach().numpy()[0]
     gt1 = data['gt_matches1'].cpu().detach().numpy()[0]
-    pred1= pred['matches1'].cpu().detach().numpy()[0]
+    pred1 = pred['matches1'].cpu().detach().numpy()[0]
 
     # construct the matching matrix
     # by converting from index correspondence to a vector with three values
@@ -154,12 +182,12 @@ def plot_matching_vector(data, pred):
     # 1:Blue   -> There is no match and it predicted no match
     # 2:Orange -> There is no match but it predicted one
     # 3:Green  -> There is a match and the prediction is true
-    
+
     matches0 = construct_match_vector(gt0, pred0)
     matches1 = construct_match_vector(gt1, pred1)
     # detach to cpu and generate plots
-    axs[0].imshow(matches0, cmap = cmap)
-    axs[1].imshow(matches1, cmap = cmap)
+    axs[0].imshow(matches0, cmap=cmap)
+    axs[1].imshow(matches1, cmap=cmap)
     axs[0].set_title('matches 0')
     axs[1].set_title('matches 1')
     axs[0].get_xaxis().set_ticks([])
@@ -167,5 +195,5 @@ def plot_matching_vector(data, pred):
     axs[0].get_yaxis().set_ticks([])
     axs[1].get_yaxis().set_ticks([])
     plt.tight_layout()
-    wandb.log({"matching" : fig})
+    wandb.log({"matching": fig})
     plt.close('all')

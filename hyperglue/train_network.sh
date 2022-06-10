@@ -1,1 +1,0 @@
-bsub -n 4 -R "rusage[ngpus_excl_p=1, mem=5000]" -R "select[gpu_mtotal0>=10240]" python hyperglue_cluster.py
