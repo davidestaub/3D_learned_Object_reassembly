@@ -1,4 +1,6 @@
-from distutils.command.config import config
+import os
+from glob import glob
+
 import os
 from glob import glob
 
@@ -7,7 +9,9 @@ import torch
 import torch.utils.data as td
 from scipy.sparse import load_npz
 from sklearn.model_selection import train_test_split
-from utils.conf import *
+
+from neural_network.utils.conf import *
+
 
 def pc_normalize(pc):
     """normalizes a pointcloud by centering"""
@@ -48,8 +52,8 @@ class DatasetPredict(td.Dataset):
         desc_method = '_'.join([conf['kpts'], conf['desc']])
         # correct settings of hyperpillar
         if conf['pillar']:
-            kpt_desc = '_'.join(['pillar', kpt_desc])
-            kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
+            # kpt_desc = '_'.join(['pillar', kpt_desc])
+            # kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
             self.match_with_inverted = False
             desc_method = '_'.join([conf['kpts'], 'pillar'])
         
@@ -57,7 +61,7 @@ class DatasetPredict(td.Dataset):
             processed = os.path.join(folder, 'processed')
             kpts_path = os.path.join(processed, 'keypoints')
 
-            numn_files = len(os.listdir(os.path.join(folder, kpts_path)))
+            numn_files = len(glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.*.npy')))
 
             for i in range(numn_files):
                 for j in range(i+1, numn_files):
@@ -66,8 +70,8 @@ class DatasetPredict(td.Dataset):
                     
                     item['pairname'] = '_'.join([folder, str(i), str(j)])
                     try:
-                        item['path_kpts_0'] = glob(os.path.join(kpts_path, f'*{kpts_method}.{i}.npy'))[0]
-                        item['path_kpts_1'] = glob(os.path.join(kpts_path, f'*{kpts_method}.{j}.npy'))[0]
+                        item['path_kpts_0'] = glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.{i}.npy'))[0]
+                        item['path_kpts_1'] = glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.{j}.npy'))[0]
                         item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                         item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{j}.npy'))[0]
                         if self.match_with_inverted:

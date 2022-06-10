@@ -1,17 +1,11 @@
-import argparse
-import logging
-import os
-import random
-import shutil
 import sys
 from copy import deepcopy
 from typing import List, Tuple
+
 import torch.nn.functional as F
 from torch import nn
-import torch.utils.data as td
-from dataset import create_datasets
-from utils import conf
-from utils.utils import *
+
+from neural_network.utils.utils import *
 
 
 def MLP(channels: List[int], do_bn: bool = True, dropout: float = 0.1, activation: str = "relu") -> nn.Module:

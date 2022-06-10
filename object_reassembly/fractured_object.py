@@ -12,8 +12,9 @@ from cv2 import estimateAffine3D
 from scipy.spatial.distance import cdist
 from scipy.spatial.transform import Rotation
 
-import solver
-from utils import helmert_nd
+from keypoints_and_descriptors.utils import get_fragment_matchings
+from object_reassembly import solver
+from object_reassembly.utils import helmert_nd
 
 np.random.seed(42)
 
@@ -46,6 +47,7 @@ class FracturedObject(object):
 
         print("Loading fragment meshes of object " + self.name + "...")
 
+        shifts = {}
         for fragment in os.listdir(new_path):
             if fragment.endswith('.obj'):
                 frag_no = int(fragment.rsplit(sep=".")[1])
@@ -53,18 +55,18 @@ class FracturedObject(object):
                 centroid = self.fragments_orig[frag_no].centroid()
                 T = np.eye(4)
                 T[0:3, 3] = centroid
-                self.fragments_orig[frag_no].transform(np.linalg.inv(T))
+                shifts[frag_no] = T
                 self.fragments[frag_no] = self.fragments_orig[frag_no].copy()
+                self.fragments[frag_no].transform(np.linalg.inv(T))
 
         self.N = len(self.fragments)
         print("Loading keypoints of object " + self.name + "...")
 
-        keypoint_glob = os.path.join(self.path, "processed", "keypoints", f"keypoints_{self.keypoint_method}.*.npy")
-        keypoint_files = glob(keypoint_glob)
-        for i in range(keypoint_files):
+        for i in range(self.N):
             keypoint_path = os.path.join(self.path, "processed", "keypoints", f"keypoints_{self.keypoint_method}.{i}.npy")
             npy_kpts = np.load(keypoint_path)[:, 0:3]
             self.kpts_orig[i] = Pointcloud(npy_kpts)
+            self.kpts_orig[i].transform(shifts[i])
             self.kpts[i] = Pointcloud(npy_kpts)
 
     def save_object(self, path):
@@ -72,17 +74,10 @@ class FracturedObject(object):
         pass
 
     # Load ground truth matches from file.
-    def load_gt(self, gt_from_closest=False):
-        print("Loading ground truth matches of object " + self.name + "...")
-
-        new_path = self.path + "/processed/matching/" + self.name + "_matching_matrix.npy"
-        print(new_path)
-
-        self.fragment_matches_gt = np.load(new_path).astype(bool)
-
+    def load_matches(self, use_ground_truth=False):
         keypoints_matchings_folder = os.path.join(self.path, 'predictions')
         
-        if gt_from_closest:
+        if use_ground_truth:
             self.gt_from_closest()
         else:
             for matches in os.listdir(keypoints_matchings_folder):
@@ -404,7 +399,15 @@ class FracturedObject(object):
 
     # calculate ground truth from closest points
     def gt_from_closest(self, threshold=0.001):
-        fragments = range(len(self.fragments.keys()))
+        print("Loading ground truth matches of object " + self.name + "...")
+
+        numpy_fragments = []
+        for i in range(self.N):
+            f = self.fragments_orig[i]
+            numpy_fragments.append(np.array([f.vertex_coordinates(i) for i in f.vertices()]))
+
+        self.fragment_matches_gt = get_fragment_matchings(numpy_fragments, self.path)
+        fragments = range(self.N)
         combinations = list(permutations(fragments, 2))
 
         for comb in combinations:

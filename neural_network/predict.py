@@ -1,15 +1,16 @@
 import argparse
 import os
 import shutil
-from model import build_model, batch_to_device
-from dataset import DatasetPredict
-from utils import conf as conf
-import numpy as np
 import tkinter
 from tkinter import filedialog
+
+import numpy as np
 import torch
 from tqdm import tqdm
-from utils import conf as conf
+
+from neural_network.dataset import DatasetPredict
+from neural_network.model import build_model, batch_to_device
+from neural_network.utils import conf as conf
 
 
 def create_output_folders(folder_root):

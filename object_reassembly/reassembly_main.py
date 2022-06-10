@@ -5,27 +5,23 @@ from tkinter import filedialog
 
 from compas.geometry import Line
 
-from compas_vis import compas_show
-from fractured_object import FracturedObject
+from object_reassembly.compas_vis import compas_show
+from object_reassembly.fractured_object import FracturedObject
 
 here = os.path.dirname(os.path.abspath(__file__))
 path = "data_from_pred"
-
-visualize = True #True
-#vis_idx = (1, 3)
 
 
 def full_reassembly(obj):
     obj.create_random_pose()
     obj.apply_random_transf()
+    compas_show(obj.kpts_orig, obj.fragments_orig)
     compas_show(obj.kpts, obj.fragments)
     obj.find_transformations()
     obj.create_inverse_transformations_for_existing_pairs()
     obj.tripplet_matching(1.0, 10.0)
     obj.find_final_transforms()
-
-    if visualize:
-        compas_show(fragments=obj.fragments)
+    compas_show(fragments=obj.fragments)
 
 
 def pairwise_reassembly(obj):
@@ -55,9 +51,10 @@ def pairwise_reassembly(obj):
                 A: obj.fragments[A],
                 B: obj.fragments[B]
             }
-            if visualize:
-                print(f"Visualizing {A, B}, scrambled.")
-                compas_show(keypoints, fragments, line_list)
+            print(f"Visualizing {A, B}, scrambled.")
+            compas_show(keypoints, fragments, line_list)
+
+
             obj.find_transformations()
             obj.apply_transf(A, B)
 
@@ -74,9 +71,8 @@ def pairwise_reassembly(obj):
                 A: obj.fragments[A],
                 B: obj.fragments[B]
             }
-            if visualize:
-                print(f"Visualizing {A, B}, matched.")
-                compas_show(keypoints, fragments, line_list)
+            print(f"Visualizing {A, B}, matched.")
+            compas_show(keypoints, fragments, line_list)
         else:
             print("not matched")
 
@@ -97,7 +93,7 @@ if __name__ == "__main__":
 
     obj = FracturedObject(path=data_dir, graph_matching_method='mst')
     obj.load_object()
-    obj.load_gt()
+    obj.load_matches()
     if not args.pairwise:
         full_reassembly(obj)
     else:

@@ -1,17 +1,17 @@
 import argparse
-from codecs import ignore_errors
-import os, sys
+import logging
+import os
 import shutil
-from model import build_model
-import numpy as np
-import wandb
-from utils.utils import *
-from utils import conf
-from dataset import create_datasets
+import sys
+
 import torch.utils.data as td
 from torch.utils.tensorboard import SummaryWriter
-import logging
 from tqdm import tqdm
+
+from neural_network.dataset import create_datasets
+from neural_network.model import build_model
+from neural_network.utils import conf
+from neural_network.utils.utils import *
 
 logger = logging.getLogger(__name__)
 
