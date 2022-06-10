@@ -25,7 +25,7 @@ def full_reassembly(obj):
     obj.find_final_transforms()
 
     if visualize:
-        compas_show(obj.kpts, obj.fragments)
+        compas_show(fragments=obj.fragments)
 
 
 def pairwise_reassembly(obj):
@@ -83,22 +83,25 @@ def pairwise_reassembly(obj):
             print("not matched")
 
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir')
+    parser.add_argument('--pairwise', action='store_true')
     args = parser.parse_intermixed_args()
 
     if not args.data_dir:
         data_dir = tkinter.Tk()
         data_dir.withdraw()
         data_dir = filedialog.askdirectory(parent=data_dir, initialdir=os.getcwd(),
-                                           title='Please select the parent directory of the fractured object folders')
+                                           title='Please select the fractured object folder.')
     else:
         data_dir = args.data_dir
 
     obj = FracturedObject(path=data_dir, graph_matching_method='mst')
     obj.load_object()
     obj.load_gt()
-    #full_reassembly(obj)
-    pairwise_reassembly(obj)
+    if not args.pairwise:
+        full_reassembly(obj)
+    else:
+        pairwise_reassembly(obj)
+

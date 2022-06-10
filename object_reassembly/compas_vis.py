@@ -54,8 +54,11 @@ def compas_show(keypoints: Dict[int, Pointcloud] = None, fragments=None, lines=N
         print(f"{i}: {name}, {c}")
 
     viewer = App(show_grid=False)
-    add_to_viewer(keypoints, viewer, colors=colors_kpts)
-    add_to_viewer(fragments, viewer, colors=colors)
+    if keypoints:
+        add_to_viewer(keypoints, viewer, colors=colors)
+    if fragments:
+        add_to_viewer(fragments, viewer, colors=colors)
+
 
     line_color = cline
    #line_color.a = 0.8 * line_color.a

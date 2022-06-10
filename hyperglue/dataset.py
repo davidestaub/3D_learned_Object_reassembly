@@ -7,7 +7,7 @@ import torch
 import torch.utils.data as td
 from scipy.sparse import load_npz
 from sklearn.model_selection import train_test_split
-from utils.conf import *
+from hyperglue.utils.conf import *
 
 def pc_normalize(pc):
     """normalizes a pointcloud by centering and unit scaling"""
@@ -29,14 +29,19 @@ def create_datasets(root, conf):
 
 
 class DatasetPredict(td.Dataset):
-    def __init__(self, folder_root, conf):
+    def __init__(self, folder_root, conf, single_object=False):
+        # Set single object to true if `folder_root` points directly to the object directory. Set it to False if it's a
+        # folder containing multiple object folders.
         self.dataset = []
         self.pillar = conf['pillar']
         self.normalize = conf['normalize_data']
         self.overfit = conf['overfit']
         self.match_with_inverted = conf['match_inverted']
         # setup for paths
-        object_folders = [folder for folder in os.listdir(folder_root) if not "prediction" in folder]
+        if single_object:
+            object_folders = [folder_root]
+        else:
+            object_folders = [os.path.join(folder_root, folder) for folder in os.listdir(folder_root) if not "prediction" in folder]
         kpt_desc = 'keypoint_descriptors'
         kpt_desc_inv = 'keypoint_descriptors_inverted'
         kpts_method = conf['kpts']
@@ -49,7 +54,7 @@ class DatasetPredict(td.Dataset):
             desc_method = '_'.join([conf['kpts'], 'pillar'])
         
         for folder in object_folders:
-            processed = os.path.join(folder_root, folder, 'processed')
+            processed = os.path.join(folder, 'processed')
             kpts_path = os.path.join(processed, 'keypoints')
 
             numn_files = len(os.listdir(os.path.join(folder, kpts_path)))
@@ -69,7 +74,8 @@ class DatasetPredict(td.Dataset):
                             item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
                             item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{j}.npy'))[0]
                     except Exception as e:
-                        print(f"Error loading objects in folder {folder}: {e}")
+                        print(f"WARNING: Error loading objects in folder {folder}: {e}")
+                        continue
             
                     self.dataset.append(item)
 
