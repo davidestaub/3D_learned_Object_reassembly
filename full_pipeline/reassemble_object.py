@@ -8,6 +8,17 @@ This script executes the whole pipeline:
 import argparse
 import os
 from glob import glob
+import sys
+import inspect
+
+# setup paths for windows compability
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir) 
+
+# setup default values for cube and weights
+default_cube = os.path.join(currentdir,'example_data', 'cube_10_seed_0')
+default_weights = os.path.join(parentdir, 'neural_network', 'weights', 'model_weights_best.pth')
 
 import numpy as np
 import open3d as o3d
@@ -44,11 +55,9 @@ def load_object(folder_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Execute the whole reassembly pipeline."
-    )
-    parser.add_argument("--object_dir", type=str, help='Path to folder with object fragments in .obj format')
-    parser.add_argument("--model", type=str, help="Path to saved model")
+    parser = argparse.ArgumentParser(description="Execute the whole reassembly pipeline.")
+    parser.add_argument("--object_dir", type=str, default= default_cube, help='Path to folder with object fragments in .obj format')
+    parser.add_argument("--model", type=str, default=default_weights, help="Path to saved model")
     parser.add_argument('--pairwise', action='store_true', help='Perform and visualize only pairwise reassembly.')
     parser.add_argument('--ground_truth', action='store_true', help='Use ground truth matches to reassemble the object.')
     args = parser.parse_args()
@@ -77,8 +86,7 @@ def main():
 
     if not args.ground_truth:
         print(f'Predicting keypoint matches with GNN...')
-        weights_path = '../neural_network/weights/model_weights.pth'
-        predict(weights_path, args.object_dir, single_object=True)
+        predict(default_weights, args.object_dir, single_object=True)
         print(f'Done.')
 
     print('Reassembling the object...')
