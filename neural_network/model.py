@@ -8,7 +8,7 @@ from torch import nn
 from neural_network.utils.utils import *
 
 
-def MLP(channels: List[int], do_bn: bool = True, dropout: float = 0.1, activation: str = "relu") -> nn.Module:
+def MLP(channels: List[int], do_bn: bool = True, dropout: float = 0., activation: str = "relu") -> nn.Module:
     """ Multi-layer perceptron implemented as a 1D Convolution with kernel size of 1"""
     n = len(channels)
     layers = []

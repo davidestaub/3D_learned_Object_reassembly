@@ -1,6 +1,7 @@
 import argparse
 import os
 import shutil
+import sys
 import tkinter
 from tkinter import filedialog
 
@@ -8,6 +9,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+sys.path.append(os.getcwd())
 from neural_network.dataset import DatasetPredict
 from neural_network.model import build_model, batch_to_device
 from neural_network.utils import conf as conf
@@ -60,7 +62,7 @@ def predict(weights_path, folder_path, single_object=False):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('weights', 'model_weights.pth'))
+    parser.add_argument('--weights_path', default=os.path.join('neural_network','weights', 'model_weights_best.pth'))
     parser.add_argument('--data_dir')
     args = parser.parse_intermixed_args()
 

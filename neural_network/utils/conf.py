@@ -27,7 +27,7 @@ train_conf = {
     'epochs': 3,  # number of epochs
     'batch_size': 1,  # training batch size
     'optimizer': 'adam',  # name of optimizer in [adam, sgd, rmsprop]
-    'lr':0.0085,  # learning rate
+    'lr':0.004,  # learning rate
     'lr_schedule': {'type': 'exp', 'start': 10e3, 'exp_div_10': 2e5},
     'overfit': False,
     'use_sd_score': False,
