@@ -19,5 +19,5 @@ object_reassembly/data_from_pred
 wandb/
 report/
 .vscode/
-/hyperglue/data_evaluation/
+/neural_network/data_evaluation/
 

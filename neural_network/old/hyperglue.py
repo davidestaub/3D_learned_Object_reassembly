@@ -567,7 +567,7 @@ class FragmentsDataset(td.Dataset):
 
 def dummy_training(dataroot, model,train_conf):
     wandb.login(key='13be45bcff4cb1b250c86080f4b3e7ca5cfd29c2')
-    wandb.init(project="hyperglue", entity="lessgoo", config=train_conf)
+    wandb.init(project="neural_network", entity="lessgoo", config=train_conf)
 
     init_cp = None
     set_seed(train_conf["seed"])
