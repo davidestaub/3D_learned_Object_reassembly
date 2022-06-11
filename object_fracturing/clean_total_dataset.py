@@ -1,16 +1,19 @@
 import os
-import numpy as np
+import gc
+import os
 import shutil
 from multiprocessing import Pool
+
+import numpy as np
+import open3d as o3d
 from compas.datastructures import Mesh
 from compas.datastructures import mesh_explode
-import open3d as o3d
-import gc
 
-dataroot= os.path.join(os.path.abspath(__file__), '..','data')
+dataroot = os.path.join(os.path.abspath(__file__), '..','data')
 dashed_line = "----------------------------------------------------------------\n"
 
-def handle_folder(object_folder):
+
+def clean_meshes(object_folder, dataroot=dataroot):
     log = []
     folder_path = os.path.join(dataroot, object_folder)
     cleaned_path = os.path.join(folder_path, 'cleaned')
@@ -33,7 +36,7 @@ def handle_folder(object_folder):
     # delete the log file
     if os.path.exists(folder_path + "\\log.txt"):
         os.remove(folder_path + "\\log.txt")
-    
+
     # clean the folder
     for filename in os.listdir(folder_path):
         if filename in ['cleaned', 'processed']:
@@ -69,21 +72,21 @@ def handle_folder(object_folder):
             for ex_mesh in exploded_meshes:
                 downsample = False
                 # delete tiny pieces
-                num_vertices = len(list(ex_mesh.vertices())) 
+                num_vertices = len(list(ex_mesh.vertices()))
                 if num_vertices < 1000:
                     log.append(f'Deleted a small fragment of shard: {shard_counter}\n')
                     continue
 
                 vertices = np.array([ex_mesh.vertex_coordinates(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
                 normals = np.array([ex_mesh.vertex_normal(vkey)for vkey in ex_mesh.vertices()], dtype=np.float32)
-                
+
                 pcd = o3d.geometry.PointCloud()
                 pcd.normals = o3d.utility.Vector3dVector(normals)
                 pcd.points= o3d.utility.Vector3dVector(vertices)
 
                 if num_vertices> 1e4:
                     downsample = True
-                    rate = 1e4/num_vertices                   
+                    rate = 1e4/num_vertices
                     pcd = pcd.random_down_sample(rate)
 
                 # save to new file
@@ -96,12 +99,9 @@ def handle_folder(object_folder):
                 else:
                     new_mesh, _ = o3d.geometry.TriangleMesh.create_from_point_cloud_poisson(pcd, depth=9)
                     o3d.io.write_triangle_mesh(FILE_OBJ, new_mesh)
-                
+
                 o3d.io.write_point_cloud(FILE_PCD, pcd)
                 piece_counter += 1
-
-                
-
 
             shard_counter += 1
 
@@ -112,8 +112,9 @@ def handle_folder(object_folder):
     print(f'Processed folder {object_folder}')
     gc.collect()
 
+
 if __name__ == '__main__':
     folders = os.listdir(dataroot)
-    
+
     with Pool(4) as p:
-        p.map(handle_folder, folders)
+        p.map(clean_meshes, folders)

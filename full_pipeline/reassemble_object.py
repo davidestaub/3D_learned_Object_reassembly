@@ -6,18 +6,20 @@ This script executes the whole pipeline:
     4. Reassembly based on keypoint matchings.
 """
 import argparse
-import os
-from glob import glob
-import sys
 import inspect
+import os
+import sys
+from glob import glob
 
 # setup paths for windows compability
+from object_fracturing.clean_total_dataset_cluster import clean_meshes
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir) 
+sys.path.append(parentdir)
 
 # setup default values for cube and weights
-default_cube = os.path.join(currentdir,'example_data', 'cube_10_seed_0')
+default_cube = os.path.join(currentdir, 'example_data', 'cube_10_seed_0')
 default_weights = os.path.join(parentdir, 'neural_network', 'weights', 'model_weights_best.pth')
 
 import numpy as np
@@ -53,11 +55,18 @@ def load_object(folder_path):
 
 def main():
     parser = argparse.ArgumentParser(description="Execute the whole reassembly pipeline.")
-    parser.add_argument("--object_dir", type=str, default= default_cube, help='Path to folder with object fragments in .obj format')
+    parser.add_argument("--object_dir", type=str, default=default_cube,
+                        help='Path to folder with object fragments in .obj format')
     parser.add_argument("--model", type=str, default=default_weights, help="Path to saved model")
-    parser.add_argument('--pairwise', action='store_true', default=False, help='Perform and visualize only pairwise reassembly.')
-    parser.add_argument('--ground_truth', action='store_true', default = True, help='Use ground truth matches to reassemble the object.')
+    parser.add_argument('--pairwise', action='store_true', default=False,
+                        help='Perform and visualize only pairwise reassembly.')
+    parser.add_argument('--ground_truth', action='store_true',
+                        default=True, help='Use ground truth matches to reassemble the object.')
     args = parser.parse_args()
+
+    print(f'Cleaning object in {args.object_dir}...')
+    clean_meshes(object_folder=os.path.basename(args.object_dir), dataroot=os.path.dirname(args.object_dir))
+    print('Done.')
 
     print(f'Loading object from {args.object_dir}.')
     name, fragments = load_object(args.object_dir)
