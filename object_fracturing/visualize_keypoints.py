@@ -4,7 +4,8 @@ import numpy as np
 from compas_view2.app import App
 from compas.geometry import Pointcloud, Translation
 from compas. datastructures import Mesh, mesh_transform_numpy
-
+import tkinter
+from tkinter import filedialog
 
 def keypoints_to_spheres(keypoints):
     """Converts keypoints to sphere, better for visualizing"""
@@ -17,25 +18,20 @@ def keypoints_to_spheres(keypoints):
     return spheres
 
 if __name__ == '__main__':
+
+    # set the keypoint extraction method
+    kpts_mode = 'hybrid'
     
     # chose a data folder
-    folder = "data"
-    here = os.path.dirname(os.path.abspath(__file__))
-    data_list = os.listdir(os.path.join(here, folder))
+    root = tkinter.Tk()
+    root.withdraw()
+    folder = filedialog.askdirectory(parent=root, initialdir=os.getcwd(),
+                                    title='Please select the folder of the shattered object, where you want to visualize keypoints!')
 
 
-    print("id  name")
-    for idx, val in enumerate(data_list):
-        print(idx, " ", val)
-    
-    idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
-    subfolder = data_list[idx]
-    
-    ROOT = os.path.join(here, folder, subfolder)
+    ROOT = folder
     CLEANED = os.path.join(ROOT, 'cleaned')
     KPTS_IN = os.path.join(ROOT,'processed','keypoints')
-
-    kpts_mode = 'SD'
 
     # chose a fragments
     data_list = [i for i in os.listdir(CLEANED) if i.endswith('pcd')]
@@ -43,13 +39,13 @@ if __name__ == '__main__':
     for idx, val in enumerate(data_list):
         if val.endswith('.pcd'):
             print(idx, " ", val)
-    idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
+    idx = int(input("Enter the index of the shard you want to visualize:\n"))
+
     file = data_list[idx]
     idx = int(file.split('cleaned.')[1].split('.')[0])
     print(file, idx)
 
-    # extract the corresponding filename
-    kpts_mode = 'hybrid'
+    # extract the corresponding filename    
     kpts_file = f'keypoints_{kpts_mode}.{idx}.npy'
     kpts = np.load(os.path.join(KPTS_IN, kpts_file))[:,:3]
     kpts_pcd = o3d.geometry.PointCloud()

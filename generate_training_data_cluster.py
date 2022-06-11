@@ -1,7 +1,6 @@
 import argparse
 import os
 import subprocess
-import time
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Generates keypoints and descriptors")

@@ -12,8 +12,6 @@ import sys
 from glob import glob
 
 # setup paths for windows compability
-from object_fracturing.clean_total_dataset import clean_meshes
-
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
@@ -25,6 +23,7 @@ default_weights = os.path.join(parentdir, 'neural_network', 'weights', 'model_we
 import numpy as np
 import open3d as o3d
 
+from object_fracturing.clean_total_dataset import clean_meshes
 from neural_network.predict import predict
 from keypoints_and_descriptors.descriptors import get_descriptors, save_descriptors
 from keypoints_and_descriptors.keypoints import get_keypoints
