@@ -12,7 +12,7 @@ import sys
 from glob import glob
 
 # setup paths for windows compability
-from object_fracturing.clean_total_dataset_cluster import clean_meshes
+from object_fracturing.clean_total_dataset import clean_meshes
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -58,10 +58,10 @@ def main():
     parser.add_argument("--object_dir", type=str, default=default_cube,
                         help='Path to folder with object fragments in .obj format')
     parser.add_argument("--model", type=str, default=default_weights, help="Path to saved model")
-    parser.add_argument('--pairwise', action='store_true', default=False,
+    parser.add_argument('--pairwise', action='store_true',
                         help='Perform and visualize only pairwise reassembly.')
-    parser.add_argument('--ground_truth', action='store_true',
-                        default=True, help='Use ground truth matches to reassemble the object.')
+    parser.add_argument('--use_predictions', action='store_true',
+                        help='Use predicted matches to reassemble the object.')
     args = parser.parse_args()
 
     print(f'Cleaning object in {args.object_dir}...')
@@ -89,7 +89,7 @@ def main():
         save_descriptors(kpts_desc_n, kpts_desc_inv, args.object_dir, keypoint_method, descriptor_method, fragment_id=i)
     print(f'Done.')
 
-    if not args.ground_truth:
+    if args.use_predictions:
         print(f'Predicting keypoint matches with GNN...')
         predict(default_weights, args.object_dir, single_object=True)
         print(f'Done.')
@@ -97,7 +97,7 @@ def main():
     print('Reassembling the object...')
     obj = FracturedObject(path=args.object_dir, graph_matching_method='mst')
     obj.load_object()
-    obj.load_matches(use_ground_truth=args.ground_truth)
+    obj.load_matches(use_ground_truth=not args.use_predictions)
     if args.pairwise:
         pairwise_reassembly(obj)
     else:
