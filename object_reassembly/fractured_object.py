@@ -48,6 +48,7 @@ class FracturedObject(object):
         print("Loading fragment meshes of object " + self.name + "...")
 
         shifts = {}
+        # load fragments in original position as meshes
         for fragment in os.listdir(new_path):
             if fragment.endswith('.obj'):
                 frag_no = int(fragment.rsplit(sep=".")[1])
@@ -69,14 +70,10 @@ class FracturedObject(object):
             self.kpts_orig[i].transform(shifts[i])
             self.kpts[i] = Pointcloud(npy_kpts)
 
-    def save_object(self, path):
-        # TODO: implement
-        pass
-
     # Load ground truth matches from file.
     def load_matches(self, use_ground_truth=False):
         keypoints_matchings_folder = os.path.join(self.path, 'predictions')
-        
+
         if use_ground_truth:
             self.gt_from_closest()
         else:
@@ -120,6 +117,7 @@ class FracturedObject(object):
             t = rng.uniform(-1, 1, size=(3,))
             self.transf_random[int(fragment)] = (R, t)
 
+    # apply relative transformation from fragment A to B to fragment A
     def apply_transf(self, A, B):
         transf = self.transf[(A, B)]
         if transf[0] is not None and transf[1] is not None:
@@ -128,6 +126,7 @@ class FracturedObject(object):
             self.kpts[A].transform(T)
             self.fragments[A].transform(T)
 
+    # scatter fragments with random transformations
     def apply_random_transf(self):
         print("Applying random transformation to fragments...")
         for key, fragment in self.fragments.items():
@@ -137,7 +136,9 @@ class FracturedObject(object):
         for key, points in self.kpts.items():
             points.transform(transform_from_rotm_tr(self.transf_random[key]))
 
-    def find_transformations(self, use_gt=True, find_t_method="RANSAC_RIGID", s_min=0.1, use_rigid_transform=True):
+    # estimate relative transformations between fragments using find_t_method
+    # use_gt if ground truth matches are to be used to find transformations
+    def find_transformations(self, use_gt=True, find_t_method="RANSAC_RIGID", use_rigid_transform=True):
         fragments = range(len(self.fragments.keys()))  # nof fragments
         combinations = list(permutations(fragments, 2))  # all possible fragment pairs
         nb_non_matches = 0
@@ -150,19 +151,13 @@ class FracturedObject(object):
                 print("Combination " + str(idx) + "/" + str(len(combinations)) + " | Loop 1")
                 print("Fragments (A, B):" + str(comb))
 
-                # Get random pose(rp), ground truth(gt) keypoints of fragment A, B
-                A_rand_pose_kpts = self.kpts[comb[0]]
-                A_gt_pose_kpts = self.kpts_orig[comb[0]]
-                B_rand_pose_kpts = self.kpts[comb[1]]
-                B_gt_pose_kpts = self.kpts_orig[comb[1]]
-
                 # Init corresponding keypoint pairs
                 A_gt_pair = []
                 A_rp_pair = []
                 B_gt_pair = []
                 B_rp_pair = []
-                pair_nb = 0
 
+                # Get positions of matching keypoints either from ground truth or from predictions
                 if use_gt:
                     if self.kpt_matches_gt[comb] is not None:
                         A_gt_idx, B_gt_idx = self.kpt_matches_gt[comb]
@@ -187,18 +182,26 @@ class FracturedObject(object):
                 ptsA = np.array(A_rp_pair)
                 ptsB = np.array(B_rp_pair)
 
-                zcA = np.zeros((1, ptsA.shape[1]))
-                ptsA_z = np.array([ptsA + zcA])
-                zcB = np.zeros((1, ptsA.shape[1]))
-                ptsB_z = np.array([ptsB + zcB])
-
+                # Use cvxpy solver to solve optimization problem
+                # This does NOT work as of 11.06.22, as this kind of constraints are not implemented in cvxpy as of now
                 if find_t_method == "solver":
+
+                    # Get data in appropriate shape for solver
+                    zcA = np.zeros((1, ptsA.shape[1]))
+                    ptsA_z = np.array([ptsA + zcA])
+                    zcB = np.zeros((1, ptsA.shape[1]))
+                    ptsB_z = np.array([ptsB + zcB])
+
+                    s_min = 0.1
+
                     sol = solver.run_solver(ptsA_z, ptsB_z)
                     if sol is not None:
+                        # Check validity of solution
                         if sol["s_opt"] > s_min and sum(abs(sol["t"])) > 1e-6:
                             print("Valid solution for T, s = " + str(sol["s_opt"]))
                             R_mat = sol["R"]
                             t = sol["t"]
+                            # Get rigid transform from solver solution
                             if use_rigid_transform:
                                 R_mat, c, t = helmert_nd(ptsA, ptsB, sol["s_opt"], sol["R"], sol["t"])
                             R = Rotation.from_matrix(R_mat)
@@ -213,10 +216,11 @@ class FracturedObject(object):
 
                 elif find_t_method == "RANSAC_RIGID":
 
-                    #minimum number of samples to get a transformation is 3 (per fragment) we use 4 because it helps get better transformations
+                    # minimum number of samples to get a transformation is 3 (per fragment) we use 4 because it helps
+                    # get better transformations
                     min_number_pairs = 4
 
-                    #Return NONE transformation if number of keypoint correspondences is not sufficient
+                    # Return NONE transformation if number of keypoint correspondences is not sufficient
                     if len(A_rp_pair) < min_number_pairs:
                         print("Not enough keypoint pairs, returning NAN transformation")
                         self.transf[comb] = (None, None)
@@ -228,14 +232,15 @@ class FracturedObject(object):
                         transform_ransac = ret["best_params"]
                         inliers_ransac = ret["best_inliers"]
 
-                        #Get mean squared error of euclidean distance
+                        # Get mean squared error of euclidean distance
                         mse_ransac = np.sqrt(Procrustes(transform_ransac).residuals(ptsA, ptsB).mean())
-                        mse_ransac_inliers = np.sqrt(Procrustes(transform_ransac).residuals(ptsA[inliers_ransac], ptsB[inliers_ransac]).mean())
+                        mse_ransac_inliers = np.sqrt(
+                            Procrustes(transform_ransac).residuals(ptsA[inliers_ransac], ptsB[inliers_ransac]).mean())
                         print("mse ransac all: {}".format(mse_ransac))
                         print("Number of ransac inliers: {}".format(sum(inliers_ransac)))
                         print("mse ransac inliers: {}".format(mse_ransac_inliers))
 
-                        #Get final transformation matrix
+                        # Get final transformation matrix
                         R_mat = transform_ransac[:3, :3]
                         t = transform_ransac[:3, 3]
                         self.transf[comb] = (R_mat, t)
@@ -247,7 +252,7 @@ class FracturedObject(object):
                     raise NotImplementedError
 
     def create_inverse_transformations_for_existing_pairs(self):
-        """stores the transformatino from A -> B as the inverse transformation from B -> A.
+        """stores the transformation from A -> B as the inverse transformation from B -> A.
                 """
         dict_inv = {}
         for key in self.transf:
@@ -397,7 +402,7 @@ class FracturedObject(object):
             self.kpts[i].transform(T)
             self.fragments[i].transform(T)
 
-    # calculate ground truth from closest points
+    # Calculate ground truth from closest points
     def gt_from_closest(self, threshold=0.001):
         print("Loading ground truth matches of object " + self.name + "...")
 
@@ -424,8 +429,6 @@ class FracturedObject(object):
                     self.kpt_matches_gt[(comb[0], comb[1])] = np.nonzero(keypoint_assignment)
                 else:
                     self.kpt_matches_gt[(comb[0], comb[1])] = None
-
-
 
 
 class Procrustes:

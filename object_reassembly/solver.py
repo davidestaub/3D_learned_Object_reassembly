@@ -63,7 +63,7 @@ def run_solver(U, V, th=0.5e-1, sLU=[0.9, 1.1], S=np.eye(3), enfRot=True, verbos
     N = U.shape[1]
 
     x = cp.Variable(dim)
-    z = cp.Variable(N)
+    z = cp.Variable(N, boolean=True)
 
     s = cp.Variable(1)
     big_M = 10 ^ 5
