@@ -15,12 +15,13 @@ path = "data_from_pred"
 def full_reassembly(obj):
     obj.create_random_pose()
     obj.apply_random_transf()
-    compas_show(obj.kpts_orig, obj.fragments_orig)
+    print("Scrambled object.")
     compas_show(obj.kpts, obj.fragments)
     obj.find_transformations()
     obj.create_inverse_transformations_for_existing_pairs()
     obj.tripplet_matching(1.0, 10.0)
     obj.find_final_transforms()
+    print("Reassembled object.")
     compas_show(fragments=obj.fragments)
 
 
