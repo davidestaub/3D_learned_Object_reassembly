@@ -279,8 +279,6 @@ class FracturedObject(object):
             index_23 = (second, third)
             index_13 = (first, third)
             if index_12 in self.kpt_matches_gt and index_23 in self.kpt_matches_gt and index_13 in self.kpt_matches_gt:
-                print("found potential triplet: ", index_12, index_23, index_13)
-
                 T_12 = transform_from_rotm_tr(self.transf[index_12])
                 T_31 = transform_from_rotm_tr(self.transf[(third, first)])
                 T_32 = transform_from_rotm_tr(self.transf[(third, second)])
@@ -298,8 +296,9 @@ class FracturedObject(object):
                 distance_diff = np.linalg.norm(Transl_32 - Transl_32_est)
 
                 if distance_diff <= T_threshold and angle_diff <= R_threshold:
-                    print(f"TRIPLET MATCH: {(first, second, third)}")
+                    pass
                 else:
+                    print(f"Divergent triplet: {first, second, third}")
                     self.constraints += [(first, second, third)]
         print(self.constraints)
 

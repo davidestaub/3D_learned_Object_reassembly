@@ -3,6 +3,7 @@ import os
 import tkinter
 from tkinter import filedialog
 
+import numpy as np
 from compas.geometry import Line
 
 from object_reassembly.compas_vis import compas_show
@@ -19,7 +20,7 @@ def full_reassembly(obj):
     compas_show(obj.kpts, obj.fragments)
     obj.find_transformations()
     obj.create_inverse_transformations_for_existing_pairs()
-    obj.tripplet_matching(1.0, 10.0)
+    obj.tripplet_matching(np.pi / 10, 0.01)
     obj.find_final_transforms()
     print("Reassembled object.")
     compas_show(fragments=obj.fragments)
@@ -35,7 +36,7 @@ def pairwise_reassembly(obj):
         B = key[1]
         matches_AB = obj.kpt_matches_gt[key]
         if matches_AB:
-            print("Matched ",A, " and ", B)
+            print("Matched ", A, " and ", B)
             A_indices = matches_AB[0]
             B_indices = matches_AB[1]
             assert len(A_indices) == len(B_indices), "unequal length"
@@ -54,7 +55,6 @@ def pairwise_reassembly(obj):
             }
             print(f"Visualizing {A, B}, scrambled.")
             compas_show(keypoints, fragments, line_list)
-
 
             obj.find_transformations()
             obj.apply_transf(A, B)
@@ -99,4 +99,3 @@ if __name__ == "__main__":
         full_reassembly(obj)
     else:
         pairwise_reassembly(obj)
-
