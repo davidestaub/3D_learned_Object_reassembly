@@ -10,6 +10,7 @@ import inspect
 import os
 import sys
 from glob import glob
+from tqdm import tqdm
 
 import numpy as np
 import open3d as o3d
@@ -26,12 +27,9 @@ from object_fracturing.clean_data import clean_meshes
 from object_reassembly.fractured_object import FracturedObject
 from object_reassembly.reassembly_main import pairwise_reassembly, full_reassembly
 
-
-
 # setup default values for cube and weights
 default_cube = os.path.join(currentdir, 'example_data', 'cube_10_seed_0')
 default_weights = os.path.join(parentdir, 'neural_network', 'weights', 'model_weights_best.pth')
-
 
 def load_object(folder_path):
     object_name = os.path.basename(folder_path)
@@ -65,9 +63,10 @@ def main():
                         help='Use predicted matches to reassemble the object.')
     args = parser.parse_args()
 
-    print(f'Cleaning object in {args.object_dir}...')
-    clean_meshes(object_folder=os.path.basename(args.object_dir), dataroot=os.path.dirname(args.object_dir))
-    print('Done.')
+    if input(f'Do you want to clean the objects [y]/n? ') != 'n':
+        print(f'Cleaning object in {args.object_dir}...')
+        clean_meshes(object_folder=os.path.basename(args.object_dir), dataroot=os.path.dirname(args.object_dir))
+        print('Done.')
 
     print(f'Loading object from {args.object_dir}.')
     name, fragments = load_object(args.object_dir)
@@ -75,20 +74,20 @@ def main():
 
     keypoint_method = 'hybrid'
     descriptor_method = 'pillar'
-    print(f'Generating {keypoint_method} keypoints and {descriptor_method} descriptors...')
-
-    for i, pcd in enumerate(fragments):
-        vertices = np.array(pcd.points)
-        normals = np.array(pcd.normals)
-        descriptors, descriptors_inverted = get_descriptors(vertices, normals, descriptor_method)
-        keypoints, keypoint_idxs = get_keypoints(i, vertices, normals, keypoint_method, args.object_dir, npoints=512)
-        kpts_desc_n = descriptors[keypoint_idxs]
-        if descriptors_inverted:
-            kpts_desc_inv = descriptors_inverted[keypoint_idxs]
-        else:
-            kpts_desc_inv = None
-        save_descriptors(kpts_desc_n, kpts_desc_inv, args.object_dir, keypoint_method, descriptor_method, fragment_id=i)
-    print(f'Done.')
+    if input(f'Do you want to generate keypoints and descriptors [y]/n? ') != 'n':
+        print(f'Generating {keypoint_method} keypoints and {descriptor_method} descriptors...')
+        for i, pcd in enumerate(tqdm(fragments)):
+            vertices = np.array(pcd.points)
+            normals = np.array(pcd.normals)
+            descriptors, descriptors_inverted = get_descriptors(vertices, normals, descriptor_method)
+            keypoints, keypoint_idxs = get_keypoints(i, vertices, normals, keypoint_method, args.object_dir, npoints=512)
+            kpts_desc_n = descriptors[keypoint_idxs]
+            if descriptors_inverted:
+                kpts_desc_inv = descriptors_inverted[keypoint_idxs]
+            else:
+                kpts_desc_inv = None
+            save_descriptors(kpts_desc_n, kpts_desc_inv, args.object_dir, keypoint_method, descriptor_method, fragment_id=i)
+        print(f'Done.')
 
     if args.use_predictions:
         print(f'Predicting keypoint matches with GNN...')

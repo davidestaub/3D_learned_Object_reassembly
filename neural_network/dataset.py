@@ -54,14 +54,16 @@ class DatasetPredict(td.Dataset):
             object_folders = [folder_root]
         else:
             object_folders = [os.path.join(folder_root, folder) for folder in os.listdir(folder_root) if not "prediction" in folder]
+        
         kpt_desc = 'keypoint_descriptors'
         kpt_desc_inv = 'keypoint_descriptors_inverted'
         kpts_method = conf['kpts']
         desc_method = '_'.join([conf['kpts'], conf['desc']])
+
         # correct settings of hyperpillar
         if conf['pillar']:
-            # kpt_desc = '_'.join(['pillar', kpt_desc])
-            # kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
+            #kpt_desc = '_'.join(['pillar', kpt_desc])
+            #kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
             self.match_with_inverted = False
             desc_method = '_'.join([conf['kpts'], 'pillar'])
         
@@ -190,7 +192,7 @@ class DatasetTrain(td.Dataset):
             # for each match pair load the keypoints, descripors and matches
             # also construct the gt assignment
             for i in range(match_mat.shape[0]):
-                for j in range(i, match_mat.shape[0]):
+                for j in range(i+1, match_mat.shape[0]):
                     # if the matching matrix is 1, two fragments should match
                     # extract all the keypoint information necessary
                     if match_mat[i, j] == 1:
@@ -199,8 +201,8 @@ class DatasetTrain(td.Dataset):
                         try:
                             if not self.overfit:
                                 item['pairname'] = '_'.join([folder, str(i), str(j)])
-                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
-                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{j}.npy'))[0]
+                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{j}.npy'))[0]
                                 item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                                 item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{j}.npy'))[0]
                                 if self.match_with_inverted:
@@ -208,8 +210,8 @@ class DatasetTrain(td.Dataset):
                                     item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{j}.npy'))[0]
                                 item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
                             else:
-                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
-                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints', f'*{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{i}.npy'))[0]
                                 item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                                 item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                                 if self.match_with_inverted:
@@ -244,6 +246,7 @@ class DatasetTrain(td.Dataset):
             # Every pair of fragments is fed to the network twice, once frag_0 and inverted frag_1 and once vice versa.
             inverted_0 = idx % 2 == 0
             idx = idx // 2
+        
         # i is the keypoint index in the 0 cloud, item is the corresponding
         # cloud of potential matchings in the other fragment
         gtasg = np.array(load_npz(self.dataset[idx]['path_match_mat']).toarray(), dtype=np.float32)

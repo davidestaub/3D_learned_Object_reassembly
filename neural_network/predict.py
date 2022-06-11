@@ -27,7 +27,7 @@ def create_output_folders(folder_root):
         os.makedirs(os.path.join(folder_root, folder, 'predictions'))
 
 
-def predict(weights_path, folder_path, single_object=False, sensitivity = 0.8):
+def predict(weights_path, folder_path, single_object=True, sensitivity = 0.8):
     # Set single object to true if `folder_path` points directly to the object directory. Set it to False if it's a
     # folder containing multiple object folders.
     config_all = {**conf.model_conf, **conf.data_conf, **conf.train_conf}
@@ -39,7 +39,8 @@ def predict(weights_path, folder_path, single_object=False, sensitivity = 0.8):
     dataset = DatasetPredict(folder_path, config_all, single_object)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model = model.to(device)
-
+    print(f'Predicting Dataset generated of size: {len(dataset)}')
+    
     if single_object:
         shutil.rmtree(os.path.join(folder_path, 'predictions'), ignore_errors=True)
         os.makedirs(os.path.join(folder_path, 'predictions'))
