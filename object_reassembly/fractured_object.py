@@ -64,7 +64,8 @@ class FracturedObject(object):
         print("Loading keypoints of object " + self.name + "...")
 
         for i in range(self.N):
-            keypoint_path = os.path.join(self.path, "processed", "keypoints", f"keypoints_{self.keypoint_method}.{i}.npy")
+            keypoint_path = os.path.join(self.path, "processed", "keypoints",
+                                         f"keypoints_{self.keypoint_method}.{i}.npy")
             npy_kpts = np.load(keypoint_path)[:, 0:3]
             self.kpts_orig[i] = Pointcloud(npy_kpts)
             self.kpts_orig[i].transform(shifts[i])
