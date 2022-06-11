@@ -43,7 +43,7 @@ class FracturedObject(object):
     # Load fragment pointclouds and keypoints
     def load_object(self):
 
-        new_path = self.path + "/cleaned/"
+        new_path = os.path.join(self.path, "cleaned")
 
         print("Loading fragment meshes of object " + self.name + "...")
 
@@ -52,8 +52,9 @@ class FracturedObject(object):
         for fragment in os.listdir(new_path):
             if fragment.endswith('.obj'):
                 frag_no = int(fragment.rsplit(sep=".")[1])
-                self.fragments_orig[frag_no] = Mesh.from_obj(filepath=new_path + fragment)
-                centroid = self.fragments_orig[frag_no].centroid()
+                self.fragments_orig[frag_no] = Mesh.from_obj(filepath=os.path.join(new_path, fragment))
+                vertices = np.array([self.fragments_orig[frag_no].vertex_coordinates(i) for i in self.fragments_orig[frag_no].vertices()])
+                centroid = vertices.mean(axis=0)
                 T = np.eye(4)
                 T[0:3, 3] = centroid
                 shifts[frag_no] = T
