@@ -5,7 +5,9 @@ from compas_view2.app import App
 from compas.geometry import Pointcloud, Translation
 from compas. datastructures import Mesh, mesh_transform_numpy
 
+
 def keypoints_to_spheres(keypoints):
+    """Converts keypoints to sphere, better for visualizing"""
     spheres = o3d.geometry.TriangleMesh()
     for keypoint in keypoints.points:
         sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.002)
@@ -25,11 +27,11 @@ if __name__ == '__main__':
     print("id  name")
     for idx, val in enumerate(data_list):
         print(idx, " ", val)
+    
     idx = int(input("Enter the index of the subfolder in data where the shards are located:\n"))
     subfolder = data_list[idx]
+    
     ROOT = os.path.join(here, folder, subfolder)
-
-    # get the other folders
     CLEANED = os.path.join(ROOT, 'cleaned')
     KPTS_IN = os.path.join(ROOT,'processed','keypoints')
 
