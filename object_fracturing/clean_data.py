@@ -21,7 +21,7 @@ def clean_meshes(object_folder, dataroot=dataroot):
     shutil.rmtree(cleaned_path, ignore_errors=True)
     os.chdir(folder_path)
     os.mkdir('cleaned')
-    log_path = os.path.join(folder_path, 'log.txt')
+    log_path = os.path.join(folder_path, 'log_cleaning.txt')
 
     if os.path.exists(log_path):
         os.remove(log_path)
