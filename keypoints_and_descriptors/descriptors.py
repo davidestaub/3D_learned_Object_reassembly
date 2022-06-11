@@ -106,11 +106,10 @@ def save_descriptors(descriptors, descriptors_inv, object_folder_path, keypoint_
         tag += '_'
     processed_path = os.path.join(object_folder_path, 'processed')
 
-    kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',
-                                         f'keypoint_descriptors_{tag}{keypoint_method}_{descriptor_method}.{fragment_id}.npy')
+    kpts_desc_path_normal = os.path.join(processed_path, 'keypoint_descriptors',f'keypoint_descriptors_{tag}{keypoint_method}_{descriptor_method}.{fragment_id}.npy')
     os.makedirs(os.path.dirname(kpts_desc_path_normal), exist_ok=True)
     np.save(kpts_desc_path_normal, descriptors)
-    if descriptors_inv:
+    if descriptors_inv is not None:
         kpts_desc_path_inverted = os.path.join(processed_path, 'keypoint_descriptors_inverted',
                                                f'keypoint_descriptors_{tag}{keypoint_method}_{descriptor_method}.{fragment_id}.npy')
         os.makedirs(os.path.dirname(kpts_desc_path_inverted), exist_ok=True)

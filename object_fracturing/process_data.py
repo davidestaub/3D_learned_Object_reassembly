@@ -22,10 +22,12 @@ from keypoints_and_descriptors.utils import get_fragment_matchings, get_keypoint
 def process_folder(folder_path, args):
     start_time = time.time()
     object_name = os.path.basename(folder_path)
-    # shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
-    # os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
 
-    obj_files = glob(os.path.join(args.path, folder_path, 'cleaned', '*.pcd'))
+    # delete and overwrite the processed folders
+    shutil.rmtree(os.path.join(args.path, folder_path,'processed'), ignore_errors=True)
+    os.makedirs(os.path.join(args.path, folder_path,'processed'), exist_ok=True)
+
+    obj_files = glob(os.path.join(folder_path, 'cleaned', '*.pcd'))
     frag_vert = []
     frag_norm = []
 
@@ -35,7 +37,7 @@ def process_folder(folder_path, args):
         return
     fragment_pcds = []
     for i in range(num_fragments):
-        file_path = os.path.join(args.path, folder_path, 'cleaned', f'{object_name}_cleaned.{i}.pcd')
+        file_path = os.path.join(folder_path, 'cleaned', f'{object_name}_cleaned.{i}.pcd')
         fragment_pcds.append(o3d.io.read_point_cloud(file_path))
 
     # extract vertices for gt mathing
@@ -43,7 +45,7 @@ def process_folder(folder_path, args):
         vertices = np.array(pcd.points)
         frag_vert.append(vertices)
 
-    matching_matrix = get_fragment_matchings(frag_vert, os.path.join(args.path, folder_path))
+    matching_matrix = get_fragment_matchings(frag_vert, folder_path)
 
     # clean up matrices
     frag_vert = []
@@ -60,18 +62,16 @@ def process_folder(folder_path, args):
         frag_norm.append(normals)
 
     keypoints = []
-    full_object_folder_path = os.path.join(args.path.args, folder_path)
+
     for i in range(num_fragments):
         desc_n, desc_inv = get_descriptors(frag_vert[i], frag_norm[i], args.descriptor_method)
-        frag_kpts, keypoints_idxs = get_keypoints(i, frag_vert[i], frag_norm[i], args.keypoint_method,
-                                                  folder_path=full_object_folder_path, npoints=512)
+        frag_kpts, keypoints_idxs = get_keypoints(i, frag_vert[i], frag_norm[i], args.keypoint_method, folder_path=folder_path, npoints=512)
         kpts_desc_n = desc_n[keypoints_idxs]
-        if desc_inv:
+        if desc_inv is not None:
             kpts_desc_inv = desc_inv[keypoints_idxs]
         else:
             kpts_desc_inv = None
-        save_descriptors(kpts_desc_n, kpts_desc_inv, full_object_folder_path, args.keypoint_method,
-                         args.decriptor_method, fragment_id=i)
+        save_descriptors(kpts_desc_n, kpts_desc_inv, folder_path, args.keypoint_method, args.descriptor_method, fragment_id=i)
         keypoints.append(frag_kpts)
 
     # log for matches
@@ -83,8 +83,7 @@ def process_folder(folder_path, args):
             if matching_matrix[i, j]:
                 name = f'match_matrix_{args.keypoint_method}_{args.descriptor_method}_{i}_{j}'
                 path = os.path.join(args.path, folder_path, 'processed', 'matching', name)
-                if os.path.exists(path):
-                    continue
+                
                 kpts_i = keypoints[i][:, :3]
                 kpts_j = keypoints[j][:, :3]
                 # translate back
@@ -102,7 +101,7 @@ def process_folder(folder_path, args):
 
     # delete unecessary files again
     try:
-        shutil.rmtree(os.path.join(args.path, folder_path, 'processed', 'descriptors_all_points'))
+        shutil.rmtree(os.path.join(folder_path, 'processed', 'descriptors_all_points'))
     except:
         pass
 
@@ -111,19 +110,20 @@ def process_folder(folder_path, args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Spawn jobs for blender_auto_fracture_cluster.py")
-    parser.add_argument("--data_dir", type=str)
+    parser.add_argument("--path", type=str)
     parser.add_argument("--keypoint_method", type=str, default='hybrid', choices=['SD', 'sticky', 'hybrid'])
     parser.add_argument("--descriptor_method", type=str, default='fpfh', choices=['fpfh', 'pillar', 'fpfh_pillar'])
     args = parser.parse_args()
     
     # use default data directory if none is provided
-    if not args.data_dir:
+    if not args.path:
         print("Using default data directory")
-        args.data_dir = os.path.join(parentdir, 'object_fracturing', 'data')
+        args.path = os.path.join(parentdir, 'object_fracturing', 'data')
 
-    print(f'Data dir: {args.data_dir}')
+    print(f'Data dir: {args.path}')
     # set to the part which should be generatred
-    object_folders = os.listdir(args.data_dir)
+    object_folders = os.listdir(args.path)
 
     for folder in object_folders:
-        process_folder(os.path.join(object_folders, folder), args)
+        print(f'Processing folder {folder}')
+        process_folder(os.path.join(args.path, folder), args)

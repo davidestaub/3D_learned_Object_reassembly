@@ -73,9 +73,9 @@ def clean_meshes(object_folder, dataroot=dataroot):
                 pcd.normals = o3d.utility.Vector3dVector(normals)
                 pcd.points= o3d.utility.Vector3dVector(vertices)
 
-                if num_vertices> 1e4:
+                if num_vertices> 3e4:
                     downsample = True
-                    rate = 1e4/num_vertices                   
+                    rate = 3e4/num_vertices                   
                     pcd = pcd.random_down_sample(rate)
 
                 # save to new file
