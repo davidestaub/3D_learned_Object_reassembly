@@ -14,6 +14,11 @@ from glob import glob
 import numpy as np
 import open3d as o3d
 
+# setup paths for windows compability before importing own modules
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
+
 from keypoints_and_descriptors.descriptors import get_descriptors, save_descriptors
 from keypoints_and_descriptors.keypoints import get_keypoints
 from neural_network.predict import predict
@@ -21,10 +26,7 @@ from object_fracturing.clean_data import clean_meshes
 from object_reassembly.fractured_object import FracturedObject
 from object_reassembly.reassembly_main import pairwise_reassembly, full_reassembly
 
-# setup paths for windows compability
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir)
+
 
 # setup default values for cube and weights
 default_cube = os.path.join(currentdir, 'example_data', 'cube_10_seed_0')
