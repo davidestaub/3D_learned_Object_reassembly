@@ -14,7 +14,7 @@ import inspect
 # setup paths for windows compability
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
+sys.path.append(parentdir) 
 
 # setup default values for cube and weights
 default_cube = os.path.join(currentdir,'example_data', 'cube_10_seed_0')
@@ -51,15 +51,12 @@ def load_object(folder_path):
     return object_name, fragment_pcds
 
 
-
-
-
 def main():
     parser = argparse.ArgumentParser(description="Execute the whole reassembly pipeline.")
     parser.add_argument("--object_dir", type=str, default= default_cube, help='Path to folder with object fragments in .obj format')
     parser.add_argument("--model", type=str, default=default_weights, help="Path to saved model")
-    parser.add_argument('--pairwise', action='store_true', help='Perform and visualize only pairwise reassembly.')
-    parser.add_argument('--ground_truth', action='store_true', help='Use ground truth matches to reassemble the object.')
+    parser.add_argument('--pairwise', action='store_true', default=False, help='Perform and visualize only pairwise reassembly.')
+    parser.add_argument('--ground_truth', action='store_true', default = True, help='Use ground truth matches to reassemble the object.')
     args = parser.parse_args()
 
     print(f'Loading object from {args.object_dir}.')
@@ -80,8 +77,7 @@ def main():
             kpts_desc_inv = descriptors_inverted[keypoint_idxs]
         else:
             kpts_desc_inv = None
-        save_descriptors(kpts_desc_n, kpts_desc_inv, args.object_dir, keypoint_method, descriptor_method,
-                         fragment_id=i)
+        save_descriptors(kpts_desc_n, kpts_desc_inv, args.object_dir, keypoint_method, descriptor_method, fragment_id=i)
     print(f'Done.')
 
     if not args.ground_truth:

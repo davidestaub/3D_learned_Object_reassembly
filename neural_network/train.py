@@ -3,10 +3,15 @@ import logging
 import os
 import shutil
 import sys
-
+import inspect
 import torch.utils.data as td
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+
+# setup paths for windows compability
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir) 
 
 from neural_network.dataset import create_datasets
 from neural_network.model import build_model
@@ -302,11 +307,11 @@ def train_model(dataroot, model, config, output_path):
 
 
 if __name__ == '__main__':
-    logger.setLevel(logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', default=None)
     args = parser.parse_intermixed_args()
 
+    logger.setLevel(logging.INFO)
     model_conf, train_conf, data_conf, wandb_conf = conf.model_conf, conf.train_conf, conf.data_conf, conf.wandb_conf
     here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
@@ -329,10 +334,10 @@ if __name__ == '__main__':
                    settings=wandb.Settings(start_method='thread'))
         config = wandb.config
         wandb.watch(model)
-        output_path = os.path.join(here, '_'.join(['model_output', wandb.run.name]))
+        output_path = os.path.join(here, '_'.join(['train_output', wandb.run.name]))
         name_weights = os.path.join(here, 'weights', f'model_weights_{wandb.run.name}.pth')
     else:
-        output_path = os.path.join(here,'model_output')
+        output_path = os.path.join(here,'train_output')
         name_weights = os.path.join(here, 'weights', 'model_weights.pth')
     shutil.rmtree(output_path, ignore_errors=True)
 

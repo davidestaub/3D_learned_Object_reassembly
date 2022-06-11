@@ -1,10 +1,7 @@
 import sys
 from copy import deepcopy
 from typing import List, Tuple
-
-import torch.nn.functional as F
 from torch import nn
-
 from neural_network.utils.utils import *
 
 
@@ -105,6 +102,7 @@ class MultiHeadedAttention(nn.Module):
 
 class AttentionalPropagation(nn.Module):
     """Propagates the attention through the GNN layers"""
+    
     def __init__(self, feature_dim: int, num_heads: int):
         super().__init__()
         self.attn = MultiHeadedAttention(num_heads, feature_dim)

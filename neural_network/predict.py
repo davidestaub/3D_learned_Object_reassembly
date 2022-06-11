@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import sys
+import inspect
 import tkinter
 from tkinter import filedialog
 
@@ -9,7 +10,11 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-sys.path.append(os.getcwd())
+# setup paths for windows compability
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir) 
+
 from neural_network.dataset import DatasetPredict
 from neural_network.model import build_model, batch_to_device
 from neural_network.utils import conf as conf
@@ -22,7 +27,7 @@ def create_output_folders(folder_root):
         os.makedirs(os.path.join(folder_root, folder, 'predictions'))
 
 
-def predict(weights_path, folder_path, single_object=False, sensitivity = 0.5):
+def predict(weights_path, folder_path, single_object=False, sensitivity = 0.8):
     # Set single object to true if `folder_path` points directly to the object directory. Set it to False if it's a
     # folder containing multiple object folders.
     config_all = {**conf.model_conf, **conf.data_conf, **conf.train_conf}
@@ -77,6 +82,5 @@ if __name__ == '__main__':
                                        title='Please select the parent directory of the fractured object folders')
     else:
         root = args.data_dir
-    # create the necessary config and create the model and dataset
 
-    predict(args.weights_path, root, sensitivity)
+    predict(args.weights_path, root)

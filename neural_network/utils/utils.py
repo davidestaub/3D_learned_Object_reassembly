@@ -20,6 +20,7 @@ def set_seed(seed):
     np.random.seed(seed)
 
 
+# It computes the average of a sequence of numbers, ignoring NaNs
 class AverageMetric:
     def __init__(self):
         self._sum = 0
@@ -39,6 +40,12 @@ class AverageMetric:
 
 
 def map_tensor(input_, func):
+    """
+    It applies a function to all tensors in a nested structure
+    
+    :param input_: The input tensor or dict/list of tensors to be transformed
+    :param func: The function to be applied to each tensor
+    """
     if isinstance(input_, torch.Tensor):
         return func(input_)
     elif isinstance(input_, string_classes):
@@ -85,6 +92,15 @@ def log_optimal_transport(scores: torch.Tensor, alpha: torch.Tensor, iters: int)
 
 
 def construct_match_matrix(x0, x1):
+    """
+    It takes two tensors of shape (batch_size, num_points) and returns a tensor of shape (batch_size,
+    num_points, num_points) where the (i,j)th entry is 1 if the ith point in the first tensor is matched
+    to the jth point in the second tensor and 0 otherwise
+    
+    :param x0: a tensor of shape (batch_size, num_points, num_points)
+    :param x1: (batch_size, num_points, 3)
+    :return: A matrix of size (batch_size, num_of_matches)
+    """
     matrices = []
     # do for every batch
     for batch in range(x0.shape[0]):
@@ -105,7 +121,7 @@ def construct_match_matrix(x0, x1):
 
 def batch_to_device(batch, device, non_blocking=True):
     """
-    It takes a batch of tensors and moves them to the specified device
+    Takes a batch of tensors and moves them to the specified device
     
     Args:
       batch: a dictionary of tensors
@@ -137,14 +153,17 @@ def arange_like(x, dim: int):
 
 def construct_match_vector(gt, pred):
     """
-    It takes two lists of integers, and returns a list of lists of integers. The first list is the
-    ground truth, the second list is the prediction. The output is a list of lists of integers, where
-    each list of integers is a row in the confusion matrix. The integers are 0, 1, 2, or 3, which
-    correspond to red, blue, orange, and green, respectively
+    It creates the matching vectors for wandb visualizing with pyplot.
+    There are following color mappings:
+
+    0 -> red (there was a match and the prediction was wrong)\n
+    1 -> blue (correctly predicted no match)\n
+    2 -> orange (predicted a match but there was no match)\n
+    3 -> green (there was a match and the prediction was correct)\n
     
     :param gt: ground truth
     :param pred: the predicted labels
-    :return: A list of lists.
+    :return: matrix for pyplot color mapping
     """
 
     mat = np.zeros((10, len(gt) + 1))

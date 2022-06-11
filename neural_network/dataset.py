@@ -5,18 +5,30 @@ import torch
 import torch.utils.data as td
 from scipy.sparse import load_npz
 from sklearn.model_selection import train_test_split
-
 from neural_network.utils.conf import *
 
 
 def pc_normalize(pc):
-    """normalizes a pointcloud by centering"""
+    """
+    It takes a point cloud as input and returns a point cloud with the same shape, but with the
+    centroid at the origin
+    
+    :param pc: The point cloud to be normalized
+    :return: the point cloud after it has been normalized.
+    """
     centroid = np.mean(pc, axis=0)
     pc = pc - centroid
     return pc
 
 
 def create_datasets(root, conf):
+    """
+    It takes a root folder, and splits it into train and test folders
+    
+    :param root: the path to the folder containing the object folders
+    :param conf: a dictionary containing the following keys:
+    :return: A tuple of two datasets, one for training and one for testing.
+    """
     object_folders = [os.path.join(root, folder) for folder in os.listdir(root)]
     train_folders, test_folders, = train_test_split(
         object_folders,
@@ -207,7 +219,8 @@ class DatasetTrain(td.Dataset):
                         except Exception as e:
                             print(f"Error loading objects in folder {folder}: {e}")
                             continue
-                        # throw out samples where we have too little matches (<5%) 
+                    
+                        # throw out samples where we have too little matches
                         # since we have two same matched (i,j) (j,i) divide by 2
                         gt = np.array(load_npz(item['path_match_mat']).toarray(), dtype=np.float32)
                         num_matches = np.sum(gt) / 2
