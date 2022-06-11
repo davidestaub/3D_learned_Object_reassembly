@@ -32,15 +32,15 @@ class FracturedObject(object):
         self.kpts: Dict[int, Pointcloud] = {}
         self.kpt_matches_gt = {}
         self.kpt_matches = {}
-        self.transf_random = {}  # key: N, value: (R,t), apply R(N)+t to move N from original position
-        self.transf = OrderedDict()  # key: (A,B), value: (R,t), apply R(A)+t to match A to B
+        self.transf_random = {}  # Key: N, value: (R,t), apply R(N)+t to move N from original position
+        self.transf = OrderedDict()  # Key: (A,B), value: (R,t), apply R(A)+t to match A to B
         self.constraints = None  # List of triplet constraints (a, b, c)
         self.N = -1
         self.keypoint_method = keypoint_method
         assert graph_matching_method in ['mst', 'original']
         self.graph_matching_method = graph_matching_method
 
-    # load fragment pointclouds and keypoints
+    # Load fragment pointclouds and keypoints
     def load_object(self):
 
         new_path = self.path + "/cleaned/"
@@ -48,7 +48,7 @@ class FracturedObject(object):
         print("Loading fragment meshes of object " + self.name + "...")
 
         shifts = {}
-        # load fragments in original position as meshes
+        # Load fragments in original position as meshes
         for fragment in os.listdir(new_path):
             if fragment.endswith('.obj'):
                 frag_no = int(fragment.rsplit(sep=".")[1])
@@ -70,7 +70,7 @@ class FracturedObject(object):
             self.kpts_orig[i].transform(shifts[i])
             self.kpts[i] = Pointcloud(npy_kpts)
 
-    # Load ground truth matches from file.
+    # Load ground truth matches from file
     def load_matches(self, use_ground_truth=False):
         keypoints_matchings_folder = os.path.join(self.path, 'predictions')
 
@@ -106,18 +106,18 @@ class FracturedObject(object):
                             tuple_2 = np.array(tuple_2)
                             self.kpt_matches_gt[(fragment0, fragment1)] = (tuple_1, tuple_2)
 
-    # construct random transformation
+    # Construct random transformation
     def create_random_pose(self):
         rng = np.random.default_rng(seed=42)
         print("Creating random pose for object " + self.name + "...")
         for fragment in self.fragments.keys():
-            # insert random rotations
+            # Insert random rotations
             theta = rng.uniform(0, 2 * np.pi, size=(3,))
             R = Rotation.from_euler(seq='xyz', angles=theta).as_matrix()
             t = rng.uniform(-1, 1, size=(3,))
             self.transf_random[int(fragment)] = (R, t)
 
-    # apply relative transformation from fragment A to B to fragment A
+    # Apply relative transformation from fragment A to B to fragment A
     def apply_transf(self, A, B):
         transf = self.transf[(A, B)]
         if transf[0] is not None and transf[1] is not None:
@@ -126,7 +126,7 @@ class FracturedObject(object):
             self.kpts[A].transform(T)
             self.fragments[A].transform(T)
 
-    # scatter fragments with random transformations
+    # Scatter fragments with random transformations
     def apply_random_transf(self):
         print("Applying random transformation to fragments...")
         for key, fragment in self.fragments.items():
@@ -136,7 +136,7 @@ class FracturedObject(object):
         for key, points in self.kpts.items():
             points.transform(transform_from_rotm_tr(self.transf_random[key]))
 
-    # estimate relative transformations between fragments using find_t_method
+    # Estimate relative transformations between fragments using find_t_method
     # use_gt if ground truth matches are to be used to find transformations
     def find_transformations(self, use_gt=True, find_t_method="RANSAC_RIGID", use_rigid_transform=True):
         fragments = range(len(self.fragments.keys()))  # nof fragments
@@ -216,7 +216,7 @@ class FracturedObject(object):
 
                 elif find_t_method == "RANSAC_RIGID":
 
-                    # minimum number of samples to get a transformation is 3 (per fragment) we use 4 because it helps
+                    # Minimum number of samples to get a transformation is 3 (per fragment) we use 4 because it helps
                     # get better transformations
                     min_number_pairs = 4
 
@@ -226,7 +226,7 @@ class FracturedObject(object):
                         self.transf[comb] = (None, None)
                         nb_non_matches += 1
                     else:
-                        # estimate with RANSAC
+                        # Estimate with RANSAC
                         ransac = RansacEstimator(min_samples=3, residual_threshold=0.01, max_trials=1000)
                         ret = ransac.fit(Procrustes(), [ptsA, ptsB])
                         transform_ransac = ret["best_params"]
@@ -248,8 +248,7 @@ class FracturedObject(object):
                         match_pairwise[idx] = 1
 
                 else:
-                    # use gt for transformations
-                    raise NotImplementedError
+                    raise ValueError(f'No such transformation estimation method: {find_t_method}')
 
     def create_inverse_transformations_for_existing_pairs(self):
         """stores the transformation from A -> B as the inverse transformation from B -> A.
