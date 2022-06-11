@@ -20,3 +20,5 @@ wandb/
 .vscode/
 /neural_network/data_evaluation/
 /report/
+/full_pipeline/example_data
+/full_pipeline/example_data/cube_10_seed_0/
