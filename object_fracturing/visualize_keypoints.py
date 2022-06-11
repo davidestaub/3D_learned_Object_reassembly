@@ -61,7 +61,7 @@ if __name__ == '__main__':
     t.invert()
     color_kasia = [254/255, 74/255, 25/255]
 
-    #mesh_transform_numpy(compas_mesh, t)
+    mesh_transform_numpy(compas_mesh, t)
     viewer.add(compas_kpts, color=color_kasia)
     viewer.add(compas_mesh, facecolor=[0.6,0.6,0.6])
     viewer.show()

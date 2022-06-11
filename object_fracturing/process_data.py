@@ -53,9 +53,9 @@ def process_folder(folder_path, kpt_method, desc_method):
     pcd_centers = []
     # center the pointclouds and reextract
     for pcd in fragment_pcds:
-        #c = pcd.get_center()
-        #pcd_centers.append(c)
-        #pcd = pcd.translate(-1 * c)
+        c = pcd.get_center()
+        pcd_centers.append(c)
+        pcd = pcd.translate(-1 * c)
         vertices = np.array(pcd.points)
         normals = np.array(pcd.normals)
         frag_vert.append(vertices)
@@ -87,8 +87,8 @@ def process_folder(folder_path, kpt_method, desc_method):
                 kpts_i = keypoints[i][:, :3]
                 kpts_j = keypoints[j][:, :3]
                 # translate back
-                #kpts_i = kpts_i + pcd_centers[i]
-                #kpts_j = kpts_j + pcd_centers[j]
+                kpts_i = kpts_i + pcd_centers[i]
+                kpts_j = kpts_j + pcd_centers[j]
                 keypoint_assignment = get_keypoint_assignment(kpts_i, kpts_j).astype(int)
                 log.append(f"Found {np.sum(keypoint_assignment)} matches for {i}-{j}!")
                 # save the matching matrix as sparse scipy file
@@ -111,8 +111,8 @@ def process_folder(folder_path, kpt_method, desc_method):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Spawn jobs for blender_auto_fracture_cluster.py")
     parser.add_argument("--path", type=str)
-    parser.add_argument("--keypoint_method", type=str, default='hybrid', choices=['SD', 'sticky', 'hybrid'])
-    parser.add_argument("--descriptor_method", type=str, default='fpfh', choices=['fpfh', 'pillar', 'fpfh_pillar'])
+    parser.add_argument("--keypoint_method", type=str, default='hybrid', choices=['SD', 'sticky', 'hybrid', 'iss', 'harris'])
+    parser.add_argument("--descriptor_method", type=str, default='pillar', choices=['fpfh', 'pillar', 'fpfh_pillar'])
     args = parser.parse_args()
     
     # use default data directory if none is provided

@@ -1,12 +1,14 @@
 import os
 from copy import deepcopy
-
+import sys
+import inspect
 import numpy as np
 import open3d as o3d
 from scipy.spatial import KDTree
 from scipy.spatial.distance import norm
 from sklearn.decomposition import PCA
 
+sys.path.append(os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))))
 from tools.neighborhoords import k_ring_delaunay_adaptive
 from tools.tools import polyfit3d
 from tools.transformation import centering_centroid
