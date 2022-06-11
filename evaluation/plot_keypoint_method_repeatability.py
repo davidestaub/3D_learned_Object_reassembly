@@ -44,7 +44,7 @@ def plot(name, last_info_column, title):
     plt.savefig(f'{name}.pdf')
     fig.show()
 
-    fig = plt.figure(figsize=(4, 4))
+    fig = plt.figure(figsize=(3.5, 3.5))
     patches, labels, ymaxlim = zip(*([plot_cumulative_dists(dists, df, method, fig.gca()) for method in methods]))
     ax = fig.gca()
     ax.yaxis.set_major_formatter(PercentFormatter(1))
