@@ -12,7 +12,7 @@ import pandas as pd
 from open3d.cpu.pybind.geometry import PointCloud
 from scipy.spatial import KDTree
 
-from process_folder_cluster import get_keypoints, get_fragment_matchings
+from object_fracturing.process_data import get_keypoints, get_fragment_matchings
 
 np.random.seed(42)
 

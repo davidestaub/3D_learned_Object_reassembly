@@ -3,10 +3,16 @@ import os
 import shutil
 import time
 from glob import glob
-
+import sys
+import inspect
 import numpy as np
 import open3d as o3d
 from scipy.sparse import save_npz, csr_matrix
+
+# setup paths for windows compability
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir) 
 
 from keypoints_and_descriptors.descriptors import get_descriptors, save_descriptors
 from keypoints_and_descriptors.keypoints import get_keypoints
@@ -105,8 +111,19 @@ def process_folder(folder_path, args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Spawn jobs for blender_auto_fracture_cluster.py")
-    parser.add_argument("--path", type=str)
+    parser.add_argument("--data_dir", type=str)
     parser.add_argument("--keypoint_method", type=str, default='hybrid', choices=['SD', 'sticky', 'hybrid'])
     parser.add_argument("--descriptor_method", type=str, default='fpfh', choices=['fpfh', 'pillar', 'fpfh_pillar'])
     args = parser.parse_args()
-    process_folder(os.path.abspath(args.path), args)
+    
+    # use default data directory if none is provided
+    if not args.data_dir:
+        print("Using default data directory")
+        args.data_dir = os.path.join(parentdir, 'object_fracturing', 'data')
+
+    print(f'Data dir: {args.data_dir}')
+    # set to the part which should be generatred
+    object_folders = os.listdir(args.data_dir)
+
+    for folder in object_folders:
+        process_folder(os.path.join(object_folders, folder), args)

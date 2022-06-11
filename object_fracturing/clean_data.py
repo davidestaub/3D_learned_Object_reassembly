@@ -3,12 +3,12 @@ import gc
 import os
 import shutil
 from multiprocessing import Pool, cpu_count
-
 import numpy as np
 import open3d as o3d
 from compas.datastructures import Mesh
 from compas.datastructures import mesh_explode
 
+#default dataroot
 dataroot = os.path.join(os.path.abspath(__file__), '..','data')
 
 def clean_meshes(object_folder, dataroot=dataroot):
@@ -91,10 +91,6 @@ def clean_meshes(object_folder, dataroot=dataroot):
                 
                 o3d.io.write_point_cloud(FILE_PCD, pcd)
                 piece_counter += 1
-
-                
-
-
             shard_counter += 1
 
     with open(log_path, "w+") as text_file:
