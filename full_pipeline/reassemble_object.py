@@ -31,6 +31,7 @@ from object_reassembly.reassembly_main import pairwise_reassembly, full_reassemb
 default_cube = os.path.join(currentdir, 'example_data', 'cube_10_seed_0')
 default_weights = os.path.join(parentdir, 'neural_network', 'weights', 'model_weights_best.pth')
 
+
 def load_object(folder_path):
     object_name = os.path.basename(folder_path)
     pcd_files = glob(os.path.join(folder_path, 'cleaned', '*.pcd'))

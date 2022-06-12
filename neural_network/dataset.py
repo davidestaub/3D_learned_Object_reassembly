@@ -30,6 +30,7 @@ def create_datasets(root, conf):
     :return: A tuple of two datasets, one for training and one for testing.
     """
     object_folders = [os.path.join(root, folder) for folder in os.listdir(root)]
+
     train_folders, test_folders, = train_test_split(
         object_folders,
         train_size = conf['train_fraction'],
@@ -71,13 +72,12 @@ class DatasetPredict(td.Dataset):
             processed = os.path.join(folder, 'processed')
             kpts_path = os.path.join(processed, 'keypoints')
 
-            numn_files = len(glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.*.npy')))
+            num_files = len(glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.*.npy')))
 
-            for i in range(numn_files):
-                for j in range(i+1, numn_files):
+            for i in range(num_files):
+                for j in range(i+1, num_files):
                     item = {}
                     object_name = os.path.basename(folder)
-                    
                     item['pairname'] = '_'.join([folder, str(i), str(j)])
                     try:
                         item['path_kpts_0'] = glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.{i}.npy'))[0]
@@ -166,33 +166,34 @@ class DatasetTrain(td.Dataset):
         self.overfit = conf['overfit']
         self.match_with_inverted = conf['match_inverted']
 
-        # setup for paths
         kpt_desc = 'keypoint_descriptors'
         kpt_desc_inv = 'keypoint_descriptors_inverted'
         kpts_method = conf['kpts']
         desc_method = '_'.join([conf['kpts'], conf['desc']])
+
         # correct settings of hyperpillar
         if conf['pillar']:
-            kpt_desc = '_'.join(['pillar', kpt_desc])
-            kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
+            #kpt_desc = '_'.join(['pillar', kpt_desc])
+            #kpt_desc_inv = '_'.join(['pillar', kpt_desc_inv])
             self.match_with_inverted = False
             desc_method = '_'.join([conf['kpts'], 'pillar'])
 
         # load the dataset
         for folder in object_folders:
+
             object_name = os.path.basename(folder)
-            processed = os.path.join(folder, 'processed', '')
-            matching = os.path.join(processed, 'matching', '')
-            match_path = f'{matching}{object_name}_matching_matrix.npy'
-            # if there is no log, the dataset wasn't processed yet
-            if not os.path.exists(os.path.join(folder, 'log.txt')):
-                continue
+            processed = os.path.join(folder, 'processed')
+            kpts_path = os.path.join(processed, 'keypoints')
+            matching = os.path.join(processed, 'matching')
+            match_path = os.path.join(matching, f'{object_name}_matching_matrix.npy')
             match_mat = np.load(match_path)
+            num_files = len(glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.*.npy')))
 
             # for each match pair load the keypoints, descripors and matches
             # also construct the gt assignment
-            for i in range(match_mat.shape[0]):
-                for j in range(i+1, match_mat.shape[0]):
+
+            for i in range(num_files):
+                for j in range(num_files):
                     # if the matching matrix is 1, two fragments should match
                     # extract all the keypoint information necessary
                     if match_mat[i, j] == 1:
@@ -201,26 +202,26 @@ class DatasetTrain(td.Dataset):
                         try:
                             if not self.overfit:
                                 item['pairname'] = '_'.join([folder, str(i), str(j)])
-                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{i}.npy'))[0]
-                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{j}.npy'))[0]
+                                item['path_kpts_0'] = glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_1'] = glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.{j}.npy'))[0]
                                 item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                                 item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{j}.npy'))[0]
                                 if self.match_with_inverted:
                                     item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
                                     item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{j}.npy'))[0]
-                                item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
+                                item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{max(i,j)}_{min(i,j)}.npz'))[0]
                             else:
-                                item['path_kpts_0'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{i}.npy'))[0]
-                                item['path_kpts_1'] = glob(os.path.join(processed, 'keypoints_', f'{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_0'] = glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.{i}.npy'))[0]
+                                item['path_kpts_1'] = glob(os.path.join(kpts_path, f'keypoints_{kpts_method}.{i}.npy'))[0]
                                 item['path_kpts_desc_0'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                                 item['path_kpts_desc_1'] = glob(os.path.join(processed, kpt_desc, f'*{desc_method}.{i}.npy'))[0]
                                 if self.match_with_inverted:
                                     item['path_kpts_desc_inverted_0'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
                                     item['path_kpts_desc_inverted_1'] = glob(os.path.join(processed, kpt_desc_inv, f'*{desc_method}.{i}.npy'))[0]
-                                item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{j}_{i}.npz'))[0]
+                                item['path_match_mat'] = glob(os.path.join(matching, f'*{desc_method}_{max(i,j)}_{min(i,j)}.npz'))[0]
                         except Exception as e:
                             print(f"Error loading objects in folder {folder}: {e}")
-                            continue
+                            exit(0)
                     
                         # throw out samples where we have too little matches
                         # since we have two same matched (i,j) (j,i) divide by 2

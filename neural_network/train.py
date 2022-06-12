@@ -313,13 +313,12 @@ if __name__ == '__main__':
 
     logger.setLevel(logging.INFO)
     model_conf, train_conf, data_conf, wandb_conf = conf.model_conf, conf.train_conf, conf.data_conf, conf.wandb_conf
-    here = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 
     if args.path == None:
-        root = os.path.join(here, '..', 'object_fracturing', 'data')
+        root = os.path.join(parentdir, 'object_fracturing', 'data')
     else:
         root = args.path
-
+    print(f'Using dataset direction: {root}')
     np.set_printoptions(threshold=sys.maxsize)
 
     config = {**model_conf, **train_conf, **data_conf, **wandb_conf}
@@ -334,11 +333,11 @@ if __name__ == '__main__':
                    settings=wandb.Settings(start_method='thread'))
         config = wandb.config
         wandb.watch(model)
-        output_path = os.path.join(here, '_'.join(['train_output', wandb.run.name]))
-        name_weights = os.path.join(here, 'weights', f'model_weights_{wandb.run.name}.pth')
+        output_path = os.path.join(currentdir, '_'.join(['train_output', wandb.run.name]))
+        name_weights = os.path.join(currentdir, 'weights', f'model_weights_{wandb.run.name}.pth')
     else:
-        output_path = os.path.join(here,'train_output')
-        name_weights = os.path.join(here, 'weights', 'model_weights.pth')
+        output_path = os.path.join(currentdir,'train_output')
+        name_weights = os.path.join(currentdir, 'weights', 'model_weights.pth')
     shutil.rmtree(output_path, ignore_errors=True)
 
     train_model(root, model, config, output_path)

@@ -23,15 +23,16 @@ This folder is neccessary when using network predictions, if you only intend on 
 The "predictions" folder should be named as such, and contain all the fragment matching files. The files should be named as follows:
   - `````prediction_$FRAGMENT NR 1$_$FRAGMENT NR 2$_m0.npy````` if the file contains the matches from fragment 1 to fragment 2.
   - `````prediction_$FRAGMENT NR 1$_$FRAGMENT NR 2$_m1.npy````` if the file contains the matches from fragment 2 to fragment 1.
-####TODO describe what exactly should be inside predictions_0_1_m0.npy
 - ````\processed````:
 This folder is neccessary both for using ground truth data and network predictions.
 It should contain the following 3 subfolders:
   - ````\keypoint_descriptos````: A folder containig the descriptors for each fragment, saved as:
   `````keypoint_descriptors_hybrid_pillar.$FRAGMENT NR$.npy`````
-  - ````\keypoints````: #TODO
-  - ````\matching````: #TODO, I am a bit unsure here, so one should put the matching_matrix when using gt and what should be in here exactly when using network predictions?
+  - ````\keypoints````: This folder contains the keypoints for each fragments saved as xyz format with filename
+  ```keypoint_METHOD.$FRAGMENT NR$.npy```
+  - ````\matching````: This folder contains found ground truth matches. The ```matching_matrix.npy``` contains a matching matrix for the fragments.
+                      The ````$FRAG NR 1$_$FRAG NR 2$.npz```` files contain the matching matrix for the keypoints from fragment 1 to fragment 2.
 
-
+Note that you can just use the data processing scripts (first clean, then process) found in the [object_fraturing](https://github.com/davidestaub/3D_learned_Object_reassembly/tree/main/object_fracturing)!
 
 

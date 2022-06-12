@@ -19,7 +19,3 @@ You should see first a visualization of a scrambled cube and then a reassembled 
 - object_fracturing – TODO
 - object_reassembly – TODO
 
-  
-
-
-

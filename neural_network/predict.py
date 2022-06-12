@@ -27,7 +27,7 @@ def create_output_folders(folder_root):
         os.makedirs(os.path.join(folder_root, folder, 'predictions'))
 
 
-def predict(weights_path, folder_path, single_object=True, sensitivity = 0.8):
+def predict(weights_path, folder_path, single_object=False, sensitivity = 0.8):
     # Set single object to true if `folder_path` points directly to the object directory. Set it to False if it's a
     # folder containing multiple object folders.
     config_all = {**conf.model_conf, **conf.data_conf, **conf.train_conf}
@@ -71,7 +71,7 @@ def predict(weights_path, folder_path, single_object=True, sensitivity = 0.8):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights_path', default=os.path.join('neural_network','weights', 'model_weights_best.pth'))
+    parser.add_argument('--weights_path', default=os.path.join(currentdir, 'weights', 'model_weights_best.pth'))
     parser.add_argument('--data_dir')
     parser.add_argument('--sensitivity')
     args = parser.parse_intermixed_args()
@@ -84,4 +84,4 @@ if __name__ == '__main__':
     else:
         root = args.data_dir
 
-    predict(args.weights_path, root)
+    predict(args.weights_path, root, False, float(args.sensitivity))
