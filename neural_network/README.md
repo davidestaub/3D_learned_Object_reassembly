@@ -17,7 +17,7 @@ python3 train.py
 or add a custom path with the ````--path```` argument. The final weights are stored in the ```weights```
 folder as ````model_weights.pth````.
 ## Inference
-For inference, the previously trained weights or otherwise pretrained weights can be used.
+For inference, the previously trained weights or provided pretrained weights, saved as ```weights/model_weights_best.pth``` can be used.
 To predict keypoint matches, using a match_threshold of 0.9 use the command
 ````
 python3 predict.py --weights_path weights/model_weights.pth --sensitivity 0.9
