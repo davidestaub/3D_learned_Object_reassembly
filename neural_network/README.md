@@ -9,14 +9,14 @@ in the processing step.
 You can monitor the training with [WANDB](https://wandb.ai/). Provide your login credentials in the config file
 to use it.
 
-### Training
+## Training
 Train the network on the default cube dataset, located in ```object_fracturing/data```
 ````
 python3 train.py
 ````
 or add a custom path with the ````--path```` argument. The final weights are stored in the ```weights```
 folder as ````model_weights.pth````.
-### Inference
+## Inference
 For inference, the previously trained weights or otherwise pretrained weights can be used.
 To predict keypoint matches, using a match_threshold of 0.9 use the command
 ````
