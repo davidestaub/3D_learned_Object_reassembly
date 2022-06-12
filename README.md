@@ -12,10 +12,10 @@ python3 reassemble_object.py --object_dir ./example_data/cube_10_seed_0
 You should see first a visualization of a scrambled cube and then a reassembled one.
 
 ## Project structure
-- evaluation – TODO
-- full_pipeline – TODO
-- keypoints_and_descriptors – TODO
-- neural_network – TODO
-- object_fracturing – TODO
+- evaluation – contains a keypoint visualizer as well as 
+- full_pipeline – reassemble an object from its shards, including all necessary intermediate steps
+- keypoints_and_descriptors – calculations of keypoints and features
+- neural_network – build and train a neural network and use it for predictions
+- object_fracturing – fracture objects with blender and preprocess the objects for the neural network
 - object_reassembly – TODO
 
