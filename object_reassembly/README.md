@@ -30,7 +30,7 @@ It should contain the following 3 subfolders:
   - ````\keypoint_descriptos````: A folder containig the descriptors for each fragment, saved as:
   `````keypoint_descriptors_hybrid_pillar.$FRAGMENT NR$.npy`````
   - ````\keypoints````: #TODO
-  - ````\keypoints````: #TODO, I am a bit unsure here, so one should put the matching_matrix when using gt and what should be in here exactly when using network predictions?
+  - ````\matching````: #TODO, I am a bit unsure here, so one should put the matching_matrix when using gt and what should be in here exactly when using network predictions?
 
 
 
