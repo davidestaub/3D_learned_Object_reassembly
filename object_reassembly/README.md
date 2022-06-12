@@ -33,6 +33,6 @@ It should contain the following 3 subfolders:
   - ````\matching````: This folder contains found ground truth matches. The ```matching_matrix.npy``` contains a matching matrix for the fragments.
                       The ````$FRAG NR 1$_$FRAG NR 2$.npz```` files contain the matching matrix for the keypoints from fragment 1 to fragment 2.
 
-Note that you can just use the data processing scripts (first clean, then process) found in the [object_fraturing](https://github.com/davidestaub/3D_learned_Object_reassembly/tree/main/object_fracturing)!
+Note that you can just use the data processing scripts (first clean, then process) found in the [object_fraturing](https://github.com/davidestaub/3D_learned_Object_reassembly/tree/main/object_fracturing)! Just make sure you have the shards as ```.obj``` files, then follow the instructions from object fracturing. 
 
 
