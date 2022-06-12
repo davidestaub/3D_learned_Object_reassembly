@@ -10,7 +10,7 @@ from object_reassembly.compas_vis import compas_show
 from object_reassembly.fractured_object import FracturedObject
 
 here = os.path.dirname(os.path.abspath(__file__))
-path = "data_from_pred"
+#path = "data_from_pred"
 
 
 def full_reassembly(obj):
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
     obj = FracturedObject(path=data_dir, graph_matching_method='mst')
     obj.load_object()
-    obj.load_matches()
+    obj.load_matches(use_ground_truth=True)
     if not args.pairwise:
         full_reassembly(obj)
     else:
