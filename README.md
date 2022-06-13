@@ -3,6 +3,7 @@ Group 19: Mathias Vogel, Julia Bazińska, Katarzyna Krasnopolska, Davide Staub
 Project as a part of 3D Vision course.
 
 ## Quickstart
+Tested on Ubuntu 18.06 with Python 3.7.5.
 
 ```
 pip install -r requirements.txt
@@ -24,3 +25,9 @@ python3 reassemble_object.py --object_dir ./example_data/cube_10_seed_0 --use_pr
 - object_reassembly – load preprocessed object fragments and reassemble either using ground truth matches or predictions from 
 the network.
 
+# Troubleshooting
+In case you encounter an error `TypeError: 'exclusive' is an unknown keyword argument`, then execute this with the appropriate path:
+
+```
+sed -i 's/QtWidgets.QActionGroup(self.window, exclusive=True)/QtWidgets.QActionGroup(self.window)/' $PATH_TO_YOUR_VIRTUAL_ENV/lib/python3.7/site-packages/compas_view2/app/app.py
+```

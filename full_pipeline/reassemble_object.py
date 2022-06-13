@@ -63,14 +63,19 @@ def main():
     parser.add_argument('--use_predictions', action='store_true',
                         help='Use predicted matches to reassemble the object.')
     args = parser.parse_args()
+    object_dir = os.path.abspath(args.object_dir)
+    if args.use_predictions:
+        print('Performing reassembly on predictions from GNN.')
+    else:
+        print('Performing reassembly on ground truth keypoint matchings.')
 
     if input(f'Do you want to clean the objects [y]/n? ') != 'n':
-        print(f'Cleaning object in {args.object_dir}...')
-        clean_meshes(object_folder=os.path.basename(args.object_dir), dataroot=os.path.dirname(args.object_dir))
+        print(f'Cleaning object in {object_dir}...')
+        clean_meshes(object_folder=os.path.basename(object_dir), dataroot=os.path.dirname(object_dir))
         print('Done.')
 
-    print(f'Loading object from {args.object_dir}.')
-    name, fragments = load_object(args.object_dir)
+    print(f'Loading object from {object_dir}.')
+    name, fragments = load_object(object_dir)
     print(f'Loaded object {name} with {len(fragments)} fragments.')
 
     keypoint_method = 'hybrid'
@@ -81,22 +86,22 @@ def main():
             vertices = np.array(pcd.points)
             normals = np.array(pcd.normals)
             descriptors, descriptors_inverted = get_descriptors(vertices, normals, descriptor_method)
-            keypoints, keypoint_idxs = get_keypoints(i, vertices, normals, keypoint_method, args.object_dir, npoints=512)
+            keypoints, keypoint_idxs = get_keypoints(i, vertices, normals, keypoint_method, object_dir, npoints=512)
             kpts_desc_n = descriptors[keypoint_idxs]
             if descriptors_inverted:
                 kpts_desc_inv = descriptors_inverted[keypoint_idxs]
             else:
                 kpts_desc_inv = None
-            save_descriptors(kpts_desc_n, kpts_desc_inv, args.object_dir, keypoint_method, descriptor_method, fragment_id=i)
+            save_descriptors(kpts_desc_n, kpts_desc_inv, object_dir, keypoint_method, descriptor_method, fragment_id=i)
         print(f'Done.')
 
     if args.use_predictions:
         print(f'Predicting keypoint matches with GNN...')
-        predict(default_weights, args.object_dir, single_object=True)
+        predict(default_weights, object_dir, single_object=True)
         print(f'Done.')
 
     print('Reassembling the object...')
-    obj = FracturedObject(path=args.object_dir, graph_matching_method='mst')
+    obj = FracturedObject(path=object_dir, graph_matching_method='mst')
     obj.load_object()
     obj.load_matches(use_ground_truth=not args.use_predictions)
     if args.pairwise:
